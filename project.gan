@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?><project name="Untitled Gantt Project" company="" webLink="http://" view-date="2014-10-21" view-index="0" gantt-divider-location="353" resource-divider-location="300" version="2.0" locale="en_US">
+<?xml version="1.0" encoding="UTF-8"?><project name="Untitled Gantt Project" company="" webLink="http://" view-date="2014-10-21" view-index="0" gantt-divider-location="415" resource-divider-location="300" version="2.0" locale="en_US">
     <description/>
     <view zooming-state="default:2" id="gantt-chart">
-        <field id="tpd3" name="Name" width="57" order="0"/>
-        <field id="tpd4" name="Begin date" width="21" order="1"/>
-        <field id="tpd5" name="End date" width="21" order="2"/>
+        <field id="tpd3" name="Name" width="67" order="0"/>
+        <field id="tpd4" name="Begin date" width="14" order="1"/>
+        <field id="tpd5" name="End date" width="17" order="2"/>
     </view>
     <view id="resource-table">
-        <field id="0" name="Name" width="70" order="0"/>
-        <field id="1" name="Default role" width="29" order="1"/>
+        <field id="0" name="Name" width="56" order="0"/>
+        <field id="1" name="Default role" width="43" order="1"/>
     </view>
     <!-- -->
     <calendars>
@@ -35,22 +35,40 @@
             <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
             <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
         </taskproperties>
-        <task id="7" name="Einarbeitung EdgeDetect" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
-            <depend id="8" type="2" difference="0" hardness="Strong"/>
+        <task id="25" name="Anforderungsanalyse" color="#8cb6ce" meeting="false" start="2014-10-24" duration="1" complete="0" expand="true"/>
+        <task id="26" name="Indizierung" meeting="false" start="2014-10-21" duration="18" complete="0" expand="true">
+            <task id="10" name="Einarbeitung ColorHist" color="#8cb6ce" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
+                <depend id="11" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="11" name="ColorHist" color="#8cb6ce" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
+                <depend id="32" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="32" name="Test ColorHist" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true">
+                <depend id="14" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="7" name="Einarbeitung EdgeDetect" color="#8cb6ce" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
+                <depend id="8" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="8" name="EdgeDetect" color="#8cb6ce" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
+                <depend id="34" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="34" name="Test EdgeDetect" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true">
+                <depend id="14" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="13" name="Einarbeitung ShotBound" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
+                <depend id="14" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="14" name="ShotBound" meeting="false" start="2014-11-07" duration="5" complete="0" expand="true"/>
+            <task id="22" name="Einarbeitung in MongoDB" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
+                <depend id="23" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="23" name="Entwurf JSON-Dokumente" meeting="false" start="2014-10-22" duration="1" complete="0" expand="true">
+                <depend id="30" type="2" difference="0" hardness="Strong"/>
+            </task>
         </task>
-        <task id="8" name="EdgeDetect" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
-            <depend id="14" type="2" difference="0" hardness="Strong"/>
-        </task>
-        <task id="10" name="Einarbeitung ColorHist" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
-            <depend id="11" type="2" difference="0" hardness="Strong"/>
-        </task>
-        <task id="11" name="ColorHist" meeting="false" start="2014-10-22" duration="1" complete="0" expand="true">
-            <depend id="14" type="2" difference="0" hardness="Strong"/>
-        </task>
-        <task id="13" name="Einarbeitung ShotBound" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
-            <depend id="14" type="2" difference="0" hardness="Strong"/>
-        </task>
-        <task id="14" name="ShotBound" meeting="false" start="2014-11-04" duration="1" complete="0" expand="true"/>
+        <task id="30" name="Interface Front-/Backend" meeting="false" start="2014-10-23" duration="1" complete="0" expand="true"/>
+        <task id="36" name="Testing Library für C" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true"/>
+        <task id="45" name="Testing-Tool für Frontend" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true"/>
         <task id="16" name="Einarbeitung TurboGears" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
             <depend id="17" type="2" difference="0" hardness="Strong"/>
         </task>
@@ -62,8 +80,26 @@
         </task>
         <task id="21" name="Implementierung Prototyp(Frontend)" meeting="false" start="2014-10-24" duration="1" complete="0" expand="true"/>
     </tasks>
-    <resources/>
-    <allocations/>
+    <resources>
+        <resource id="0" name="Johannes Busch" function="Default:0" contacts="" phone=""/>
+        <resource id="1" name="Dariusz Drzimalla" function="Default:0" contacts="" phone=""/>
+        <resource id="2" name="Patrick Henrici" function="Default:0" contacts="" phone=""/>
+        <resource id="3" name="Gregor Ratmann" function="Default:0" contacts="" phone=""/>
+        <resource id="4" name="Dennis Müller" function="Default:0" contacts="" phone=""/>
+    </resources>
+    <allocations>
+        <allocation task-id="25" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="32" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="11" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="10" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="25" resource-id="1" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="25" resource-id="2" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="25" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="25" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="7" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="8" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="34" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+    </allocations>
     <vacations/>
     <taskdisplaycolumns>
         <displaycolumn property-id="tpd2" order="-1" width="75" visible="false"/>
@@ -75,9 +111,9 @@
         <displaycolumn property-id="tpd9" order="-1" width="75" visible="false"/>
         <displaycolumn property-id="tpd1" order="-1" width="75" visible="false"/>
         <displaycolumn property-id="tpd0" order="-1" width="75" visible="false"/>
-        <displaycolumn property-id="tpd3" order="0" width="199" visible="true"/>
-        <displaycolumn property-id="tpd4" order="1" width="75" visible="true"/>
-        <displaycolumn property-id="tpd5" order="2" width="75" visible="true"/>
+        <displaycolumn property-id="tpd3" order="0" width="279" visible="true"/>
+        <displaycolumn property-id="tpd4" order="1" width="60" visible="true"/>
+        <displaycolumn property-id="tpd5" order="2" width="72" visible="true"/>
     </taskdisplaycolumns>
     <previous/>
     <roles roleset-name="Default"/>
