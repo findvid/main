@@ -35,10 +35,10 @@
             <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
             <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
         </taskproperties>
-        <task id="7" name="Einarbeitung EdgeDetect" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
+        <task id="7" name="Einarbeitung EdgeDetect" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
             <depend id="8" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="8" name="EdgeDetect" meeting="false" start="2014-10-22" duration="1" complete="0" expand="true">
+        <task id="8" name="EdgeDetect" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
             <depend id="14" type="2" difference="0" hardness="Strong"/>
         </task>
         <task id="10" name="Einarbeitung ColorHist" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
@@ -50,7 +50,7 @@
         <task id="13" name="Einarbeitung ShotBound" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
             <depend id="14" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="14" name="ShotBound" meeting="false" start="2014-10-23" duration="1" complete="0" expand="true"/>
+        <task id="14" name="ShotBound" meeting="false" start="2014-11-04" duration="1" complete="0" expand="true"/>
         <task id="16" name="Einarbeitung TurboGears" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
             <depend id="17" type="2" difference="0" hardness="Strong"/>
         </task>
