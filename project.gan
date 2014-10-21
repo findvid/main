@@ -6,8 +6,8 @@
         <field id="tpd5" name="End date" width="17" order="2"/>
     </view>
     <view id="resource-table">
-        <field id="0" name="Name" width="56" order="0"/>
-        <field id="1" name="Default role" width="43" order="1"/>
+        <field id="0" name="Name" width="52" order="0"/>
+        <field id="1" name="Default role" width="47" order="1"/>
     </view>
     <!-- -->
     <calendars>
@@ -36,29 +36,25 @@
             <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
         </taskproperties>
         <task id="25" name="Anforderungsanalyse" color="#8cb6ce" meeting="false" start="2014-10-24" duration="1" complete="0" expand="true"/>
-        <task id="26" name="Indizierung" meeting="false" start="2014-10-21" duration="18" complete="0" expand="true">
+        <task id="26" name="Indizierung" meeting="false" start="2014-10-21" duration="13" complete="0" expand="true">
             <task id="10" name="Einarbeitung ColorHist" color="#8cb6ce" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
                 <depend id="11" type="2" difference="0" hardness="Strong"/>
             </task>
             <task id="11" name="ColorHist" color="#8cb6ce" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
                 <depend id="32" type="2" difference="0" hardness="Strong"/>
             </task>
-            <task id="32" name="Test ColorHist" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true">
-                <depend id="14" type="2" difference="0" hardness="Strong"/>
-            </task>
+            <task id="32" name="Test ColorHist" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true"/>
             <task id="7" name="Einarbeitung EdgeDetect" color="#8cb6ce" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
                 <depend id="8" type="2" difference="0" hardness="Strong"/>
             </task>
             <task id="8" name="EdgeDetect" color="#8cb6ce" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true">
                 <depend id="34" type="2" difference="0" hardness="Strong"/>
             </task>
-            <task id="34" name="Test EdgeDetect" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true">
-                <depend id="14" type="2" difference="0" hardness="Strong"/>
-            </task>
+            <task id="34" name="Test EdgeDetect" color="#8cb6ce" meeting="false" start="2014-11-04" duration="3" complete="0" expand="true"/>
             <task id="13" name="Einarbeitung ShotBound" meeting="false" start="2014-10-21" duration="5" complete="0" expand="true">
                 <depend id="14" type="2" difference="0" hardness="Strong"/>
             </task>
-            <task id="14" name="ShotBound" meeting="false" start="2014-11-07" duration="5" complete="0" expand="true"/>
+            <task id="14" name="ShotBound" meeting="false" start="2014-10-28" duration="5" complete="0" expand="true"/>
             <task id="22" name="Einarbeitung in MongoDB" meeting="false" start="2014-10-21" duration="1" complete="0" expand="true">
                 <depend id="23" type="2" difference="0" hardness="Strong"/>
             </task>
