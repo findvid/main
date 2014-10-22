@@ -3,4 +3,4 @@ LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libav
 BUILDFILE=
 
 build: $(BUILDFILE)
-	gcc -std=c99 $(BUILDFILE) -o toast $(LIBSFFMPEG)
+	gcc -std=c99 -Iinclude $(BUILDFILE) -o toast $(LIBSFFMPEG)

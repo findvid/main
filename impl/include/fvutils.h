@@ -1,4 +1,3 @@
-//Stimmt so noch nicht, muss mehrzeiliges Makro definieren, um alle Farbkomponente zu definieren
 #define setPixel(p,x,y,c) \
 	do { \
 	p->data[0][x * 3 + y*p->linesize[0]] = ((uint8_t)(c>>16)); \
