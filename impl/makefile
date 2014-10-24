@@ -11,3 +11,6 @@ build: $(BUILDFILE)
 
 test: src/frametest.c
 	gcc $(CFLAGS) src/frametest.c -o test $(LIBSFFMPEG)
+
+histtests: src/histtests.c
+	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)
