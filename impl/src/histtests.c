@@ -19,8 +19,6 @@ int loadImage(Image *img, char *filename) {
 		return -1;
 	}
 	
-	int width;
-	int height;
 	fscanf(pFile, "P6\n%d %d\n255\n", &(img->w), &(img->h));
 	img->data = (uint8_t*) av_malloc(3*img->w*img->h*sizeof(uint8_t));
 	fread(img->data, 1, 3*img->w*img->h, pFile);
@@ -46,7 +44,7 @@ int saveImage(Image *img, char *filename) {
  * x:	int		giving the start position for a pixel
  *			the next 3 values of img are the rgb-values of that pixel
  */
-#define HISTPOS4(img, x) img[x+2] >> 6 + 2*(img[x+1] >> 6 + 2*(img[x] >> 6))
+#define HISTPOS4(img, x) ((img[x+2] >> 6) + 2*((img[x+1] >> 6) + 2*(img[x] >> 6)))
 
 /*
  * Allocates a 4x4x4 histogram and returns the pointer to it
