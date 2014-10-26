@@ -1,7 +1,7 @@
 CFLAGS = -Iinclude -Wall -std=c99
-LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil)
+LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
-BUILDFILE= 
+BUILDFILE= obj/edgedetect.o 
 
 obj/%.o: src/%.c
 	gcc $(CFLAGS) -c -o $@ $<
@@ -9,5 +9,5 @@ obj/%.o: src/%.c
 build: $(BUILDFILE)
 	gcc $(CFLAGS) $(BUILDFILE) -o shotbounds $(LIBSFFMPEG)
 
-test: src/frametest.c
-	gcc $(CFLAGS) src/frametest.c -o test $(LIBSFFMPEG)
+test: $(BUILDFILE) src/frametest.c 
+	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o test $(LIBSFFMPEG)

@@ -1,3 +1,4 @@
+#pragma once
 #include <libswscale/swscale.h>
 #define setPixel(p,x,y,c) \
 	do { \
