@@ -11,3 +11,8 @@ build: $(BUILDFILE)
 
 test: $(BUILDFILE) src/frametest.c 
 	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o test $(LIBSFFMPEG)
+
+testcase1: $(BUILDFILE) src/edgetest.c 
+	gcc $(CFLAGS) $(BUILDFILE) src/edgetest.c -o test $(LIBSFFMPEG)
+
+

@@ -38,9 +38,9 @@ void SaveFrame(AVFrame *pFrame, int width, int height, int i) {
 	uint8_t lilbuff[3];
 	for(y = 0; y < height; y++) {
 		for ( int x = 0; x < width; x++ ) {
-			lilbuff[0] = *(pFrame->data[0] + x + y*pFrame->linesize[0]);
-			lilbuff[1] = *(pFrame->data[0] + x + y*pFrame->linesize[0]);
-			lilbuff[2] = *(pFrame->data[0] + x + y*pFrame->linesize[0]);
+			lilbuff[0] = pFrame->data[0][x + y*pFrame->linesize[0]];
+			lilbuff[1] = pFrame->data[0][x + y*pFrame->linesize[0]];
+			lilbuff[2] = pFrame->data[0][x + y*pFrame->linesize[0]];
 			fwrite(lilbuff, 1, 3, pFile);
 		}
 	}
@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 	int frameFinished = 0;
 	AVPacket packet;
 	// Mind that we read from pFormatCtx, which is the general container file...
-	while (av_read_frame(pFormatCtx, &packet) >= 0 && frameCount <= 5) {
+	while (av_read_frame(pFormatCtx, &packet) >= 0 && frameCount <= 0) {
 		// ... therefore, not every packet belongs to our video stream!
 		if (packet.stream_index == videoStream) {
 			// Packet is part of the video stream previously found
