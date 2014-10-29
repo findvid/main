@@ -44,7 +44,7 @@ int saveImage(Image *img, char *filename) {
  * x:	int		giving the start position for a pixel
  *			the next 3 values of img are the rgb-values of that pixel
  */
-#define HISTPOS4(img, x) ((img[x+2] >> 6) + 2*((img[x+1] >> 6) + 2*(img[x] >> 6)))
+#define HISTPOS4(img, x) ((img[x+2] >> 6) + 2<<((img[x+1] >> 6) + 2<<(img[x] >> 6)))
 
 /*
  * Allocates a 4x4x4 histogram and returns the pointer to it
