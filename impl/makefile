@@ -1,4 +1,4 @@
-CFLAGS = -Iinclude -Wall -std=c99
+CFLAGS = -Iinclude -Wall -std=c99 -g
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
 BUILDFILE= obj/edgedetect.o 

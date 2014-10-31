@@ -6,51 +6,6 @@
 #include "fvutils.h"
 #include "edgedetect.h"
 
-void SaveFrame(AVFrame *pFrame, int width, int height, int i) {
-	FILE *pFile;
-	char szFilename[32];
-	int  y;
-
-	// Open file
-	sprintf(szFilename, "frame%d.ppm", i);
-	pFile=fopen(szFilename, "wb");
-	if(pFile==NULL)
-		return;
-	
-	//Just a macro test for setting and getting pixels in AVFrames/AVPictures
-	/* 
-	for(y = 0; y < height; y++) {
-		setPixel(pFrame,0,y,0xff0000);
-		printf("Readback=%x\n", getPixel(pFrame,0,y));
-	}*/
-
-	// Print header for .ppm-format
-	fprintf(pFile, "P6\n%d %d\n255\n", width, height);   
-	// Write bytevectors into file
-
-	//RGB24
-	/*
-	for(y = 0; y < height; y++)
-		fwrite(pFrame->data[0]+y*pFrame->linesize[0], 1, width*3, pFile);
-	*/
-
-	//GRAY8
-	uint8_t lilbuff[3];
-	for(y = 0; y < height; y++) {
-		for ( int x = 0; x < width; x++ ) {
-			lilbuff[0] = pFrame->data[0][x + y*pFrame->linesize[0]];
-			lilbuff[1] = pFrame->data[0][x + y*pFrame->linesize[0]];
-			lilbuff[2] = pFrame->data[0][x + y*pFrame->linesize[0]];
-			fwrite(lilbuff, 1, 3, pFile);
-		}
-	}
-
-	
-
-	// Close file
-	fclose(pFile);
-}
-
 int main(int argc, char** argv) {
 	// Registers all available codecs
 	av_register_all();
@@ -131,12 +86,10 @@ int main(int argc, char** argv) {
 			// frameFinished is set be avcodec_decode_video2 accordingly
 			if (frameFinished) {
 				frameCount++;
+				
+				//Get EdgeProfile and save it to disk
 				AVFrame * pFrameRGB = getEdgeProfile(pFrame, img_convert_ctx, pCodecCtx->width, pCodecCtx->height);
-
-				// Convert pFrame into a simple bitmap format
-				//sws_scale(img_convert_ctx,(const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
-				// and save the first 5 frames to disk. Because we can
-				SaveFrame((AVFrame *)pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
+				SaveFrameG8(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
 
 				av_free(pFrameRGB);
 			}
