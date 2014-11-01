@@ -1,0 +1,178 @@
+/* ---------- Global Styling ---------- */
+
+/* ----- Colors ----- */
+@button: #77b55a;
+@buttonlight: #72b352;
+@buttonshadow: #b2f392;
+@buttonborder: #4b8f29;
+@buttontext: #ffffff;
+
+body {
+	font-family: Arial;
+}
+
+
+/* ----- Green Buttons ----- */
+.button {
+	display:inline-block;
+	cursor:pointer;
+
+	background-color: @button;
+	border:1px solid @buttonborder;
+
+	color: @buttontext;
+
+	font-family:arial;
+	font-size:13px;
+	font-weight:bold;
+	text-decoration:none;
+
+	padding:4px 10px;
+
+	/* Box-Shadow - Multi-Browser */
+	-moz-box-shadow: inset 0px 1px 0px 0px @buttonshadow;
+	-webkit-box-shadow: inset 0px 1px 0px 0px @buttonshadow;
+	box-shadow: inset 0px 1px 0px 0px @buttonshadow;
+
+	/* Gradient-Background - Multi-Browser */
+	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, @button), color-stop(1, @buttonlight));
+	background:-moz-linear-gradient(top, @button 5%, @buttonlight 100%);
+	background:-webkit-linear-gradient(top, @button 5%, @buttonlight 100%);
+	background:-o-linear-gradient(top, @button 5%, @buttonlight 100%);
+	background:-ms-linear-gradient(top, @button 5%, @buttonlight 100%);
+	background:linear-gradient(to bottom, @button 5%, @buttonlight 100%);
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='@button', endColorstr='@buttonlight',GradientType=0);
+	
+	/* Round Corners - Multi-Browser */
+	/*-moz-border-radius:4px;
+	-webkit-border-radius:4px;
+	border-radius:4px;*/
+
+	&:active {
+		position:relative;
+		top:1px;
+	}
+}
+
+
+
+
+/* ---------- Menu ---------- */
+
+.menu {
+	width: 100%;
+	height: 72px;
+
+	border-bottom: 2px solid black;
+
+	/* The Container 'wrap' is for general positioning */
+	.wrap {
+		float: left;
+
+		margin-top: 27px;
+	}
+
+	.menu-wrap {
+		height: 100%;
+		width: 1050px;
+
+		margin: auto;
+
+		/* ----- Logo ----- */
+		.logo {
+			width: 200px;
+			float: left;
+			
+			padding-right: 50px;
+		
+			.logotext{
+				font-size: 60px;
+				font-family: Calibri;
+				text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+				
+				color: white;
+			
+				&.vid {
+					font-size: 50px;
+				}
+			}
+		}
+
+		/* ----- Search ----- */
+		.searchnavi {
+			height: 100%;
+			width: 450px;
+			float: left;
+		
+			.searchbar {
+				position: relative;
+				width: 370px;
+				float: left;
+
+				border: 2px solid black;
+				-moz-border-radius: 20px;
+				-webkit-border-radius: 20px;
+				border-radius: 20px;
+				
+				padding: 3px 10px 3px 10px;
+				margin-right: 10px;
+
+				.icon {
+					height: 16px;
+					width: 16px;
+
+					&.searchicon {
+						float: left;
+
+						background: url('../images/search.png');
+					}
+
+					&.closeicon {
+						float: right;
+
+						background: url('../images/close_white.png');
+						cursor: pointer;
+
+						&:hover {
+							background: url('../images/close_black.png');
+						}
+					}
+				}
+			
+				.searchfield {
+					position: absolute;
+					top: 3px;
+					left: 33px;
+
+					border: none;
+				
+					&:hover {
+						top: 2px;
+						left: 32px;
+
+						border: 1px solid lightgrey;
+					}
+
+					&:focus {
+						top: 2px;
+						left: 32px;
+
+						border: 1px solid #1c65b9;
+					}
+				}
+			}
+		}
+	
+		/* ----- Upload ----- */
+		.uploadwindow {
+			height: 100%;
+			float: left;
+			
+			padding-left: 50px;
+
+			span.label {
+				padding-left: 5px;
+			}
+		}
+	}
+}
