@@ -175,11 +175,14 @@ int main(int argc, char** argv) {
 		return -1;
 	
 	// Some buffer needed for avpicture_fill
-	int numBytes = avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
-	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+//	int numBytes = avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+//	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
 	// Initialize pFrameRGB as empty frame
-	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+//	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+	avpicture_alloc((AVPicture *)pFrameRGB, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+	printf("%d, %d\n", pCodecCtx->width, pCodecCtx->height); 
+	printf("%d, %d\n", pFrameRGB->width, pFrameRGB->height); 
 
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	struct SwsContext *img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
@@ -219,7 +222,7 @@ int main(int argc, char** argv) {
 			// frameFinished is set be avcodec_decode_video2 accordingly
 			if (frameFinished) {
 				// Convert pFrame into a simple bitmap format
-				sws_scale(img_convert_ctx,(const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
+				sws_scale(img_convert_ctx, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
 				
 				// and save the first 5 frames to disk. Because we can
 				//SaveFrame(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
@@ -255,7 +258,7 @@ int main(int argc, char** argv) {
 	free(this);
 	free(diff);
 
-	av_free(buffer);
+//	av_free(buffer);
 	av_free(pFrameRGB);
 	av_free(pFrame);
 
