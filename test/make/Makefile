@@ -18,6 +18,7 @@ GTEST_DIR = ..
 
 # Where to find user code.
 USER_DIR = ../../impl/src
+USER_HEADERS = ../../impl/include
 
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
@@ -25,7 +26,7 @@ USER_DIR = ../../impl/src
 CPPFLAGS += -isystem $(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -Wall -Wextra -pthread
+CXXFLAGS += -g -Wall -Wextra -pthread -I$(USER_HEADERS)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
@@ -80,3 +81,7 @@ sample1_unittest.o : $(USER_DIR)/sample1_unittest.cc \
 
 sample1_unittest : sample1.o sample1_unittest.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+
+edgetest: $(USER_DIR)/edgetest.c gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+
