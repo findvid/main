@@ -4,12 +4,12 @@
 /**
  *
  */
-#define GETBINHSV(hsv) ((hsv.h / 45) << 4) + ((hsv.s >> 6) << 2) + (hsv.v >> 6)
+#define GETBINHSV(hsv) (((hsv.h / 45) << 4) + ((hsv.s >> 6) << 2) + (hsv.v >> 6))
 
 /**
  * 
  */
-#define GETBINRGB(img, p) ((img[p] >> 6) << 4) + ((img[p+1] >> 6) << 2) + (img[p+2] >> 6)
+#define GETBINRGB(img, p) (((img[p] >> 6) << 4) + ((img[p+1] >> 6) << 2) + (img[p+2] >> 6))
 
 /**
  * Allocates a 4x4x4 color histogram
