@@ -17,3 +17,7 @@ histtests: src/histtests.c
 
 histograms: src/histograms.c
 	gcc -c $(CFLAGS) src/histograms.c -o obj/histograms.o $(LIBSFFMPEG)
+
+histograms_test: unittests/histograms_test.c obj/histograms.o
+	g++ -c $(CFLAGS) unittests/histograms_test.c -o obj/histograms_test.o
+	g++ $(CFLAGS) obj/histograms_test.o obj/histograms.o -o histograms_test -lgtest -lpthread $(LIBSFFMPEG)
