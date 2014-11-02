@@ -7,50 +7,35 @@
 @buttonborder: #4b8f29;
 @buttontext: #ffffff;
 
+@navileft: #ed0600;
+@naviright: #058ca9;
+
+
 body {
 	font-family: Arial;
+	margin: 0;
 }
 
 
 /* ----- Green Buttons ----- */
 .button {
+	height: 15px;
+
+	padding: 8px;
+
 	display:inline-block;
 	cursor:pointer;
 
-	background-color: @button;
-	border:1px solid @buttonborder;
+	background-color: #fff;
 
-	color: @buttontext;
-
-	font-family:arial;
-	font-size:13px;
-	font-weight:bold;
+	font-family: "Myriad Pro", "Myriad";
+	font-size: 11pt;
+	color: #575756;
 	text-decoration:none;
-
-	padding:4px 10px;
-
-	/* Box-Shadow - Multi-Browser */
-	-moz-box-shadow: inset 0px 1px 0px 0px @buttonshadow;
-	-webkit-box-shadow: inset 0px 1px 0px 0px @buttonshadow;
-	box-shadow: inset 0px 1px 0px 0px @buttonshadow;
-
-	/* Gradient-Background - Multi-Browser */
-	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, @button), color-stop(1, @buttonlight));
-	background:-moz-linear-gradient(top, @button 5%, @buttonlight 100%);
-	background:-webkit-linear-gradient(top, @button 5%, @buttonlight 100%);
-	background:-o-linear-gradient(top, @button 5%, @buttonlight 100%);
-	background:-ms-linear-gradient(top, @button 5%, @buttonlight 100%);
-	background:linear-gradient(to bottom, @button 5%, @buttonlight 100%);
-	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='@button', endColorstr='@buttonlight',GradientType=0);
-	
-	/* Round Corners - Multi-Browser */
-	/*-moz-border-radius:4px;
-	-webkit-border-radius:4px;
-	border-radius:4px;*/
 
 	&:active {
 		position:relative;
-		top:1px;
+		color: #C7C7C6;
 	}
 }
 
@@ -61,20 +46,33 @@ body {
 
 .menu {
 	width: 100%;
-	height: 72px;
+	height: 90px;
 
-	border-bottom: 2px solid black;
+	padding-top:0;
+
+	/* Gradient-Background - Multi-Browser */
+	background: -moz-linear-gradient(left, @navileft 0%, @navileft 48%, @naviright 52%, @naviright 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, right top, color-stop(0%,@navileft), color-stop(48%,@navileft), color-stop(52%,@naviright), color-stop(100%,@naviright)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(left, @navileft 0%, @navileft 48%, @naviright 52%, @naviright 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(left, @navileft 0%, @navileft 48%, @naviright 52%, @naviright 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(left, @navileft 0%, @navileft 48%, @naviright 52%, @naviright 100%); /* IE10+ */
+	background: linear-gradient(to right, @navileft 0%, @navileft 48%, @naviright 52%, @naviright 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ed0600', endColorstr='#058ca9',GradientType=1 ); /* IE6-9 */
+
+	border-bottom: 3px solid #dadada;
 
 	/* The Container 'wrap' is for general positioning */
 	.wrap {
 		float: left;
 
-		margin-top: 27px;
+		margin-top: 30px;
 	}
 
 	.menu-wrap {
 		height: 100%;
-		width: 1050px;
+		width: 1024px;
+
+		background: url('../images/navi_back.png');
 
 		margin: auto;
 
@@ -83,39 +81,24 @@ body {
 			width: 200px;
 			float: left;
 			
-			padding-right: 50px;
-		
-			.logotext{
-				font-size: 60px;
-				font-family: Calibri;
-				text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-				
-				color: white;
-			
-				&.vid {
-					font-size: 50px;
-				}
-			}
+			padding: 25px 0 0 30px;
 		}
 
 		/* ----- Search ----- */
 		.searchnavi {
 			height: 100%;
-			width: 450px;
 			float: left;
 		
 			.searchbar {
 				position: relative;
-				width: 370px;
+				height: 25px;
+				width: 410px;
 				float: left;
 
-				border: 2px solid black;
-				-moz-border-radius: 20px;
-				-webkit-border-radius: 20px;
-				border-radius: 20px;
-				
-				padding: 3px 10px 3px 10px;
-				margin-right: 10px;
+				background-color: #fff;
+
+				padding: 3px 8px;
+				margin-right: 3px;
 
 				.icon {
 					height: 16px;
@@ -124,40 +107,52 @@ body {
 					&.searchicon {
 						float: left;
 
+						margin-top: 5px;
+
 						background: url('../images/search.png');
 					}
 
 					&.closeicon {
 						float: right;
+						margin-top: 3.5px;
 
-						background: url('../images/close_white.png');
+						height: 18px;
+						width: 18px;
+
+						background: url('../images/clear_search.png');
+						opacity: 1;
 						cursor: pointer;
 
 						&:hover {
-							background: url('../images/close_black.png');
+							opacity: 0.6;
+						}
+
+						&:active {
+							opacity: 1;
 						}
 					}
 				}
 			
-				.searchfield {
+				input.searchfield {
 					position: absolute;
-					top: 3px;
-					left: 33px;
+					top: 8px;
+					left: 35px;
+
+					font-family: "Myriad Pro", "Myriad";
+					font-size: 11pt;
+					color: #575756;
 
 					border: none;
+					outline: none;
 				
 					&:hover {
-						top: 2px;
-						left: 32px;
-
-						border: 1px solid lightgrey;
+						border: none;
+						outline: none;
 					}
 
 					&:focus {
-						top: 2px;
-						left: 32px;
-
-						border: 1px solid #1c65b9;
+						border: none;
+						outline: none;
 					}
 				}
 			}
@@ -166,12 +161,119 @@ body {
 		/* ----- Upload ----- */
 		.uploadwindow {
 			height: 100%;
-			float: left;
-			
-			padding-left: 50px;
+			float: right;
 
-			span.label {
-				padding-left: 5px;
+			.uploadwrap {
+				float: left;
+
+				background-color: rgba(255, 255, 255, 0.3);
+				border: 8px solid rgba(255,255,255,0);
+
+				margin-top: 22px;
+
+				.button.upload {
+					border: 1px solid #fff;
+					height: 11px;
+					padding: 7px 6px 11px 6px;
+				}
+
+				.button.labels {
+					width: 181px;
+					text-align: center;
+				}
+
+				.uploadmenu {
+					display: none;
+					max-height: 500px;
+
+					padding-top: 5px;
+
+					.upload {
+						height: 50px;
+						width: 100%;
+
+						padding-top: 10px;
+
+						font-size: 8pt;
+						line-height: 145%;
+
+						.thumbnail {
+							position: relative;
+
+							height: 100%;
+							width: 80px;
+
+							float: left;
+
+							background-color: #575756;
+
+							.overlay.progress {
+								position: absolute;
+								color: #fff;
+								bottom: 0;
+								left: 3px;
+							}
+						}
+
+						.meta {
+							height: 100%;
+							max-width: 150px;
+							padding: 3px 0 0 5px;
+							float: left;
+							.label {
+								overflow: hidden;
+							}
+						}
+
+						.icons {
+							float: right;
+							height: 100%;
+							padding: 4px 0 0 10px;
+
+							cursor: pointer;
+
+							.icon {
+								float: left;
+								height: 15px;
+								width: 15px;
+
+								opacity: 1;
+
+								&:hover {
+									opacity: 0.6;
+								}
+
+								&:active {
+									opacity: 1;
+								}
+
+								&.deleteicon {
+									background: url('../images/video_delete.png');
+									margin-bottom: 7px;
+								}
+
+								&.uploadicon {
+									background: url('../images/video_upload.png');
+								}
+							}
+						}
+					}
+				}
+			
+				&.active {
+					padding: 5px;
+					background-color: rgba(255,255,255,1);
+					border: 3px solid #dadada;
+
+					.button.upload {
+						border: 1px solid #dadada;
+					}
+
+					.uploadmenu {
+						display: block;
+					}
+				}
+
 			}
 		}
 	}
