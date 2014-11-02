@@ -82,10 +82,11 @@ sample1_unittest.o : $(USER_DIR)/sample1_unittest.cc \
 sample1_unittest : sample1.o sample1_unittest.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-edgetest_objects: $(USER_DIR)/edgetest.c $(USER_DIR)/edgetest_unit.c $(USER_DIR)/edgedetect.c $(USER_HEADERS)/edgedetect.h $(GTEST_HEADERS)
+edgetest_all.a: $(USER_DIR)/edgetest.c $(USER_DIR)/edgetest_unit.c $(USER_DIR)/edgedetect.c $(USER_HEADERS)/edgedetect.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(USER_DIR)/edgetest.c $(USER_DIR)/edgetest_unit.c $(USER_DIR)/edgedetect.c $(USER_HEADERS)/edgedetect.h -lavformat -lswscale -lavcodec -lavutil
+	ar cr $@ edgetest.o edgedetect.o edgetest_unit.o
 
-edgetest: edgetest_objects gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread edgetest.o edgetest_unit.o edgedetect.o  -o $@ -lavformat -lswscale -lavcodec -lavutil
+edgetest: edgetest_all.a gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^  -o $@ -lavformat -lswscale -lavcodec -lavutil
 
 
