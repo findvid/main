@@ -1,4 +1,6 @@
-#pragma once
+#ifndef _EDGEDETECT__H_
+#define _EDGEDETECT__H_
+
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
@@ -21,4 +23,4 @@ typedef struct {
 double gauss1(double x, double deviation);
 
 AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
-
+#endif
