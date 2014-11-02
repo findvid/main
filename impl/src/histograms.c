@@ -4,23 +4,10 @@
 #include <math.h>
 #include "histograms.h"
 
-typedef struct {
-	int h;	// 0..360
-	int s;	// 0..255
-	int v;	// 0..255
-} HSV;
-
 #define MAX(a, b) ((a>b) ? a : b)
 #define MIN(a, b) ((a<b) ? a : b)
 
-/**
- * Converts rgb colors to hsv
- *
- * @param hsv	pointer to the hsv struct
- * @param r	red 0..255
- * @param g	green 0..255
- * @param b	blue 0..255
- */
+
 void rgbToHsv(HSV* hsv, int r, int g, int b) {
 	int min, max;
 	// Get the minimum of the colors
@@ -42,11 +29,11 @@ void rgbToHsv(HSV* hsv, int r, int g, int b) {
 
 	// Calculate the hue
 	if (max == r) {
-		hsv->h = 60 * ((g - b) / (max - min));
+		hsv->h = (60 * (g - b)) / (max - min);
 	} else if (max == g) {
-		hsv->h = 60 * (2 + (g - b) / (max - min));
+		hsv->h = 2 * 60 + (60 * (b - r)) / (max - min);
 	} else /*max == b*/ {
-		hsv->h = 60 * (4 + (g - b) / (max - min));
+		hsv->h = 4 * 60 + (60 * (r - g)) / (max - min);
 	}
 
 	if (hsv->h < 0) {
@@ -67,29 +54,29 @@ uint32_t* newHistHsv() {
 	return (uint32_t *)av_malloc(sizeof(uint32_t) * 128);
 }
 
-void fillHistRgb(uint32_t* hist, AVFrame* img, int w, int h) {
+void fillHistRgb(uint32_t* hist, AVFrame* img) {
 	int i;
 	// Reset the histogram to 0
 	for (i = 0; i < 64; i++) {
 		hist[i] = 0;
 	}
 	// Increase each bin for each pixel with the right color
-	for (i = 0; i < w * h; i++) {
-		hist[GETBINRGB(img->data[0], i * 3)]++;
+	for (i = 0; i < img->width * img->height; i++) {
+		hist[GETBINRGB(img->data[0][i * 3] , img->data[0][i * 3 + 1], img->data[0][i * 3 +2])]++;
 	}
 }
 
-void fillHistHsv(uint32_t* hist, AVFrame* img, int w, int h) {
+void fillHistHsv(uint32_t* hist, AVFrame* img) {
 	int i;
 	HSV hsv;
 	// Reset the histogram to 0
-	for (i = 0; i < 64; i++) {
+	for (i = 0; i < 128; i++) {
 		hist[i] = 0;
 	}
 	// Increase each bin for each pixel with the right color
-	for (i = 0; i < w * h; i++) {
+	for (i = 0; i < img->width * img->height; i++) {
 		// Convert to HSV
 		rgbToHsv(&hsv, img->data[0][i * 3], img->data[0][i * 3 + 1], img->data[0][i * 3 + 2]);
-		hist[GETBINHSV(hsv)]++;
+		hist[GETBINHSV(hsv.h, hsv.s, hsv.v)]++;
 	}
 }
