@@ -174,15 +174,10 @@ int main(int argc, char** argv) {
 	if (pFrame == NULL || pFrameRGB == NULL)
 		return -1;
 	
-	// Some buffer needed for avpicture_fill
-//	int numBytes = avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
-//	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
-	// Initialize pFrameRGB as empty frame
-//	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
 	avpicture_alloc((AVPicture *)pFrameRGB, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
-	printf("%d, %d\n", pCodecCtx->width, pCodecCtx->height); 
-	printf("%d, %d\n", pFrameRGB->width, pFrameRGB->height); 
+	pFrameRGB->width = pCodecCtx->width;
+	pFrameRGB->height = pCodecCtx->height;
 
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	struct SwsContext *img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
