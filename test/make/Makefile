@@ -30,7 +30,7 @@ CXXFLAGS += -g -Wall -Wextra -pthread -I$(USER_HEADERS)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = sample1_unittest
+TESTS = sample1_unittest edgetest
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -82,6 +82,10 @@ sample1_unittest.o : $(USER_DIR)/sample1_unittest.cc \
 sample1_unittest : sample1.o sample1_unittest.o gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
 
-edgetest: $(USER_DIR)/edgetest.c gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+edgetest_objects: $(USER_DIR)/edgetest.c $(USER_DIR)/edgetest_unit.c $(USER_DIR)/edgedetect.c $(USER_HEADERS)/edgedetect.h $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $(USER_DIR)/edgetest.c $(USER_DIR)/edgetest_unit.c $(USER_DIR)/edgedetect.c $(USER_HEADERS)/edgedetect.h -lavformat -lswscale -lavcodec -lavutil
+
+edgetest: edgetest_objects gtest_main.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread edgetest.o edgetest_unit.o edgedetect.o  -o $@ -lavformat -lswscale -lavcodec -lavutil
+
 

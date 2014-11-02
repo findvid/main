@@ -75,7 +75,7 @@ AVFrame * getGaussianGradient(AVFrame * gray, OperatorMask * mask, int width, in
 /**
  * Convolve image with sodel operator
  */
-AVFrame * getGradientMagnitudeMap(AVFrame * gray, struct SwsContext * swsctx, int width, int height) {
+AVFrame * getGradientMagnitudeMap(AVFrame * gray, int width, int height) {
 	AVFrame *res = av_frame_alloc();
 	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
 	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
@@ -150,9 +150,8 @@ AVFrame * getEdgeProfile(AVFrame *original, struct SwsContext * swsctx, int widt
 
 	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
 
-	AVFrame * sodel = getGradientMagnitudeMap(gray, swsctx, width, height);
+	AVFrame * sodel = getGradientMagnitudeMap(gray, width, height);
 	linearScale(sodel, width, height);
-	SaveFrameG8(sodel, width, height, 2);
 
 
 	//Calculate some operator masks
@@ -160,7 +159,7 @@ AVFrame * getEdgeProfile(AVFrame *original, struct SwsContext * swsctx, int widt
 	for ( int a = 0; a < OPERATOR_DIRECTIONS; a++ ) {
 		double angle = (3.1415 / OPERATOR_DIRECTIONS) * a;
 		masks[a].width = 3;
-		masks[a].off = malloc(sizeof(short) * 2 * masks[a].width);
+		masks[a].off = (short *)malloc(sizeof(short) * 2 * masks[a].width);
 		for (int p = 1; p <= masks[a].width; p++) {
 			masks[a].off[2 * (p-1)] = (short)round(p * cos(angle));
 			masks[a].off[2 * (p-1) + 1] = (short)round(p * sin(angle));
@@ -171,17 +170,11 @@ AVFrame * getEdgeProfile(AVFrame *original, struct SwsContext * swsctx, int widt
 
 	//Other shit
 	AVFrame * ggrad1 = getGaussianGradient(gray, &masks[0], width, height);
-	SaveFrameG8(ggrad1, width, height, 11);
 	AVFrame * ggrad2 = getGaussianGradient(gray, &masks[1], width, height);
-	SaveFrameG8(ggrad2, width, height, 12);
 	AVFrame * ggrad3 = getGaussianGradient(gray, &masks[2], width, height);
-	SaveFrameG8(ggrad3, width, height, 13);
 	AVFrame * ggrad4 = getGaussianGradient(gray, &masks[3], width, height);
-	SaveFrameG8(ggrad4, width, height, 14);
 	AVFrame * ggrad5 = getGaussianGradient(gray, &masks[4], width, height);
-	SaveFrameG8(ggrad5, width, height, 15);
 	AVFrame * ggrad6 = getGaussianGradient(gray, &masks[5], width, height);
-	SaveFrameG8(ggrad6, width, height, 16);
 
 	imageAdd(ggrad1, ggrad2, width, height);
 	imageAdd(ggrad1, ggrad3, width, height);
@@ -190,7 +183,6 @@ AVFrame * getEdgeProfile(AVFrame *original, struct SwsContext * swsctx, int widt
 	imageAdd(ggrad1, ggrad6, width, height);
 
 	linearScale(ggrad1, width, height);
-	SaveFrameG8(ggrad1, width, height, 20);
 	
 
 	av_free(ggrad2);
@@ -216,7 +208,6 @@ AVFrame * getEdgeProfile(AVFrame *original, struct SwsContext * swsctx, int widt
 		}
 	}
 
-	SaveFrameG8(gray, width, height, 1);
 	//Clean up + Ship it
 	
 	//wreck calculated masks
