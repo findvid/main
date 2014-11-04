@@ -3,6 +3,9 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 
+//Inlucde this for other code sections using FFMPEG
+#include <libavutil/mem.h>
+
 #define setPixel(p,x,y,c) \
 	do { \
 	p->data[0][(x) * 3 + (y)*p->linesize[0]] = ((uint8_t)(c>>16)); \
