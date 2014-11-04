@@ -1,5 +1,8 @@
 #pragma once
 #include <libswscale/swscale.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+
 #define setPixel(p,x,y,c) \
 	do { \
 	p->data[0][(x) * 3 + (y)*p->linesize[0]] = ((uint8_t)(c>>16)); \
@@ -69,4 +72,3 @@ void SaveFrameG8(AVFrame * pFrame, int width, int height, int i) {
 	// Close file
 	fclose(pFile);
 }
-

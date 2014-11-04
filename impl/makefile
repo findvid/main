@@ -4,7 +4,7 @@ LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libav
 BUILDFILE= obj/edgedetect.o 
 
 obj/%.o: src/%.c
-	gcc $(CFLAGS) -c -o $@ $<
+	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
 build: $(BUILDFILE)
 	gcc $(CFLAGS) $(BUILDFILE) -o shotbounds $(LIBSFFMPEG)
@@ -12,7 +12,5 @@ build: $(BUILDFILE)
 test: $(BUILDFILE) src/frametest.c 
 	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o test $(LIBSFFMPEG)
 
-testcase1: $(BUILDFILE) src/edgetest.c 
-	gcc $(CFLAGS) $(BUILDFILE) src/edgetest.c -o test $(LIBSFFMPEG)
-
-
+testcase1: $(BUILDFILE) src/edgetest_unit.cc
+	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
