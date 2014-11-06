@@ -80,3 +80,23 @@ void fillHistHsv(uint32_t* hist, AVFrame* img) {
 		hist[GETBINHSV(hsv.h, hsv.s, hsv.v)]++;
 	}
 }
+
+uint32_t histDiffRgb(uint32_t *h1, uint32_t *h2) {
+        int i;
+        int diff = 0;
+	// Add up the difference per bin
+        for (i = 0; i < 4*4*4; i++) {
+                diff += abs(h1[i] - h2[i]);
+        }
+        return diff;
+}
+
+uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2) {
+        int i;
+        int diff = 0;
+	// Add up the difference per bin
+        for (i = 0; i < 8*4*4; i++) {
+                diff += abs(h1[i] - h2[i]);
+        }
+        return diff;
+}
