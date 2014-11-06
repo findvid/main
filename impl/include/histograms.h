@@ -53,8 +53,8 @@ uint32_t* newHistHsv();
  * Fills a color histogram with data from a frame
  * The histogram is a 4x4x4 RGB-histogram
  *
- * @hist	pointer to the histogram array
- * @img		the image a histogram should be created for. Make sure height and width are set.
+ * @param hist	pointer to the histogram array
+ * @param img	the image a histogram should be created for. Make sure height and width are set.
  */
 void fillHistRgb(uint32_t* hist, AVFrame* img);
 
@@ -62,8 +62,25 @@ void fillHistRgb(uint32_t* hist, AVFrame* img);
  * Fills a color histogram with data from a frame
  * The histogram is a 8x4x4 HSV-histogram
  *
- * @hist	pointer to the histogram array
- * @img		the image a histogram should be created for. Make sure height and width are set.
+ * @param hist	pointer to the histogram array
+ * @param img	the image a histogram should be created for. Make sure height and width are set.
  */
 void fillHistHsv(uint32_t* hist, AVFrame* img);
 
+/*
+ * Calculates the difference between two 4x4x4 histograms
+ * 
+ * @param h1	First histogram
+ * @param h2	Second histogram
+ * @return	sum of the bin differences between h1 and h2
+ */
+uint32_t histDiffRgb(uint32_t *h1, uint32_t *h2);
+
+/*
+ * Calculates the difference between two 8x4x4 histograms
+ * 
+ * @param h1	First histogram
+ * @param h2	Second histogram
+ * @return	sum of the bin differences between h1 and h2
+ */
+uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2);
