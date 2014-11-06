@@ -272,6 +272,54 @@ TEST_F(fillHistHsvTest, mixedColors) {
 	}
 }
 
+TEST(histDiffRgbTest, sameHist) {
+	uint32_t* h1 = newHistRgb();
+	h1[0] = 17;
+	h1[35] = 123;
+	h1[63] = 4;
+	EXPECT_EQ(0, histDiffRgb(h1, h1));
+	free(h1);
+}
+
+TEST(histDiffRgbTest, differentHist) {
+	uint32_t* h1 = newHistRgb();
+	uint32_t* h2 = newHistRgb();
+	int sum = 0;
+	int i;
+	for (i = 0; i < 64; i++) {
+		h1[i] = i;
+		h2[i] = 2*i;
+		sum += i;
+	}
+	EXPECT_EQ(sum, histDiffRgb(h1, h2));
+	free(h1);
+	free(h2);
+}
+
+TEST(histDiffHsvTest, sameHist) {
+	uint32_t* h1 = newHistHsv();
+	h1[0] = 17;
+	h1[35] = 123;
+	h1[127] = 4;
+	EXPECT_EQ(0, histDiffHsv(h1, h1));
+	free(h1);
+}
+
+TEST(histDiffHsvTest, differentHist) {
+	uint32_t* h1 = newHistHsv();
+	uint32_t* h2 = newHistHsv();
+	int sum = 0;
+	int i;
+	for (i = 0; i < 128; i++) {
+		h1[i] = i;
+		h2[i] = 2*i;
+		sum += i;
+	}
+	EXPECT_EQ(sum, histDiffHsv(h1, h2));
+	free(h1);
+	free(h2);
+}
+
 int main(int argc, char *argv[]) {
 	testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
