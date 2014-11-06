@@ -35,5 +35,5 @@ AVFrame * getGaussianGradient(AVFrame *, OperatorMask *, int width, int height);
 AVFrame * getEdgeProfileGauss(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 AVFrame * getEdgeProfileSodel(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, struct SwsContext * swsctx, int width, int height);
+double * detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, double * feedback, struct SwsContext * swsctx, int width, int height);
 #endif
