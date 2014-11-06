@@ -6,6 +6,8 @@
 #include <libswscale/swscale.h>
 #include <libavutil/mem.h>
 
+#include "largelist.h"
+
 #define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<height) && ((x)<width))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):127)
 
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
@@ -32,4 +34,6 @@ AVFrame * getGaussianGradient(AVFrame *, OperatorMask *, int width, int height);
 
 AVFrame * getEdgeProfileGauss(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 AVFrame * getEdgeProfileSodel(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, struct SwsContext * swsctx, int width, int height);
 #endif

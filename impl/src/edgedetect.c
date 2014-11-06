@@ -151,7 +151,7 @@ AVFrame * getEdgeProfileSodel(AVFrame *original, struct SwsContext * swsctx, int
 	AVFrame * sodel = getGradientMagnitudeMap(gray, width, height);
 	linearScale(sodel, width, height);
 
-	SaveFrameG8(sodel, width, height, 20);
+	//SaveFrameG8(sodel, width, height, 20);
 
 	//Initialize an empty frame
 	AVFrame *res = av_frame_alloc();
@@ -269,4 +269,8 @@ AVFrame * getEdgeProfileGauss(AVFrame *original, struct SwsContext * swsctx, int
 	av_free(gray);	
 	
 	return res;
+}
+
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, struct SwsContext * swsctx, int width, int height) {
+	
 }

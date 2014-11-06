@@ -1,20 +1,23 @@
 CFLAGS = -Iinclude -Wall -std=c99 -g
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
-BUILDFILES= obj/edgedetect.o obj/histograms.o obj/shotbounds.o
+BUILDFILES= obj/largelist.o obj/edgedetect.o obj/histograms.o obj/shotbounds.o
 
-test: src/frametest.c
+clean:
+	rm -f ./test
+	rm -f obj/*
 
 obj/%.o: src/%.c
-	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
+	gcc $(CFLAGS) -c -o $@ $<
+
+obj/backend.o: $(BUILDFILES)
+	ar cr $@ $(BUILDFILES)
 
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
 
-testcase1: $(BUILDFILES) src/edgetest_unit.cc
+edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
-
-	gcc $(CFLAGS) src/frametest.c -o test $(LIBSFFMPEG)
 
 histtests: src/histtests.c
 	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)
@@ -28,3 +31,6 @@ readframe: src/readframe.c
 histograms_test: unittests/histograms_test.c obj/histograms.o
 	g++ -c $(CFLAGS) unittests/histograms_test.c -o obj/histograms_test.o
 	g++ $(CFLAGS) obj/histograms_test.o obj/histograms.o -o histograms_test -lgtest -lpthread $(LIBSFFMPEG)
+
+listtests: obj/largelist.o unittests/largelist_test.cc
+	g++ $(CFLAGS) $^ -o test -lgtest -lpthread

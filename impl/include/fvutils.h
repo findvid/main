@@ -1,9 +1,11 @@
-#pragma once
+#ifndef _FVUTILS__H_
+#define _FVUTILS__H_
+
 #include <libswscale/swscale.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 
-//Inlucde this for other code sections using FFMPEG
+//Include this for other code sections using FFMPEG
 #include <libavutil/mem.h>
 
 #define setPixel(p,x,y,c) \
@@ -75,3 +77,4 @@ void SaveFrameG8(AVFrame * pFrame, int width, int height, int i) {
 	// Close file
 	fclose(pFile);
 }
+#endif

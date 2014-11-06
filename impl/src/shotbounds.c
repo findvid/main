@@ -1,9 +1,17 @@
+#include <unistd.h>
+
 #include "fvutils.h"
 #include "edgedetect.h"
 #include "histograms.h"
+#include "largelist.h"
+
+//We wanted to use 4GB...incidentally that's exactly the size of an int in bytes, so that causes an overflow. <.<
+#define MAX_MEMORY_USAGE (1 * 1024 * 1024 * 1024)
 
 #define DESTINATION_WIDTH 320
 #define DESTINATION_HEIGHT 200
+
+#define TOTAL_FRAMES_IN_MEMORY (MAX_MEMORY_USAGE / (DESTINATION_WIDTH * DESTINATION_HEIGHT * 3))
 
 int main(int argc, char **argv) {	
 	// Registers all available codecs
@@ -53,20 +61,15 @@ int main(int argc, char **argv) {
 
 	// Allocate frame to read packets into
 	AVFrame *pFrame = av_frame_alloc();
-	AVFrame *pFrameG8 = av_frame_alloc();
 	AVFrame *pFrameRGB24 = av_frame_alloc();
 
-	if (pFrame == NULL || pFrameRGB24 == NULL || pFrameG8 == NULL) 
+	if (pFrame == NULL || pFrameRGB24 == NULL) 
 		return -1;
 
 	
 	int numBytes = avpicture_get_size(PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 	uint8_t *buffer_rgb24 = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 	avpicture_fill((AVPicture *)pFrameRGB24, buffer_rgb24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-
-	numBytes = avpicture_get_size(PIX_FMT_GRAY8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-	uint8_t *buffer_g8 = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-	avpicture_fill((AVPicture *)pFrameG8, buffer_g8, PIX_FMT_GRAY8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	//Convert into a smaller frame for easier processing
@@ -77,6 +80,15 @@ int main(int argc, char **argv) {
 	int frameCount = 0;
 	int frameFinished = 0;
 	AVPacket packet;
+
+	//List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
+	//Each block of data should be the size of a mempage and contains pointers.
+	LargeList * list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+
+	//Another list to store the position of cut frames; a bit ugly, because void pointers store integers this way, but pragmatic
+	LargeList * list_cuts_edges = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
+	LargeList * list_cuts_colors = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
+
 	// Mind that we read from pFormatCtx, which is the general container file...
 	while (av_read_frame(pFormatCtx, &packet) >= 0) {
 		// ... therefore, not every packet belongs to our video stream!
@@ -89,23 +101,91 @@ int main(int argc, char **argv) {
 			// frameFinished is set be avcodec_decode_video2 accordingly
 			if (frameFinished) {
 				frameCount++;
+				//Convert to a smaller frame for faster processing	
+				sws_scale(convert_rgb24, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, 0, pFrameRGB24->data, pFrameRGB24->linesize);
 				
-				sws_scale(convert_rgb24, pFrame->data, pFrame->linesize, 0, 0, pFrameRGB24->data, pFrameRGB24->linesize);
-				sws_scale(convert_g8, pFrame->data, pFrame->linesize, 0, 0, pFrameG8->data, pFrameG8->linesize);
+				list_push(list_frames, pFrameRGB24);
 
+				//If one bulk of frames is filled, let the frames be processed first and clear the list
+				if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
+					//HERE THERE BE PROCESSING
+					
+					//call a method to fill list_cuts with detected cut frames
+					detectCutsByEdges(list_frames, list_cuts_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+					
+					//do something similiar for color histograms
+					//your move
+
+					//Get rid of the old frames and destroy the list
+					list_forall(list_frames, av_free);
+					list_destroy(list_frames);
+					// ... and get a new one. A potential list_clear wouldn't do much else, still, there are possibly some ways to do this more gracefully
+					list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+				}
 			}
 
 		}
 		av_free_packet(&packet);
 	}
 
+	//Process the (remaining) frames
+					
+	//call a method to fill list_cuts with detected cut frames
+	detectCutsByEdges(list_frames, list_cuts_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	
+	//do something similiar for color histograms
+	//your move
+	
+	
+
+	list_forall(list_frames, av_free);
+	list_destroy(list_frames);
+	
+	//Finally, sort the cuts and return it as one coherent array
+	uint32_t * cuts = malloc(sizeof(uint32_t) * (list_cuts_edges->size + list_cuts_colors->size));
+	
+	int i = 0;
+	void * v_e;
+	void * v_c;
+	ListIterator * iter_e = list_iterate(list_cuts_edges);
+	ListIterator * iter_c = list_iterate(list_cuts_colors);
+	v_e = list_next(iter_e);
+	v_c = list_next(iter_c);
+	while ((v_e != NULL) && (v_c != NULL)) {	
+		uint32_t e = (uint32_t)v_e;
+		uint32_t c = (uint32_t)v_c;
+		if ( e == c ) {
+			cuts[i++] = c;
+			v_e = list_next(iter_e);
+			v_c = list_next(iter_c);
+		} else if (e < c) {
+			cuts[i++] = e;
+			v_e = list_next(iter_e);
+		} else {
+			cuts[i++] = c;
+			v_c = list_next(iter_c);
+		}
+	}
+
+	while(v_e != NULL) {
+		cuts[i++] = (uint32_t)v_e;
+		v_e = list_next(iter_e);
+	}
+
+	while(v_c != NULL) {
+		cuts[i++] = (uint32_t)v_c;
+		v_c = list_next(iter_c);
+	}
+
+	list_destroy(list_cuts_edges);
+	list_destroy(list_cuts_colors);
+
 	av_free(pFrame);
-	av_free(pFrameG8);
-	av_free(pFrameRGB24);
 	sws_freeContext(convert_rgb24);
 	sws_freeContext(convert_g8);
+
 	avcodec_close(pCodecCtx);
-
 	avformat_close_input(&pFormatCtx);
-
+	//Still in main method, let's just pretend this goes anywhere
+	return (int)cuts;
 }
