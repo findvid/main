@@ -271,6 +271,6 @@ AVFrame * getEdgeProfileGauss(AVFrame *original, struct SwsContext * swsctx, int
 	return res;
 }
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, struct SwsContext * swsctx, int width, int height) {
+double * detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, double * feedback, struct SwsContext * swsctx, int width, int height) {
 	
 }

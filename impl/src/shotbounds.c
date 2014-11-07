@@ -5,13 +5,15 @@
 #include "histograms.h"
 #include "largelist.h"
 
-//We wanted to use 4GB...incidentally that's exactly the size of an int in bytes, so that causes an overflow. <.<
-#define MAX_MEMORY_USAGE (1 * 1024 * 1024 * 1024)
+//#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
+//always makes signed ints...not good
+uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
 
 #define DESTINATION_WIDTH 320
 #define DESTINATION_HEIGHT 200
 
 #define TOTAL_FRAMES_IN_MEMORY (MAX_MEMORY_USAGE / (DESTINATION_WIDTH * DESTINATION_HEIGHT * 3))
+
 
 int main(int argc, char **argv) {	
 	// Registers all available codecs
@@ -89,6 +91,11 @@ int main(int argc, char **argv) {
 	LargeList * list_cuts_edges = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
 	LargeList * list_cuts_colors = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
 
+	//Store feedback given by a detection feature and pass it as an argument to the next call to it
+	double * feedback_edges = NULL;
+	double * feedback_colors = NULL;
+	//should be copied into the new internal var-array and then be freed by the feature detection
+
 	// Mind that we read from pFormatCtx, which is the general container file...
 	while (av_read_frame(pFormatCtx, &packet) >= 0) {
 		// ... therefore, not every packet belongs to our video stream!
@@ -111,7 +118,8 @@ int main(int argc, char **argv) {
 					//HERE THERE BE PROCESSING
 					
 					//call a method to fill list_cuts with detected cut frames
-					detectCutsByEdges(list_frames, list_cuts_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+					//old feedback-array is freed by the function
+					feedback_edges = detectCutsByEdges(list_frames, list_cuts_edges, feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 					
 					//do something similiar for color histograms
 					//your move
@@ -137,6 +145,9 @@ int main(int argc, char **argv) {
 	//your move
 	
 	
+	//Final feedback goes nowhere
+	free(feedback_edges);
+	free(feedback_colors);
 
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
