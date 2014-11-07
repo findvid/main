@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <libavformat/avformat.h>
+#include "largelist.h"
 
 typedef struct {
 	int h;  // 0..359
@@ -18,6 +19,9 @@ typedef struct {
  */
 void rgbToHsv(HSV* hsv, int r, int g, int b);
 
+
+#define HIST_RGB_SIZE 64
+#define HIST_HSV_SIZE 128
 
 /*
  * Returns the inxed of the bin for an rgb-histogram
@@ -67,7 +71,7 @@ void fillHistRgb(uint32_t* hist, AVFrame* img);
  */
 void fillHistHsv(uint32_t* hist, AVFrame* img);
 
-/*
+/**
  * Calculates the difference between two 4x4x4 histograms
  * 
  * @param h1	First histogram
@@ -76,7 +80,7 @@ void fillHistHsv(uint32_t* hist, AVFrame* img);
  */
 uint32_t histDiffRgb(uint32_t *h1, uint32_t *h2);
 
-/*
+/**
  * Calculates the difference between two 8x4x4 histograms
  * 
  * @param h1	First histogram
@@ -84,3 +88,37 @@ uint32_t histDiffRgb(uint32_t *h1, uint32_t *h2);
  * @return	sum of the bin differences between h1 and h2
  */
 uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2);
+
+
+typedef struct {
+	uint32_t *last_hist;
+	uint32_t last_diff;
+	uint32_t last_derivation;
+	uint32_t frame_no;
+} ColorHistFeedback;
+
+/**
+ * Allocates a ColorHistFeedback for HSV histogramms
+ *
+ * @return	A newly allocated ColorHistFeedback struct
+ */
+ColorHistFeedback *newColorHistFeedbackHsv();
+
+/**
+ * Frees a ColorHistFeedback struct
+ *
+ * @param chf	The struct that should get freed
+ */
+void freeColorHistFeedback(ColorHistFeedback *chf);
+
+/**
+ * Detect hard cuts useing Colorhistograms
+ *
+ * @param list_frames	List of frames to detect cuts in. Has to contain at least 3 frames.
+ * @param list_cuts	List the detected cuts will be added to
+ * @param feedback	Feedback from the last call, can be NULL
+ * @return		Information about the last few frames, use NULL if start of video
+ * 			When the returned value is not used to for an other call
+ *			it needs to be freed using freeColorHistFeedback()
+ */
+ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, ColorHistFeedback *feedback);
