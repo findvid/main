@@ -129,31 +129,30 @@ void freeColorHistFeedback(ColorHistFeedback *chf) {
 	free(chf);
 }
 
-#define CUT_DETECT_LEVEL 5000 // Magic number that hopefully does the trick
+#define CUT_DETECT_LEVEL 10000 // Magic number that hopefully does the trick
 ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, ColorHistFeedback *feedback) {
-	uint32_t *h1, *tmp; // Histogram of the last frame
-	uint32_t *h2 = newHistHsv(); // Histogram of this frame
-	uint32_t d1 = 0; // difference from the second last to the last frame
-	uint32_t d2 = 0; // difference from the last to this frame
-	uint32_t dd1 = 0; // derivation last
-	uint32_t dd2 = 0; // derivation this
+	uint32_t *h1, *tmp; // Histogram for the last frame
+	uint32_t *h2 = newHistHsv(); // Histogram for the current frame
+	uint32_t d1; // difference from the second last to the last frame
+	uint32_t d2; // difference from the last to this frame
+	uint32_t dd1; // derivation last
+	uint32_t dd2; // derivation this
 
-	// If there is no feedback from a previous ron...
+	// If there is no feedback from a previous run...
 	if (feedback == NULL) {
 		// create a new feedback
 		feedback = newColorHistFeedbackHsv();
-		// and use its histogram (it's filled with 0s)
-		h1 = feedback->last_hist;
-	} else {
-		// if there is a previous run take its values for the start
-		h1 = feedback->last_hist;
-		d1 = feedback->last_diff;
-		dd1 = feedback->last_derivation;
 	}
+	// get the values of the last feedback for the start
+	// if there was now last feedback it will be all 0s
+	h1 = feedback->last_hist;
+	d1 = feedback->last_diff;
+	dd1 = feedback->last_derivation;
+
 	// Get the iterator and the first frame
 	ListIterator *it_frames = list_interate(list_frames);
 	AVFrame *frame = (AVFrame *)list_next(it_frames);
-	while (!= NULL) {
+	while (frame != NULL) {
 		// Get the histogramm for this frame
 		fillHistHsv(h2, frame);
 		// Get the difference to the last frame
