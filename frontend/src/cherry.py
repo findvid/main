@@ -31,7 +31,7 @@ class Root(object):
 	@cherrypy.expose
 	def index(self):
 		config = {
-			'title': 'find.vid - Testingpage',
+			'title': 'find.vid - The Videosearch Engine',
 			'videocount': '0',
 			'scenecount': '0',
 			'content': 'empty'
