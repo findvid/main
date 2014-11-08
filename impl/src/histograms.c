@@ -133,8 +133,8 @@ void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_
 		// Get the derivation of the difference
 		dd2 = d2 - d1;
 
-		// Detect hard cut when there was a big enough spike
-		if ((dd1 >= CUT_DETECT_LEVEL) && (dd2 <= (-CUT_DETECT_LEVEL))) {
+		// Detect hard cut when there was a big enough spike and it wasn't the start of the video
+		if ((dd1 >= CUT_DETECT_LEVEL) && (dd2 <= (-CUT_DETECT_LEVEL)) && (frame_no != 2)) {
 			// Put the frame before the cut on the list
 			printf("d1: %d, d2: %d, dd1: %d, dd2: %d\n", d1, d2, dd1, dd2);
 			printf("Cut at Frame %d\n", frame_no - 2);
