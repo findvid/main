@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 				//Convert to a smaller frame for faster processing	
 				sws_scale(convert_rgb24, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB24->data, pFrameRGB24->linesize);
 				
-				printf("Push frame@0x%x\n", pFrameRGB24);
+				//printf("Push frame@0x%x\n", pFrameRGB24);
 				
 				list_push(list_frames, pFrameRGB24);
 
@@ -144,12 +144,11 @@ int main(int argc, char **argv) {
 					frameBulk = frameCount;
 					//call a method to fill list_cuts with detected cut frames
 					//old feedback-array is freed by the function
-					detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-					printf("Edges done\n");
+					//detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 					
 					//do something similiar for color histograms
 					//your move				
-					detectCutsByHistogram(list_frames, list_cuts_colors, frameBulk, &feedback_colors);
+					detectCutsByHistogram(list_frames, list_cuts_colors, 0, &feedback_colors);
 					
 					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
 					//if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
@@ -173,7 +172,7 @@ int main(int argc, char **argv) {
 	//Process the (remaining) frames
 					
 	//call a method to fill list_cuts with detected cut frames
-	detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	//detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 	
 	//do something similiar for color histograms
 	//your move
@@ -208,9 +207,10 @@ while (fuu) {
 	void * v_c;
 	ListIterator * iter_e = list_iterate(list_cuts_edges);
 	ListIterator * iter_c = list_iterate(list_cuts_colors);
+printf("E: %p, C: %p\n", iter_e, iter_c);
 	v_e = list_next(iter_e);
 	v_c = list_next(iter_c);
-	while ((v_e != NULL) && (v_c != NULL)) {	
+	while ((v_e != NULL) && (v_c != NULL)) {
 		uint32_t e = (uint32_t)v_e;
 		uint32_t c = (uint32_t)v_c;
 		if ( e == c ) {
