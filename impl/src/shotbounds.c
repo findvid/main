@@ -99,9 +99,13 @@ int main(int argc, char **argv) {
 	feedback_edges.lastFrame = NULL;
 	feedback_edges.diff = NULL;
 
-	ShotFeedback feedback_colors;
-	feedback_colors.lastFrame = NULL;
-	feedback_colors.diff = NULL;
+	ColorHistFeedback feedback_colors;
+	feedback_colors.last_hist = newHistHsv();
+	feedback_colors.last_diff = 0;
+	feedback_colors.last_derivation = 0;
+	//ShotFeedback feedback_colors;
+	//feedback_colors.lastFrame = NULL;
+	//feedback_colors.diff = NULL;
 	//should be copied into the new internal var-array and then be freed by the feature detection
 
 	// Mind that we read from pFormatCtx, which is the general container file...
@@ -129,6 +133,8 @@ int main(int argc, char **argv) {
 				numBytes = avpicture_get_size(PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 				buffer_rgb24 = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 				avpicture_fill((AVPicture *)pFrameRGB24, buffer_rgb24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+				pFrameRGB24->width = DESTINATION_WIDTH;
+				pFrameRGB24->height = DESTINATION_HEIGHT;
 
 
 				//If one bulk of frames is filled, let the frames be processed first and clear the list
@@ -139,14 +145,16 @@ int main(int argc, char **argv) {
 					//call a method to fill list_cuts with detected cut frames
 					//old feedback-array is freed by the function
 					detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-
+					printf("Edges done\n");
+					
 					//do something similiar for color histograms
 					//your move				
+					detectCutsByHistogram(list_frames, list_cuts_colors, frameBulk, &feedback_colors);
 					
 					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
-					if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
+					//if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
 					feedback_edges.lastFrame = list_pop(list_frames);
-					feedback_colors.lastFrame = feedback_edges.lastFrame;
+					//feedback_colors.lastFrame = feedback_edges.lastFrame;
 
 					//Get rid of the old frames and destroy the list
 					list_forall(list_frames, av_free);
@@ -169,20 +177,31 @@ int main(int argc, char **argv) {
 	
 	//do something similiar for color histograms
 	//your move
-	
-	
+	detectCutsByHistogram(list_frames, list_cuts_colors, frameBulk, &feedback_colors);
+
+ListIterator *lit = list_iterate(list_cuts_colors);
+void* fuu = list_next(lit);
+//WHY THE FOX DO THE NEXT THREE LINES AFFECT THE RESULT OUTPUT AAAAHHHH I THINK I'M GETTING MAD! TIME TO SLEEP!!!!11111elf
+//printf("Items: %d\n", list_cuts_colors->items);
+//printf("Size: %d\n", list_cuts_colors->size);
+//printf("Cap: %d\n", list_cuts_colors->capacity);
+while (fuu) {
+	printf("LOL: %d\n", (uint32_t) fuu);
+	fuu = list_next(lit);
+}
 	//Final feedback goes nowhere
 	free(feedback_edges.diff);
-	free(feedback_colors.diff);
+	//free(feedback_colors.diff);
+	free(feedback_colors.last_hist);
 	av_free(feedback_edges.lastFrame);
-	av_free(feedback_colors.lastFrame);
+	//av_free(feedback_colors.lastFrame);
 
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
 	
 	//Finally, sort the cuts and return it as one coherent array
 	uint32_t c_cuts = (list_cuts_edges->size + list_cuts_colors->size);
-	uint32_t * cuts = malloc(sizeof(uint32_t) * c_cuts);
+	uint32_t * cuts = calloc(sizeof(uint32_t), c_cuts);
 	
 	int i = 0;
 	void * v_e;
