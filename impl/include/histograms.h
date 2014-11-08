@@ -93,32 +93,15 @@ uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2);
 typedef struct {
 	uint32_t *last_hist;
 	uint32_t last_diff;
-	uint32_t last_derivation;
-	uint32_t frame_no;
+	int last_derivation;
 } ColorHistFeedback;
 
 /**
- * Allocates a ColorHistFeedback for HSV histogramms
+ * Detect hard cuts useing colorhistograms
  *
- * @return	A newly allocated ColorHistFeedback struct
- */
-ColorHistFeedback *newColorHistFeedbackHsv();
-
-/**
- * Frees a ColorHistFeedback struct
- *
- * @param chf	The struct that should get freed
- */
-void freeColorHistFeedback(ColorHistFeedback *chf);
-
-/**
- * Detect hard cuts useing Colorhistograms
- *
- * @param list_frames	List of frames to detect cuts in. Has to contain at least 3 frames.
+ * @param list_frames	List of frames to detect cuts in.
  * @param list_cuts	List the detected cuts will be added to
- * @param feedback	Feedback from the last call, can be NULL
- * @return		Information about the last few frames, use NULL if start of video
- * 			When the returned value is not used to for an other call
- *			it needs to be freed using freeColorHistFeedback()
+ * @param frame_no	Index of the first frame. Used to add the detected cuts to the list
+ * @param feedback	Feedback from the last call
  */
-ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, ColorHistFeedback *feedback);
+void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback);
