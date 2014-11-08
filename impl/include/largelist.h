@@ -13,7 +13,7 @@ typedef struct largelist_data_t {
 	uint32_t items; //Current number of items in this block
 	uint32_t capacity; //Maximum number of items in this block
 	struct largelist_data_t *next;
-	//Actual data will be held in what is malloc'd in excess for the first 3 fields!
+	//Actual data will be held in what is malloc'd in excess for the first 4 fields!
 } LargeList;
 
 typedef struct {
@@ -32,6 +32,8 @@ void list_destroy(LargeList * list);
 bool list_isEmpty(LargeList *);
 
 bool list_push(LargeList *, void *);
+
+void * list_pop(LargeList *);
 
 ListIterator * list_iterate(LargeList *);
 

@@ -1,13 +1,15 @@
 #include <unistd.h>
 
 #include "fvutils.h"
+#include "largelist.h"
 #include "edgedetect.h"
 #include "histograms.h"
-#include "largelist.h"
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
-uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
+//uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
+uint32_t MAX_MEMORY_USAGE = 512 * 1024 * 1024; // For small testing systems...like a little useless black laptop
+
 
 #define DESTINATION_WIDTH 320
 #define DESTINATION_HEIGHT 200
@@ -76,10 +78,11 @@ int main(int argc, char **argv) {
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	//Convert into a smaller frame for easier processing
 	struct SwsContext *convert_rgb24 = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
-	struct SwsContext *convert_g8 = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *convert_g8 = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	
 	// Finally, start reading packets from the file
 	int frameCount = 0;
+	int frameBulk = 0; // Which frame does the current bulk start at?
 	int frameFinished = 0;
 	AVPacket packet;
 
@@ -92,8 +95,13 @@ int main(int argc, char **argv) {
 	LargeList * list_cuts_colors = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
 
 	//Store feedback given by a detection feature and pass it as an argument to the next call to it
-	double * feedback_edges = NULL;
-	double * feedback_colors = NULL;
+	ShotFeedback feedback_edges;
+	feedback_edges.lastFrame = NULL;
+	feedback_edges.diff = NULL;
+
+	ShotFeedback feedback_colors;
+	feedback_colors.lastFrame = NULL;
+	feedback_colors.diff = NULL;
 	//should be copied into the new internal var-array and then be freed by the feature detection
 
 	// Mind that we read from pFormatCtx, which is the general container file...
@@ -109,26 +117,44 @@ int main(int argc, char **argv) {
 			if (frameFinished) {
 				frameCount++;
 				//Convert to a smaller frame for faster processing	
-				sws_scale(convert_rgb24, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, 0, pFrameRGB24->data, pFrameRGB24->linesize);
+				sws_scale(convert_rgb24, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB24->data, pFrameRGB24->linesize);
+				
+				printf("Push frame@0x%x\n", pFrameRGB24);
 				
 				list_push(list_frames, pFrameRGB24);
+
+
+				//!!!!! Allocate a new frame, obviously
+				pFrameRGB24 = av_frame_alloc();
+				numBytes = avpicture_get_size(PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+				buffer_rgb24 = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+				avpicture_fill((AVPicture *)pFrameRGB24, buffer_rgb24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+
 
 				//If one bulk of frames is filled, let the frames be processed first and clear the list
 				if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					//HERE THERE BE PROCESSING
-					
+					printf("Process bulk of %d frames...\n", list_frames->size);
+					frameBulk = frameCount;
 					//call a method to fill list_cuts with detected cut frames
 					//old feedback-array is freed by the function
-					feedback_edges = detectCutsByEdges(list_frames, list_cuts_edges, feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-					
+					detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+
 					//do something similiar for color histograms
-					//your move
+					//your move				
+					
+					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
+					if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
+					feedback_edges.lastFrame = list_pop(list_frames);
+					feedback_colors.lastFrame = feedback_edges.lastFrame;
 
 					//Get rid of the old frames and destroy the list
 					list_forall(list_frames, av_free);
 					list_destroy(list_frames);
 					// ... and get a new one. A potential list_clear wouldn't do much else, still, there are possibly some ways to do this more gracefully
 					list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+					
+					frameBulk = frameCount;
 				}
 			}
 
@@ -139,21 +165,24 @@ int main(int argc, char **argv) {
 	//Process the (remaining) frames
 					
 	//call a method to fill list_cuts with detected cut frames
-	detectCutsByEdges(list_frames, list_cuts_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 	
 	//do something similiar for color histograms
 	//your move
 	
 	
 	//Final feedback goes nowhere
-	free(feedback_edges);
-	free(feedback_colors);
+	free(feedback_edges.diff);
+	free(feedback_colors.diff);
+	av_free(feedback_edges.lastFrame);
+	av_free(feedback_colors.lastFrame);
 
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
 	
 	//Finally, sort the cuts and return it as one coherent array
-	uint32_t * cuts = malloc(sizeof(uint32_t) * (list_cuts_edges->size + list_cuts_colors->size));
+	uint32_t c_cuts = (list_cuts_edges->size + list_cuts_colors->size);
+	uint32_t * cuts = malloc(sizeof(uint32_t) * c_cuts);
 	
 	int i = 0;
 	void * v_e;
@@ -198,5 +227,7 @@ int main(int argc, char **argv) {
 	avcodec_close(pCodecCtx);
 	avformat_close_input(&pFormatCtx);
 	//Still in main method, let's just pretend this goes anywhere
-	return (int)cuts;
+	printf("RESULTS:\n");
+	for (int i = 0; i < c_cuts; i++) printf("%d\n", cuts[i]);
+	return (int)cuts; //Must return a struct for to contain array boundary aswell...
 }

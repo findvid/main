@@ -6,11 +6,15 @@
 #include <libswscale/swscale.h>
 #include <libavutil/mem.h>
 
+#include "fvutils.h"
 #include "largelist.h"
 
 #define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<height) && ((x)<width))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):127)
 
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
+
+//Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
+#define FEEDBACK_LENGTH 25
 
 #define OPERATOR_DIRECTIONS 6
 
@@ -35,5 +39,5 @@ AVFrame * getGaussianGradient(AVFrame *, OperatorMask *, int width, int height);
 AVFrame * getEdgeProfileGauss(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 AVFrame * getEdgeProfileSodel(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
-double * detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, double * feedback, struct SwsContext * swsctx, int width, int height);
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 #endif
