@@ -40,8 +40,6 @@ body {
 }
 
 
-
-
 /* ---------- Menu ---------- */
 
 .menu {
@@ -70,7 +68,7 @@ body {
 
 	.menu-wrap {
 		height: 100%;
-		width: 1024px;
+		width: 1014px;
 
 		background: url('../images/navi_back.png');
 
@@ -81,7 +79,7 @@ body {
 			width: 200px;
 			float: left;
 			
-			padding: 25px 0 0 30px;
+			padding: 25px 0 0 0px;
 		}
 
 		/* ----- Search ----- */
@@ -275,6 +273,84 @@ body {
 				}
 
 			}
+		}
+	}
+}
+
+
+/* ---------- Content ---------- */
+.content {
+	width: 100%;
+	height: 100%;
+
+	padding-top: 20px;
+
+	.content-wrap {
+		width: 1024px;
+		height: 100%;
+		margin: auto;
+
+		.video {
+
+			.thumbnail {
+				position: relative;
+
+				height: 100%;
+				width: 80px;
+
+				float: left;
+
+				background-color: #575756;
+			}
+
+			.meta {
+				height: 100%;
+				max-width: 150px;
+				padding: 3px 0 0 5px;
+				float: left;
+			}
+
+		}
+
+		.scene {
+			
+			float: left;
+			width: 246px;
+
+
+
+			padding: 10px 5px 0 5px;
+
+			.thumbnail {
+				height: 138px;
+
+				img {
+					width: 246px;
+				}
+			}
+
+			.meta {
+
+				.label {
+
+					font-size: 10pt;
+					
+					&.title {
+						font-weight: bold;
+						
+					}
+
+					&.scenecount {
+
+					}
+
+					&.interval {
+						font-size: 9pt;
+						float: left;
+					}
+				}
+			}
+
 		}
 	}
 }
