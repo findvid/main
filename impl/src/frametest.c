@@ -6,6 +6,28 @@
 #include "fvutils.h"
 #include "edgedetect.h"
 
+void SaveFrame(AVFrame *pFrame, int width, int height, int i) {
+	FILE *pFile;
+	char szFilename[32];
+	int  y;
+
+	// Open file
+	sprintf(szFilename, "frame%d.ppm", i);
+	pFile=fopen(szFilename, "wb");
+	if(pFile==NULL)
+		return;
+   
+
+	// Print header for .ppm-format
+	fprintf(pFile, "P6\n%d %d\n255\n", width, height);   
+	// Write bytevectors into file
+	for(y = 0; y < height; y++)
+		fwrite(pFrame->data[0]+y*pFrame->linesize[0], 1, width*3, pFile);
+								  
+	// Close file
+	fclose(pFile);
+}
+
 int main(int argc, char** argv) {
 	// Registers all available codecs
 	av_register_all();
@@ -55,27 +77,28 @@ int main(int argc, char** argv) {
 	// Allocate frame to read packets into
 	AVFrame *pFrame = av_frame_alloc();
 	// Allocate frame to read conversion into
-	//AVFrame *pFrameRGB = av_frame_alloc();
+	AVFrame *pFrameRGB = av_frame_alloc();
 
-	if (pFrame == NULL) // || pFrameRGB == NULL)
+	if (pFrame == NULL || pFrameRGB == NULL)
 		return -1;
 	
 	// Some buffer needed for avpicture_fill
-	int numBytes = avpicture_get_size(pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height);
+	int numBytes = avpicture_get_size(PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
 	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
 	// Initialize pFrameRGB as empty frame
-	//avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
+	avpicture_fill((AVPicture *)pFrameRGB, buffer, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height);
 
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
-	struct SwsContext *img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *img_convert_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *convert_gray = sws_getContext(pCodecCtx->width, pCodecCtx->height, PIX_FMT_RGB24, pCodecCtx->width, pCodecCtx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	
 	// Finally, start reading packets from the file
 	int frameCount = 0;
 	int frameFinished = 0;
 	AVPacket packet;
 	// Mind that we read from pFormatCtx, which is the general container file...
-	while (av_read_frame(pFormatCtx, &packet) >= 0 && frameCount <= 0) {
+	while (av_read_frame(pFormatCtx, &packet) >= 0 && frameCount < 5) {
 		// ... therefore, not every packet belongs to our video stream!
 		if (packet.stream_index == videoStream) {
 			// Packet is part of the video stream previously found
@@ -86,13 +109,13 @@ int main(int argc, char** argv) {
 			// frameFinished is set be avcodec_decode_video2 accordingly
 			if (frameFinished) {
 				frameCount++;
-				
-				SaveFrameG8(pFrame, pCodecCtx->width, pCodecCtx->height, 0);
-				//Get EdgeProfile and save it to disk
-				AVFrame * pFrameRGB = getEdgeProfile(pFrame, img_convert_ctx, pCodecCtx->width, pCodecCtx->height);
-				SaveFrameG8(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
+				// Convert pFrame into a simple bitmap format
+				sws_scale(img_convert_ctx,(const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
+				AVFrame * edge = getEdgeProfile(pFrameRGB, convert_gray, pCodecCtx->width, pCodecCtx->height);
+				// and save the first 5 frames to disk. Because we can
+				SaveFrameRGB24(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
+				SaveFrameG8(edge, pCodecCtx->width, pCodecCtx->height, 10+frameCount);
 
-				av_free(pFrameRGB);
 			}
 
 		}
@@ -100,8 +123,9 @@ int main(int argc, char** argv) {
 	}
 
 	av_free(buffer);
+	av_free(pFrameRGB);
 	av_free(pFrame);
-	sws_freeContext(img_convert_ctx);
+
 	avcodec_close(pCodecCtx);
 
 	avformat_close_input(&pFormatCtx);

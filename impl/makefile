@@ -1,7 +1,7 @@
 CFLAGS = -Iinclude -Wall -std=c99 -g
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
-BUILDFILES= obj/largelist.o obj/edgedetect.o obj/histograms.o obj/shotbounds.o
+BUILDFILES= obj/largelist.o obj/fvutils.o obj/edgedetect.o obj/histograms.o obj/shotbounds.o
 
 clean:
 	rm -f ./test
@@ -10,11 +10,11 @@ clean:
 obj/%.o: src/%.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-obj/backend.o: $(BUILDFILES)
-	ar cr $@ $(BUILDFILES)
-
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
+
+frametest: src/frametest.c $(BUILDFILES)
+	gcc $(CFLAGS) obj/fvutils.o obj/edgedetect.o obj/largelist.o src/frametest.c -o frametest $(LIBSFFMPEG)
 
 edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread

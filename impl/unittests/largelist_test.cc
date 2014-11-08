@@ -117,6 +117,60 @@ TEST(ListTest, ForallTest) {
 
 	list_destroy(list);
 }
+
+void foo2(void *elm) {
+	printf("%d\n", elm);
+}
+TEST(ListTest, ForallTest2) {
+	LargeList * list = list_init(2);
+	list_push(list, (void *)1);
+	list_push(list, (void *)2);
+	list_push(list, (void *)3);
+	list_push(list, (void *)4);
+	list_push(list, (void *)5);
+	list_push(list, (void *)6);
+	list_push(list, (void *)7);
+	list_push(list, (void *)8);
+	list_push(list, (void *)9);
+	list_push(list, (void *)10);
+	list_push(list, (void *)11);
+	list_push(list, (void *)12);
+	list_push(list, (void *)13);
+	list_push(list, (void *)14);
+	list_push(list, (void *)15);
+
+	list_forall(list, foo2);
+
+	list_destroy(list);
+}
+TEST(ListTest, PopTest) {
+	LargeList * list = list_init(6);
+	list_push(list, (void *)1);
+	list_push(list, (void *)2);
+	list_push(list, (void *)3);
+	list_push(list, (void *)4);
+	list_push(list, (void *)42);
+
+	EXPECT_EQ(list_pop(list), (void *)42);
+	EXPECT_EQ(list->size, 4);
+
+	list_destroy(list);
+}
+
+TEST(ListTest, PopTest2) {
+	LargeList * list = list_init(3);
+	list_push(list, (void *)1);
+	list_push(list, (void *)2);
+	list_push(list, (void *)3);
+	list_push(list, (void *)4);
+	list_push(list, (void *)42);
+
+	EXPECT_EQ(list_pop(list), (void *)42);
+	EXPECT_EQ(list->size, 4);
+
+	list_destroy(list);
+}
+
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
