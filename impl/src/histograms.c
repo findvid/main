@@ -111,46 +111,19 @@ uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2) {
         return diff;
 }
 
-ColorHistFeedback *newColorHistFeedbackHsv() {
-	ColorHistFeedback *result = malloc(sizeof(ColorHistFeedback));
-	if (!result) {
-		printf("Malloc failed in newColorHistFeedbackHsv()\n");
-		exit(1);
-	}
-	result->last_hist = newHistHsv();
-	result->last_diff = 0;
-	result->last_derivation = 0;
-	result->frame_no = 0;
-	return result;
-}
-
-void freeColorHistFeedback(ColorHistFeedback *chf) {
-	if (chf->last_hist != NULL) free(chf->last_hist);
-	free(chf);
-}
-
-#define CUT_DETECT_LEVEL 10000 // Magic number that hopefully does the trick
-ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, ColorHistFeedback *feedback) {
-	uint32_t *h1, *tmp; // Histogram for the last frame
-	uint32_t *h2 = newHistHsv(); // Histogram for the current frame
-	uint32_t d1; // difference from the second last to the last frame
-	uint32_t d2; // difference from the last to this frame
-	uint32_t dd1; // derivation last
-	uint32_t dd2; // derivation this
-
-	// If there is no feedback from a previous run...
-	if (feedback == NULL) {
-		// create a new feedback
-		feedback = newColorHistFeedbackHsv();
-	}
+#define CUT_DETECT_LEVEL 20000 // Magic number that hopefully does the trick
+void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback) {
 	// get the values of the last feedback for the start
-	// if there was now last feedback it will be all 0s
-	h1 = feedback->last_hist;
-	d1 = feedback->last_diff;
-	dd1 = feedback->last_derivation;
+	uint32_t *h1 = feedback->last_hist;
+	uint32_t *tmp; // Histogram for the last frame
+	uint32_t *h2 = newHistHsv(); // Histogram for the current frame
+	uint32_t d1 = feedback->last_diff; // difference from the second last to the last frame
+	uint32_t d2; // difference from the last to this frame
+	int dd1 = feedback->last_derivation; // derivation last
+	int dd2; // derivation this
 
 	// Get the iterator and the first frame
-	ListIterator *it_frames = list_interate(list_frames);
+	ListIterator *it_frames = list_iterate(list_frames);
 	AVFrame *frame = (AVFrame *)list_next(it_frames);
 	while (frame != NULL) {
 		// Get the histogramm for this frame
@@ -161,10 +134,11 @@ ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list
 		dd2 = d2 - d1;
 
 		// Detect hard cut when there was a big enough spike
-		if ((dd1 >= CUT_DETECT_LEVEL) && (dd2 <= -CUT_DETECT_LEVEL)) {
+		if ((dd1 >= CUT_DETECT_LEVEL) && (dd2 <= (-CUT_DETECT_LEVEL))) {
 			// Put the frame before the cut on the list
-			printf("Cut at Frame %d\n", feedback->frame_no);
-			list_push(list_cuts, (void *)(feedback->frame_no - 2));
+			printf("d1: %d, d2: %d, dd1: %d, dd2: %d\n", d1, d2, dd1, dd2);
+			printf("Cut at Frame %d\n", frame_no - 2);
+			list_push(list_cuts, (void *)(frame_no - 2));
 		}
 
 		// Swap the last and this histogram
@@ -178,7 +152,7 @@ ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list
 
 		// Get the next frame
 		frame = (AVFrame *)list_next(it_frames);
-		feedback->frame_no++;
+		frame_no++;
 	}
 	// Free the not anymore needed histogram
 	free(h2);
@@ -186,5 +160,4 @@ ColorHistFeedback *detectCutsByHistogram(LargeList *list_frames, LargeList *list
 	feedback->last_hist = h1;
 	feedback->last_diff = d1;
 	feedback->last_derivation = dd1;
-	return feedback;
 }
