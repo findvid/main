@@ -20,6 +20,7 @@
 
 typedef struct {
 	AVFrame * lastFrame;
+	int diff_len; //The feedback might be shorter than the set value because the bulk ended prematurely
 	double * diff;
 } ShotFeedback;
 
