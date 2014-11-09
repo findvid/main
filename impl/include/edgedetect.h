@@ -14,7 +14,7 @@
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
-#define FEEDBACK_LENGTH 25
+#define MAX_FEEDBACK_LENGTH 25
 
 #define OPERATOR_DIRECTIONS 6
 

@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	//Convert into a smaller frame for easier processing
 	struct SwsContext *convert_rgb24 = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+
 	struct SwsContext *convert_g8 = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	
 	// Finally, start reading packets from the file
@@ -119,8 +120,6 @@ int main(int argc, char **argv) {
 				//Convert to a smaller frame for faster processing	
 				sws_scale(convert_rgb24, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB24->data, pFrameRGB24->linesize);
 				
-				printf("Push frame@0x%x\n", pFrameRGB24);
-				
 				list_push(list_frames, pFrameRGB24);
 
 
@@ -147,13 +146,18 @@ int main(int argc, char **argv) {
 					if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
 					feedback_edges.lastFrame = list_pop(list_frames);
 					feedback_colors.lastFrame = feedback_edges.lastFrame;
-
+					
+					printf("Clearing frame list\n");
 					//Get rid of the old frames and destroy the list
 					list_forall(list_frames, av_free);
+					printf("disposed frames\n");
 					list_destroy(list_frames);
+					printf("disposed list\n");
 					// ... and get a new one. A potential list_clear wouldn't do much else, still, there are possibly some ways to do this more gracefully
 					list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+					printf("re-initialized list\n");
 					
+					//Set beginning frame number of this bulk to current frame
 					frameBulk = frameCount;
 				}
 			}
