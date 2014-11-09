@@ -323,11 +323,10 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	feedback_edges.lastFrame = NULL;
 	feedback_edges.diff = NULL;
 
-	// TODO Replace with ColorHistFeedback
-	//ShotFeedback feedback_colors;
-	//feedback_colors.lastFrame = NULL;
-	//feedback_colors.diff = NULL;
-	//should be copied into the new internal var-array and then be freed by the feature detection
+	ColorHistFeedback feedback_colors;
+	feedback_colors.last_hist = newHistHsv();
+	feedback_colors.last_diff = 0;
+	feedback_colors.last_derivation = 0;
 
 	// Mind that we read from pFormatCtx, which is the general container file...
 	while (av_read_frame(pFormatCtx, &packet) >= 0) {
@@ -372,6 +371,8 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
 					feedback_edges.lastFrame = list_pop(list_frames);
 
+
+					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
 					//Get rid of the old frames and destroy the list
 					list_forall(list_frames, av_free);
 					list_destroy(list_frames);
@@ -391,9 +392,13 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	//call a method to fill list_cuts with detected cut frames
 	detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 	
+	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
+
 	//Final feedback goes nowhere
 	free(feedback_edges.diff);
 	av_free(feedback_edges.lastFrame);
+
+	free(feedback_colors.last_hist);
 
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
