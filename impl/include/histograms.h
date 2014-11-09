@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <libavformat/avformat.h>
+#include "largelist.h"
 
 typedef struct {
 	int h;  // 0..359
@@ -18,6 +19,9 @@ typedef struct {
  */
 void rgbToHsv(HSV* hsv, int r, int g, int b);
 
+
+#define HIST_RGB_SIZE 64
+#define HIST_HSV_SIZE 128
 
 /*
  * Returns the inxed of the bin for an rgb-histogram
@@ -53,8 +57,8 @@ uint32_t* newHistHsv();
  * Fills a color histogram with data from a frame
  * The histogram is a 4x4x4 RGB-histogram
  *
- * @hist	pointer to the histogram array
- * @img		the image a histogram should be created for. Make sure height and width are set.
+ * @param hist	pointer to the histogram array
+ * @param img	the image a histogram should be created for. Make sure height and width are set.
  */
 void fillHistRgb(uint32_t* hist, AVFrame* img);
 
@@ -62,8 +66,42 @@ void fillHistRgb(uint32_t* hist, AVFrame* img);
  * Fills a color histogram with data from a frame
  * The histogram is a 8x4x4 HSV-histogram
  *
- * @hist	pointer to the histogram array
- * @img		the image a histogram should be created for. Make sure height and width are set.
+ * @param hist	pointer to the histogram array
+ * @param img	the image a histogram should be created for. Make sure height and width are set.
  */
 void fillHistHsv(uint32_t* hist, AVFrame* img);
 
+/**
+ * Calculates the difference between two 4x4x4 histograms
+ * 
+ * @param h1	First histogram
+ * @param h2	Second histogram
+ * @return	sum of the bin differences between h1 and h2
+ */
+uint32_t histDiffRgb(uint32_t *h1, uint32_t *h2);
+
+/**
+ * Calculates the difference between two 8x4x4 histograms
+ * 
+ * @param h1	First histogram
+ * @param h2	Second histogram
+ * @return	sum of the bin differences between h1 and h2
+ */
+uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2);
+
+
+typedef struct {
+	uint32_t *last_hist;
+	uint32_t last_diff;
+	int last_derivation;
+} ColorHistFeedback;
+
+/**
+ * Detect hard cuts useing colorhistograms
+ *
+ * @param list_frames	List of frames to detect cuts in.
+ * @param list_cuts	List the detected cuts will be added to
+ * @param frame_no	Index of the first frame. Used to add the detected cuts to the list
+ * @param feedback	Feedback from the last call
+ */
+void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback);

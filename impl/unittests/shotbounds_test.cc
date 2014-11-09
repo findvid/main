@@ -2,11 +2,14 @@
 
 extern "C" {
 	#include "readcuts.h"
+	int processVideo(char *filename, uint32_t **cuts);
 }
 
 class detectCutsByColors : public testing::Test {
 	protected:
 	virtual void SetUp() {
+		detected_cuts_count = processVideo("testfiles/BOR03.mpg", &detected_cuts);
+		video_cuts = readCutInfo("testfiles/bor03.cuts", &video_cuts_count);
 		falsealarm = 0;
 		hit = 0;
 		miss = 0;
@@ -36,8 +39,13 @@ class detectCutsByColors : public testing::Test {
 				vi++;
 			}
 		}
-		miss += video_cuts_count - v1;
-		falsealarm += detected_cuts_count - d1;
+		miss += video_cuts_count - vi;
+		falsealarm += detected_cuts_count - di;
+	}
+
+	void evalResults() {
+		printf("Found %d of %d cuts (%2f%)\n", hit, video_cuts_count, (((double)hit)*100.0)/(double)video_cuts_count);
+		printf("%d of %d detected were false alarm (%2f%)\n", falsealarm, detected_cuts_count, (((double)falsealarm)*100.0)/(double)detected_cuts_count);
 	}
 
 	int falsealarm;
@@ -50,10 +58,8 @@ class detectCutsByColors : public testing::Test {
 };
 
 TEST_F(detectCutsByColors, bor03) {
-	int d_cuts_count = 0;
-	uint32_t *d_cuts = NULL;
-	int v_cuts_count = 0;
-	CutInfo *v_cuts = readCutInfo("bor03.cuts", &v_cuts_count);
+	checkCuts();
+	evalResults();
 }
 
 int main(int argc, char *argv[]) {

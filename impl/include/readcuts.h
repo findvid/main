@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct {
 	char type;
-	int start;
-	int end;
+	uint32_t start;
+	uint32_t end;
 } CutInfo;
 
 /*
@@ -29,6 +30,10 @@ O:	OTH
 CutInfo* readCutInfo(char *filename, int *amountread) {
 	char line[100];
 	FILE *f = fopen(filename, "rt");
+	if (f == NULL) {
+		printf("readCutInfo(): No file?");
+		return NULL;
+	}
 	CutInfo *retval;
 	int i = 0;
 
