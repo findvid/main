@@ -83,13 +83,13 @@ AVFrame * getGaussianGradient(AVFrame * gray, OperatorMask * mask, int width, in
  */
 AVFrame * getGradientMagnitudeMap(AVFrame * gray, int width, int height) {
 	AVFrame *res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
+	//avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
 	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
 	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
 
 
-//For each pixel, apply sodel operator to obtain grayscale intensity changes in different directions
+	//For each pixel, apply sodel operator to obtain grayscale intensity changes in different directions
 	double maxmag = 0.0;
 	for ( int y = 0; y < height; y++ ) {
 		for ( int x = 0; x < width; x++ ) {
@@ -144,6 +144,7 @@ AVFrame * getEdgeProfileSodel(AVFrame *original, struct SwsContext * swsctx, int
 	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
 	avpicture_fill((AVPicture *)gray, buffer, PIX_FMT_GRAY8, width, height);
+
 	sws_scale(swsctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
 	
 	linearScale(gray, width, height);
@@ -297,119 +298,6 @@ double edgeDiff(AVFrame * p1, AVFrame * p2, struct SwsContext * ctx, int width, 
 	return fmax(1.0 * in / c1, 1.0 * in / c2);
 }
 
-void detectCutsByEdges_old(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
-	// Diff values between frames
-	double * differences;
-	int diff_len;
-
-	int usefeedback; //Encodes wether feedback_diff is NULL or not
-	//Check if feedback has been given
-	if (feedback->diff != NULL) {
-		diff_len = (feedback->diff_len + list_frames->size);
-		differences = (double *)malloc(sizeof(double) * diff_len);
-
-		usefeedback = 1;
-		
-		printf("Receiving feedback worth %d values\n", feedback->diff_len);
-
-		//Copy values
-		for (int i = 0; i < feedback->diff_len; i++ ) {
-			differences[i] = feedback->diff[i];
-		}
-		//Only freed once in callee after processing is done
-		free(feedback->diff);
-		printf("Feedback-Frame@0x%x\n", feedback->lastFrame);
-	} else {
-		diff_len = (list_frames->size - 1);
-		differences = (double *)malloc(sizeof(double) * diff_len);
-		usefeedback = 0;
-	}
-
-	ListIterator * iter = list_iterate(list_frames);
-
-	//Get edge profiles of all frames in the bulk to avoid calculating each profile twice(except for the first and last one)
-	LargeList * list_edge_profiles = list_init(list_frames->capacity);
-	if (usefeedback) list_push(list_edge_profiles, getEdgeProfileSodel(feedback->lastFrame, swsctx, width, height));
-	for ( int i = 0; i < list_frames->size; i++ ) {
-		list_push(list_edge_profiles, getEdgeProfileSodel(list_next(iter), swsctx, width, height));
-	}
-
-	int pos = (usefeedback?feedback->diff_len:0);
-
-	//"Reset" iterator
-	free(iter);
-	iter = list_iterate(list_edge_profiles);
-
-	AVFrame * lastFrame = list_next(iter);
-	AVFrame * thisFrame;
-
-	while ( (thisFrame = (AVFrame *)list_next(iter)) != NULL ) {
-		//differences[pos++]= edgeDiff(lastFrame, thisFrame, swsctx, width, height);
-		int in; // amount of edgepixels in edge1 that are nearby/incident with a pixel in edge2
-		int out; // amount of edgepixels in edge2 that are nearby/incident with a pixel in edge1
-	
-		int c1; // Total edge pixels in edge1
-		int c2; // Total edge pixels in edge2
-	
-		for ( int x = 0; x < width; x++ ) {
-			for ( int y = 0; y < height; y++ ) {
-				c1 += (getPixelG8(lastFrame, x, y)?1:0);
-				c2 += (getPixelG8(thisFrame, x, y)?1:0);
-
-				//increment in/out if the pixel is incident; ideally the edges are thin enough so this wouldn\t work and a dilated edge profile must be used. That's a toDo, however
-				in += (getPixelG8(lastFrame, x, y) && getPixelG8(thisFrame, x, y));
-				//out would currently do the same, so let's not calc it for now
-			}
-		}
-
-		differences[pos++] = fmax(1.0 * in / c1, 1.0 * in / c2);
-		lastFrame = thisFrame;
-	}
-	printf("Disposing %d profiles\n", list_edge_profiles->size);
-	list_forall(list_edge_profiles, av_free);
-	list_destroy(list_edge_profiles);
-	free(iter);
-
-	//ToDO/Refine:
-	//Search for maxima in differences and mark them as cut
-	int vars_count = list_frames->size + (usefeedback?feedback->diff_len:-1);
-	double extr = 0.0; //value of last extremum found
-	int asc = 1; //Search for a maximum first
-	for (int i = 0; i < vars_count; i++) {
-		if (asc)
-			if (differences[i] > extr) {
-				extr = differences[i];
-			} else { //Found a a maximum at i-1
-				asc = 0;
-				list_push(list_cuts, (void *)(startframe + i - (usefeedback?feedback->diff_len:1)));
-			}
-		else
-			if (differences[i] < extr) {
-				extr = differences[i];
-			} else { //Found a minimum, search for a maximum again
-				asc = 1;
-			}
-	}
-	printf("Detected %d cuts within so far\n", list_cuts->size);
-
-	//If there are less than MAX_FEEDBACK_LENGTH frames, the bulk was too small. Just use what we get then, although this likely means the video has ended already and this will be discarded anyway. Possible optimization by initializing an empty array without copying anything into it
-	int fb_len = (list_frames->size < MAX_FEEDBACK_LENGTH?list_frames->size:MAX_FEEDBACK_LENGTH);
-	
-	double * new_feedback = (double *)malloc(sizeof(double) * fb_len);
-	feedback->diff_len = fb_len;
-	
-	printf("New feedback @ 0x%x\n", new_feedback);
-
-	for (int i = 0; i < fb_len ; i++) {
-		printf("Get element differences[%d - %d + %d = %d]\n", diff_len, fb_len, i, (diff_len - fb_len +i));
-		new_feedback[i] = differences[diff_len - fb_len + i];
-	}
-	feedback->diff = new_feedback;
-	printf("Freeing differences\n");
-	free(differences);
-	printf("Freed differences\n");
-}
-
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
 	//Store the difference values between each frame
 	double * differences;
@@ -452,26 +340,81 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 		int c1 = 0;
 		int c2 = 0;
 
-		int intersects = 0;
+		int out = 0;
+		int in = 0;
 
 		for ( int x = 0; x < width; x++ )
 			for ( int y = 0; y < height; y++ ) {
 				c1 += (getPixelG8(lastFrame, x, y)?1:0);
 				c2 += (getPixelG8(thisFrame, x, y)?1:0);
 
-				intersects += (getPixelG8(lastFrame, x, y) && getPixelG8(thisFrame, x, y));
+				out += (getPixelG8(lastFrame, x, y) && !getPixelG8(thisFrame, x, y));
+				in += (!getPixelG8(lastFrame, x, y) && getPixelG8(thisFrame, x, y));
 			}
 
-		differences[pos++] = intersects / fmin(c1, c2);
-		printf("differences[%d] = %f\n", (pos-1), differences[(pos-1)]);
+		differences[pos++] = fmax(1.0 * out / c1, 1.0 *  in / c2);
 		av_free(lastFrame);
 		lastFrame = thisFrame;
 	}
 
 	av_free(thisFrame);
 	
+	//apply smoothing
+	OperatorMask smoothing;
+	smoothing.width = 3;
+	smoothing.weights = malloc(sizeof(double) * 3);
+	smoothing.weights[0] = 0.4;
+	smoothing.weights[1] = 0.2;
+	smoothing.weights[2] = 0.1;
+
+	double * smoothed = malloc(sizeof(double) * diff_len);
+	if (!usefeedback) { //If there's feedback, we use the values from before; that's double smoothing, but should be fine
+		smoothed[0] = differences[0] * 0.6 + differences[1] * 0.3 + differences[2] * 0.1;
+		smoothed[1] = differences[1] * 0.5 + differences[0] * 0.2 + differences[2] * 0.2 + differences[3] * 0.1;
+	}
+
+	for (int i = (usefeedback?feedback->diff_len:2); i < (diff_len - 2); i++) {
+		smoothed[i] = differences[(i - 2)] * smoothing.weights[2] + differences[(i - 1)] * smoothing.weights[1] + differences[i] * smoothing.weights[0] + differences[(i + 1)] * smoothing.weights[1] + differences[(i + 2)] * smoothing.weights[2];
+	}
+	
+	smoothed[(diff_len - 1)] = differences[(diff_len - 3)] * 0.1 + differences[(diff_len - 2)] * 0.3 + differences[(diff_len - 1)] * 0.6;
+	smoothed[(diff_len - 2)] = differences[(diff_len - 1)] * 0.2 + differences[(diff_len - 2)] * 0.5 + differences[(diff_len - 3)] * 0.2 + differences[(diff_len - 4)] * 0.1;
+
+	//Switch arrays
+	free(differences);
+	differences = smoothed;
+
 	//Start searching through differences to mark cuts
-	//...
+	double extr = 0;
+	int asc = 1;
+	for (int i = 0; i < diff_len; i++) {
+		if (asc) {
+			if (differences[i] > extr) {
+				extr = differences[i];
+				asc = 0; //Descent to next minimum
+
+				if (i >= feedback->diff_len) // only push this result if we're beyond the feedback, otherwise we have a dupe result
+					list_push(list_cuts, (void *)((startframe + i)));
+			}
+		} else if (differences[i] < extr) {
+			extr = differences[i];
+			asc = 1; //search next maximum again
+		}
+	}
+
+	AVFrame * diff_graph = av_frame_alloc();
+	avpicture_alloc((AVPicture *)diff_graph, PIX_FMT_RGB24, diff_len, 200);
+	int numBytes = avpicture_get_size(PIX_FMT_RGB24, diff_len, 200);
+	uint8_t * buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+
+	avpicture_fill((AVPicture *)diff_graph, buffer, PIX_FMT_RGB24, diff_len, 200);
+	for(int i = 0; i < diff_len; i++) {
+		int var = (int)(200.0 - differences[i] * 200.0);
+		printf("Save (%d,%d)[original value=%f] to graph\n", i, var, differences[i]);
+		setPixel(diff_graph, i, var, 0xff);
+	}
+	SaveFrameRGB24(diff_graph, diff_len, 200, 30);
+	av_free(diff_graph);
 
 	//create and fill new feedback array
 	int fb_len = (list_frames->size < MAX_FEEDBACK_LENGTH?list_frames->size:MAX_FEEDBACK_LENGTH);

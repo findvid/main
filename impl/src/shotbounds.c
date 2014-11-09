@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
 				//!!!!! Allocate a new frame, obviously
 				pFrameRGB24 = av_frame_alloc();
-				numBytes = avpicture_get_size(PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+				//Not neccessary, remains the same: //numBytes = avpicture_get_size(PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 				buffer_rgb24 = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 				avpicture_fill((AVPicture *)pFrameRGB24, buffer_rgb24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
@@ -133,8 +133,7 @@ int main(int argc, char **argv) {
 				//If one bulk of frames is filled, let the frames be processed first and clear the list
 				if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					//HERE THERE BE PROCESSING
-					printf("Process bulk of %d frames...\n", list_frames->size);
-					frameBulk = frameCount;
+					printf("Process bulk of %d frames, beginning at frame %d...\n", list_frames->size, frameBulk);
 					//call a method to fill list_cuts with detected cut frames
 					//old feedback-array is freed by the function
 					detectCutsByEdges(list_frames, list_cuts_edges, frameBulk, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
@@ -142,7 +141,8 @@ int main(int argc, char **argv) {
 					//do something similiar for color histograms
 					//your move				
 					
-					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
+					//Doing that myself, rather inadvertently
+					//if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
 					if (feedback_colors.lastFrame != NULL) av_free(feedback_colors.lastFrame);
 					feedback_edges.lastFrame = list_pop(list_frames);
 					feedback_colors.lastFrame = feedback_edges.lastFrame;
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
 	//Final feedback goes nowhere
 	free(feedback_edges.diff);
 	free(feedback_colors.diff);
-	av_free(feedback_edges.lastFrame);
+	//av_free(feedback_edges.lastFrame);
 	av_free(feedback_colors.lastFrame);
 
 	list_forall(list_frames, av_free);
