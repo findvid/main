@@ -56,7 +56,7 @@ CutInfo* readCutInfo(char *filename, int *amountread) {
 			return NULL;
 		}
 		sscanf(line, "%c %d %d", &(retval[i].type), &(retval[i].start), &(retval[i].end));
-		switch (retval[i].type) {
+		/*switch (retval[i].type) {
 			case 'C':
 			case 'D':
 			case 'F':
@@ -66,7 +66,7 @@ CutInfo* readCutInfo(char *filename, int *amountread) {
 				printf("readCutInfo(): Unknown cut type '%c'\n", retval[i].type);
 				*amountread = 0;
 				return NULL;
-		}
+		}*/
 		i++;
 	}
 	if (i != *amountread) {
