@@ -156,6 +156,7 @@ void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_
 	}
 	// Free the not anymore needed histogram
 	free(h2);
+	free(it_frames);
 	// Set the feedback for the next run
 	feedback->last_hist = h1;
 	feedback->last_diff = d1;
