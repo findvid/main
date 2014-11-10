@@ -85,32 +85,32 @@ TEST_F(detectCutsByColors, BOR08) {
 	runForVideo("BOR08");
 }
 
-TEST_F(detectCutsByColors, BOR10) {
-	runForVideo("BOR10");
-}
+//TEST_F(detectCutsByColors, BOR10) {
+//	runForVideo("BOR10");
+//}
 
 TEST_F(detectCutsByColors, BOR12) {
 	runForVideo("BOR12");
 }
 
-TEST_F(detectCutsByColors, BOR17) {
-	runForVideo("BOR17");
+//TEST_F(detectCutsByColors, BOR17) {
+//	runForVideo("BOR17");
+//}
+
+TEST_F(detectCutsByColors, UGS01) {
+	runForVideo("UGS01");
 }
 
-TEST_F(detectCutsByColors, USG01) {
-	runForVideo("USG01");
+TEST_F(detectCutsByColors, UGS04) {
+	runForVideo("UGS04");
 }
 
-TEST_F(detectCutsByColors, USG04) {
-	runForVideo("USG04");
+TEST_F(detectCutsByColors, UGS05) {
+	runForVideo("UGS05");
 }
 
-TEST_F(detectCutsByColors, USG05) {
-	runForVideo("USG05");
-}
-
-TEST_F(detectCutsByColors, USG09) {
-	runForVideo("USG09");
+TEST_F(detectCutsByColors, UGS09) {
+	runForVideo("UGS09");
 }
 
 int main(int argc, char *argv[]) {
