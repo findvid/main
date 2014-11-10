@@ -269,7 +269,7 @@ int processVideo(char *filename, uint32_t **cuts) {
 	return cutCount;
 }
 
-int main(int argc, char **argv) {	
+/*int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
 
@@ -284,4 +284,4 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < cutCount; i++) printf("%d\n", cuts[i]);
 	free(cuts);
 	return 0;
-}
+}*/
