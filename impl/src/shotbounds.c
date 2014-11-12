@@ -146,22 +146,25 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 				pFrameRGB24->width = DESTINATION_WIDTH;
 				pFrameRGB24->height = DESTINATION_HEIGHT;
 
-
 				// If one bulk of frames is filled, let the frames be processed first and clear the list
 				if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// HERE THERE BE PROCESSING
-					printf("Process bulk of %d frames...\n", list_frames->size);
+					printf(".");
+					fflush(stdout);
+					//printf("Process bulk of %d frames...\n", list_frames->size);
 					// call a method to fill list_cuts with detected cut frames
 					// old feedback-array is freed by the function
-					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 					
+					/*detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 					if (feedback_edges.lastFrame != NULL) av_free(feedback_edges.lastFrame);
 					feedback_edges.lastFrame = list_pop(list_frames);
+					*/
 
-
-					//detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
+					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
 					
 					// Get rid of the old frames and destroy the list
+					// TODO Why is this line not needed? -> list_forall(list_frames, avpicture_free);
+					list_forall(list_frames, avpicture_free);
 					list_forall(list_frames, av_free);
 					list_destroy(list_frames);
 					// ... and get a new one. A potential list_clear wouldn't do much else, still, there are possibly some ways to do this more gracefully
@@ -170,7 +173,6 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 					bulkStart = frameCount;
 				}
 			}
-
 		}
 		av_free_packet(&packet);
 	}
@@ -181,12 +183,15 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	// detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
 
+	// TODO Check if this call is alright // Free the frame buffers
+
 	// Final feedback goes nowhere
 	free(feedback_edges.diff);
 	av_free(feedback_edges.lastFrame);
 
 	free(feedback_colors.last_hist);
 
+	list_forall(list_frames, avpicture_free);
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
 
@@ -195,7 +200,8 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	list_destroy(list_cuts_edges);
 	list_destroy(list_cuts_colors);
 
-	av_free(pFrame);
+	av_frame_unref(pFrame);
+	av_frame_free(pFrame);
 	sws_freeContext(convert_rgb24);
 	sws_freeContext(convert_g8);
 	return cutCount;
@@ -243,7 +249,8 @@ int processVideo(char *filename, uint32_t **cuts) {
 		printf("Unsupported Codec\n");
 		return -1;
 	}
-	
+
+	// TODO Warning: Not thread safe!	
 	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
 		// TODO Errorhandleing
 		return -1;
@@ -273,11 +280,11 @@ int main(int argc, char **argv) {
 		printf("Missing parameter!\n");
 		return -1;
 	}
-	// TODO Do things
 	uint32_t *cuts;
 	int cutCount = processVideo(argv[1], &cuts);
 	
 	printf("RESULTS (%d, %p):\n", cutCount, cuts);
 	for (int i = 0; i < cutCount; i++) printf("%d\n", cuts[i]);
+	free(cuts);
 	return 0;
 }
