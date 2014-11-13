@@ -138,7 +138,7 @@ void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_
 			// Put the frame before the cut on the list
 			// TODO printf("d1: %d, d2: %d, dd1: %d, dd2: %d\n", d1, d2, dd1, dd2);
 			// TODO printf("Cut at Frame %d\n", frame_no - 2);
-			list_push(list_cuts, (void *)(frame_no - 2));
+			list_push(list_cuts, (void *)(intptr_t)(frame_no - 2));
 		}
 
 		// Swap the last and this histogram
