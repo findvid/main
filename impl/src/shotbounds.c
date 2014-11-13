@@ -131,7 +131,7 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 				// TODO Remove this: printf("Push frame@0x%x\n", pFrameRGB24);
 				
 				list_push(list_frames, pFrameRGB24);
-				printf("Pushing frame %d\n", frameCount);
+				//printf("Pushing frame %d\n", frameCount);
 				//!!!!! Allocate a new frame, obviously
 				pFrameRGB24 = av_frame_alloc();
 				
@@ -149,8 +149,8 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 				// If one bulk of frames is filled, let the frames be processed first and clear the list
 				if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// HERE THERE BE PROCESSING
-					printf(".");
-					fflush(stdout);
+					//printf(".");
+					//fflush(stdout);
 					//printf("Process bulk of %d frames...\n", list_frames->size);
 					// call a method to fill list_cuts with detected cut frames
 					// old feedback-array is freed by the function
@@ -288,8 +288,10 @@ int main(int argc, char **argv) {
 	uint32_t *cuts;
 	int cutCount = processVideo(argv[1], &cuts);
 	
-	printf("RESULTS (%d, %p):\n", cutCount, cuts);
-	for (int i = 0; i < cutCount; i++) printf("%d\n", cuts[i]);
+	//printf("RESULTS (%d, %p):\n", cutCount, cuts);
+	printf("%d", cuts[0]);
+	for (int i = 1; i < cutCount; i++) printf(" %d", cuts[i]);
+	printf("\n");
 	free(cuts);
 	return 0;
 }
