@@ -33,8 +33,8 @@ uint32_t mergeListsToArray(LargeList *l1, LargeList *l2, uint32_t **array) {
 	v_c = list_next(iter_c);
 	// while both lists contain something...
 	while ((v_e != NULL) && (v_c != NULL)) {
-		uint32_t e = (uint32_t)v_e;
-		uint32_t c = (uint32_t)v_c;
+		uint32_t e = (uint32_t)(intptr_t)v_e;
+		uint32_t c = (uint32_t)(intptr_t)v_c;
 		// ...merge their values.
 		if ( e == c ) {
 			(*array)[i++] = c;
@@ -50,11 +50,11 @@ uint32_t mergeListsToArray(LargeList *l1, LargeList *l2, uint32_t **array) {
 	}
 	// Write the left over list into the array too
 	while(v_e != NULL) {
-		(*array)[i++] = (uint32_t)v_e;
+		(*array)[i++] = (uint32_t)(intptr_t)v_e;
 		v_e = list_next(iter_e);
 	}
 	while(v_c != NULL) {
-		(*array)[i++] = (uint32_t)v_c;
+		(*array)[i++] = (uint32_t)(intptr_t)v_c;
 		v_c = list_next(iter_c);
 	}
 	free(iter_e);
@@ -95,11 +95,11 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 
 	//List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
 	//Each block of data should be the size of a mempage and contains pointers.
-	LargeList * list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+	LargeList * list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
 
 	//Another list to store the position of cut frames; a bit ugly, because void pointers store integers this way, but pragmatic
-	LargeList * list_cuts_edges = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
-	LargeList * list_cuts_colors = list_init(getpagesize()/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
+	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
+	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
 
 	//Store feedback given by a detection feature and pass it as an argument to the next call to it
 	ShotFeedback feedback_edges;
@@ -164,11 +164,11 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 					
 					// Get rid of the old frames and destroy the list
 					// TODO Why is this line not needed? -> list_forall(list_frames, avpicture_free);
-					list_forall(list_frames, avpicture_free);
+					list_forall(list_frames, (void (*) (void *))avpicture_free);
 					list_forall(list_frames, av_free);
 					list_destroy(list_frames);
 					// ... and get a new one. A potential list_clear wouldn't do much else, still, there are possibly some ways to do this more gracefully
-					list_frames = list_init(getpagesize()/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+					list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
 					
 					bulkStart = frameCount;
 				}
@@ -187,11 +187,14 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 
 	// Final feedback goes nowhere
 	free(feedback_edges.diff);
-	av_free(feedback_edges.lastFrame);
+	//av_free(feedback_edges.lastFrame);
+	//avpicture_free(feedback_edges.lastFrame);
+	//av_frame_free(&(feedback_edges.lastFrame));
+	//av_free(feedback_edges.lastFrame);
 
 	free(feedback_colors.last_hist);
 
-	list_forall(list_frames, avpicture_free);
+	list_forall(list_frames, (void (*) (void *))avpicture_free);
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
 
@@ -201,7 +204,9 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	list_destroy(list_cuts_colors);
 
 	av_frame_unref(pFrame);
-	av_frame_free(pFrame);
+	av_frame_free(&pFrame);
+	avpicture_free((AVPicture *)pFrameRGB24);
+	av_free(pFrameRGB24);
 	sws_freeContext(convert_rgb24);
 	sws_freeContext(convert_g8);
 	return cutCount;
