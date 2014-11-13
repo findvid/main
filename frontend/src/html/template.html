@@ -3,7 +3,7 @@
 <head>
 	<title><!--###TITLE###--></title>
 	<link rel="stylesheet" type="text/css" href="css/style.css">
-	<script type="text/javascript" src="//code.jquery.com/jquery-2.1.1.min.js"></script>
+	<script type="text/javascript" src="js/jquery-2.1.1.min.js"></script>
 	<script type="text/javascript" src="js/interface.js"></script>
 	<!--###JAVASCRIPT###-->
 	<!--###HEAD###-->
@@ -12,20 +12,25 @@
 	<div class="menu">
 		<div class="menu-wrap">
 			<div class="logo">
-				<img src="images/find_vid_logo.png" />
+				<a href="/">
+					<img src="images/find_vid_logo.png" />
+				</a>
 			</div>
 			<div class="searchnavi">
-				<div class="wrap">
+				<div class="searchnavi-wrap">
 					<div class="searchbar">
 						<span class="icon searchicon"></span>
-						<input type="text" class="searchfield" size="47" autofocus />
+						<input type="text" class="searchfield" size="47" autofocus value="<!--###SEARCHTERM###-->" />
 						<span class="icon closeicon"></span>
 					</div>
 					<span class="button search">GO!</span>
 				</div>
 			</div>
 			<div class="uploadwindow">
-				<div class="uploadwrap">
+				<div class="upload-wrap">
+					<form class="uploadform" action="upload" method="post" enctype="multipart/form-data">
+						<input id="uploadfile" class="hidden" name="uploadfile" type="file">
+					</form>
 					<span class="button upload">UPLOAD</span>
 					<div class="button labels">
 						<span class="videos label">Videos (<!--###VIDEOCOUNT###-->)</span>
@@ -41,16 +46,28 @@
 		</div>
 	</div>
 	<div class="content">
-		<div class="content-wrap">
+		<div id="content" class="content-wrap">
 			<!--###CONTENT###-->
-			<div class="videoplayer">
-				<div class="overlay">
-					<span class="icon closeicon"></span>
-					<span class="button searchscene">SEARCH SCENE</span>
-				</div>
-				<!--###VIDEO###-->
-			</div>
+			<div class="clear"></div>
 		</div>
+	</div>
+	<div class="videoplayer-wrap">
+		<div class="videoplayer">
+			<div class="overlay">
+				<span class="label title"></span>
+				<span class="button close">CLOSE</span>
+				<span class="button searchscene">SEARCH SCENE</span>
+			</div>
+			<video width="640" height="360" controls poster=""> 
+				<source src="" type="">
+				Your browser does not support the HTML5 video tag.
+			</video>
+		</div>
+	</div>
+	<div class="uploadprogress">
+		<span class="label progressmessage">Upload is in progress, please wait!</span>
+		<br>
+		<span class="label progress">0%</span>
 	</div>
 </body>
 </html>
