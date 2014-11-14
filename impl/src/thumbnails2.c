@@ -69,10 +69,6 @@ int main(int argc, char** argv) {
 
 	AVFrame *pFrame = av_frame_alloc();
 
-	AVFrame *tFrame = av_frame_alloc();
-	avpicture_alloc((AVPicture *)tFrame, PIX_FMT_YUVJ420P, pCodecCtx->width, pCodecCtx->height);
-
-	struct SwsContext * convert = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
 
 	if (pFrame == NULL) {
 		printf("malloc() for AVFrame failed, cannot read further.\n");
@@ -112,6 +108,9 @@ int main(int argc, char** argv) {
 		return -1;	
 	}
 
+	int numBytes = avpicture_get_size(PIX_FMT_YUVJ422P, pCodecCtx->width, pCodecCtx->height);
+	uint8_t * buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+
 	//Create the folder for this video under a set path
 	char folder[256];
 	sprintf(folder, "/thumbnails/%s", videoName);
@@ -136,14 +135,17 @@ int main(int argc, char** argv) {
 				frameCount++;
 				if (frameCount == nextFrame) {
 					//Encode this frame using the target Encoder and save it to a frame
+					pFrame->pts = frameCount;
+					pFrame->quality = trgtCtx->global_quality;
+					
+					AVPacket p2;
+					p2.size = 0;
+					p2.data = NULL;
+					av_init_packet(&p2);
+					int writtenBytes = avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
 
-					sws_scale(convert, (const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, tFrame->data, tFrame->linesize);
+					printf("p2.size = %d\n", p2.size);
 
-					AVPacket packet2;
-					packet2.data = NULL;
-					packet2.size = 0;
-					int writtenBytes = avcodec_encode_video2(trgtCtx, &packet2, tFrame, &frameFinished);
-printf("Wrote %d bytes into packet2, data is pointing at 0x%x\n", writtenBytes, packet2.data);
 					sprintf(thumbnailFilename, "/thumbnails/%s/frame%d.jpeg", videoName, frameCount);
 
 					FILE * thumbFile = fopen(thumbnailFilename, "wb");
@@ -151,11 +153,8 @@ printf("Wrote %d bytes into packet2, data is pointing at 0x%x\n", writtenBytes, 
 						printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
 						return -1;
 					}
-					writtenBytes = fwrite(packet.data, 1, writtenBytes, thumbFile);
+					writtenBytes = fwrite(p2.data, 1, p2.size, thumbFile);
 					fclose(thumbFile);
-
-					av_free_packet(&packet2);
-
 					if (argc <= argpos) {
 						break; //Arguments are exhausted, no need to look for further frames
 					}
@@ -167,13 +166,11 @@ printf("Wrote %d bytes into packet2, data is pointing at 0x%x\n", writtenBytes, 
 		av_free_packet(&packet);
 	}
 
+	av_free(buffer);
 	av_frame_free(&pFrame);
-	av_frame_free(&tFrame);
 
 	avcodec_close(pCodecCtx);
 	avcodec_free_context(&trgtCtx);
-
-	sws_freeContext(convert);
 
 	avformat_close_input(&pFormatCtx);
 
