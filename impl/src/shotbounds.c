@@ -203,6 +203,7 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	list_forall(list_frames, av_free);
 	list_destroy(list_frames);
 
+	list_push(list_cuts_colors, (void *)(intptr_t)frameCount);
 	int cutCount = mergeListsToArray(list_cuts_edges, list_cuts_colors, cuts);
 
 	list_destroy(list_cuts_edges);
@@ -294,8 +295,8 @@ int main(int argc, char **argv) {
 	int cutCount = processVideo(argv[1], &cuts);
 	
 	//printf("RESULTS (%d, %p):\n", cutCount, cuts);
-	printf("%d", cuts[0]);
-	for (int i = 1; i < cutCount; i++) printf(" %d", cuts[i]);
+	printf("0");
+	for (int i = 0; i < cutCount; i++) printf(" %d", cuts[i]);
 	printf("\n");
 	free(cuts);
 	return 0;
