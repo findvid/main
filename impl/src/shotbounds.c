@@ -2,7 +2,12 @@
 
 #include "fvutils.h"
 #include "largelist.h"
-#include "edgedetect.h"
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+#include <libavutil/mem.h>
+
 #include "histograms.h"
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
