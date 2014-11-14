@@ -68,10 +68,11 @@ int main(int argc, char** argv) {
 	}
 
 	AVFrame *pFrame = av_frame_alloc();
+
 	AVFrame *tFrame = av_frame_alloc();
 	avpicture_alloc((AVPicture *)tFrame, PIX_FMT_YUVJ420P, pCodecCtx->width, pCodecCtx->height);
 
-	struct SwsContext * convert = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_YUV444P, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext * convert = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height, PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL);
 
 	if (pFrame == NULL) {
 		printf("malloc() for AVFrame failed, cannot read further.\n");
@@ -88,7 +89,7 @@ int main(int argc, char** argv) {
 	trgtCtx->bit_rate = pCodecCtx->bit_rate;
 	trgtCtx->width = pCodecCtx->width;
 	trgtCtx->height = pCodecCtx->height;
-	trgtCtx->pix_fmt = PIX_FMT_YUVJ444P;
+	trgtCtx->pix_fmt = PIX_FMT_YUVJ420P;
 	trgtCtx->codec_id = CODEC_ID_MJPEG;
 	trgtCtx->codec_type = AVMEDIA_TYPE_VIDEO;
 	trgtCtx->time_base.num = pCodecCtx->time_base.num;

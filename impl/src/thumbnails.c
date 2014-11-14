@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
 				frameCount++;
 				if (frameCount == nextFrame) {
 					//Encode this frame using the target Encoder and save it to a frame
-					pFrame->pts = 1;
+					pFrame->pts = frameCount;
 					pFrame->quality = trgtCtx->global_quality;
 
 					int writtenBytes = avcodec_encode_video(trgtCtx, buffer, numBytes, pFrame);
