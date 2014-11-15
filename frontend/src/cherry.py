@@ -4,14 +4,21 @@ import shutil
 import os
 import re
 
+ROOTDIR = os.path.abspath('.')
+
 MONGOCLIENT = pymongo.MongoClient()
 DB = MONGOCLIENT['findvid']
 VIDEOS = DB['videos']
 
-HTMLDIR = os.path.join(os.path.abspath('.'), 'html')
+HTMLDIR = os.path.join(ROOTDIR, 'html')
 DEBUG = True
 
-UPLOADDIR = os.path.join('./', 'uploads')
+CONFIG = VIDEOS.find_one({'_id': 'config'})
+
+VIDEODIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['videopath']))
+THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnailpath']))
+
+UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
 def renderTemplate(filename, config):
 	tplfile = open(os.path.join(HTMLDIR, filename)).read()
@@ -33,23 +40,39 @@ def formatTime(frame, fps):
 def getUploads():
 
 	# todo: only find videos where upload=true
-	uploadsFromDb = VIDEOS.find()
+	uploadsFromDb = VIDEOS.find(
+		{
+			'_id': 
+				{ '$not': 
+					{ '$eq': 'config' } 
+				},
+			'upload': True
+		}
+	)
 
 	uploads = []
+
+	videocount = 0
+	scenecount = 0
 
 	for upload in uploadsFromDb:
 		progress = "100%"
 
+		videocount += 1
+
 		fps = int(upload['fps'])
 		filename = str(upload['filename'])
-		scenecount = len(upload['scenes'])
+		scenes = len(upload['scenes'])
+		
+		scenecount += scenes
+
 		vidid = str(upload['_id'])
 
 		uploadconfig = {
 			'progress': progress,
-			'thumbnail': 'images/thumb.png',
+			'thumbnail': os.path.join('thumbnails/', vidid, 'thumb.png'),
 			'videoid': vidid,
-			'scenecount': scenecount,
+			'scenecount': scenes,
 			'filename': filename,
 			'length': formatTime(int(upload['framecount']), fps)
 		}
@@ -60,72 +83,114 @@ def getUploads():
 	for upload in uploads:
 		uploadsContent += upload
 
-	return uploadsContent
-
-#def upload():
-	#filename = os.path.basename(uploadfile.filename)
-	#extension = os.path.splitext(filename)[1][1:]
-#
-#	#savedFile = os.path.join(UPLOADDIR, filename)
-#
-#	#if os.path.exists(savedFile):
-#	#	return False
-#
-#	#fileOut = open(savedFile, "w")
-#	#fileIn = uploadfile.file.read()
-#	#fileOut.write(fileIn)
-#	#fileOut.close()
-#
-	# call the python server
-
-	#return True
-
+	return {'scenecount': scenecount, 'videocount': videocount, 'uploads': uploadsContent}
 
 class Root(object):
 	@cherrypy.expose
 	def index(self):
-		videosFromDb = VIDEOS.find()
+		
+		content = """<div style="padding-left:5px"><b>Latest search terms:</b><br>...<br><br><b>Latest scene searches:</b><br>...</div>"""
 
-		videos = []
-
-		for video in videosFromDb:
-			fps = int(video['fps'])
-			filename = str(video['filename'])
-			vidid = str(video['_id'])
-
-			videoconfig = {
-				'thumbnail': 'images/thumb.png',
-				'videoid': vidid,
-				'filename': filename,
-				'length': formatTime(int(video['framecount']), fps)
-			}
-			
-			videos.append(renderTemplate('video.html', videoconfig))
-
-		content = ""
-		for video in videos:
-			content += video
+		uploads = getUploads()
 
 		config = {
-			'title': 'find.vid - The Videosearch Engine: Videos',
-			'videocount': '0',
-			'scenecount': '0',
+			'title': 'Main',
+			'videocount': uploads['videocount'],
+			'scenecount': uploads['scenecount'],
 			'searchterm': '',
-			'uploads': getUploads(),
+			'uploads': uploads['uploads'],
 			'content': content
 		}
 		return renderTemplate('template.html', config)
 
 	@cherrypy.expose
-	def upload(self):
-		filename = os.path.basename(cherrypy.request.headers['x-filename'])
-		destination = os.path.join(UPLOADDIR, filename)
-		with open(destination, 'wb') as f:
-			shutil.copyfileobj(cherrypy.request.body, f)
+	def search(self, name = None):
+		if not name:
+			raise cherrypy.HTTPRedirect('/')
 
-class Video(object):
+		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
+
+		if not videosFromDb:
+			content = 'No Videos found.'
+		else:
+			videos = []
+
+			for video in videosFromDb:
+				fps = int(video['fps'])
+				filename = str(video['filename'])
+				vidid = str(video['_id'])
+
+				videoconfig = {
+					'thumbnail': '/images/thumb.png',
+					'videoid': vidid,
+					'filename': filename,
+					'length': formatTime(int(video['framecount']), fps)
+				}
+				
+				videos.append(renderTemplate('video.html', videoconfig))
+
+			content = ""
+			for video in videos:
+				content += video
+
+		uploads = getUploads()
+
+		config = {
+			'title': 'find.vid - The Videosearch Engine: Search',
+			'videocount': uploads['videocount'],
+			'scenecount': uploads['scenecount'],
+			'searchterm': name,
+			'uploads': uploads['uploads'],
+			'content': content
+		}
+
+		return renderTemplate('template.html', config)
+
 	@cherrypy.expose
-	def index(self, vidid = None):
+	def searchScene(self, vidid = None, frame = None):
+		if not name:
+			raise cherrypy.HTTPRedirect('/')
+
+		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
+
+		if not videosFromDb:
+			content = 'No Videos found.'
+		else:
+			videos = []
+
+			for video in videosFromDb:
+				fps = int(video['fps'])
+				filename = str(video['filename'])
+				vidid = str(video['_id'])
+
+				videoconfig = {
+					'thumbnail': '/images/thumb.png',
+					'videoid': vidid,
+					'filename': filename,
+					'length': formatTime(int(video['framecount']), fps)
+				}
+				
+				videos.append(renderTemplate('video.html', videoconfig))
+
+			content = ""
+			for video in videos:
+				content += video
+
+		uploads = getUploads()
+
+		config = {
+			'title': 'find.vid - The Videosearch Engine: Search',
+			'videocount': uploads['videocount'],
+			'scenecount': uploads['scenecount'],
+			'searchterm': name,
+			'uploads': uploads['uploads'],
+			'content': content
+		}
+
+		return renderTemplate('template.html', config)
+
+	@cherrypy.expose
+	def video(self, vidid = None):
 		if not vidid:
 			raise cherrypy.HTTPRedirect('/')
 
@@ -146,7 +211,7 @@ class Video(object):
 				'url': fullpath,
 				'extension': os.path.splitext(filename)[1][1:],
 				'time': str(scene['startframe'] / fps),
-				'thumbnail': 'images/thumb.png',
+				'thumbnail': '/images/thumb.png',
 				'filename': filename,
 				'scenecount': str(int(scene['_id'])),
 				'starttime': formatTime(int(scene['startframe']), fps),
@@ -168,7 +233,7 @@ class Video(object):
 		vidid = str(videoFromDb['_id'])
 
 		videoconfig = {
-			'thumbnail': 'images/thumb.png',
+			'thumbnail': '/images/thumb.png',
 			'videoid': vidid,
 			'filename': filename,
 			'length': formatTime(int(videoFromDb['framecount']), fps)
@@ -176,67 +241,53 @@ class Video(object):
 		
 		content += renderTemplate('originvideo.html', videoconfig)
 
+		uploads = getUploads()
+
 		config = {
 			'title': 'find.vid - The Videosearch Engine: Scenes',
-			'videocount': '0',
-			'scenecount': '0',
+			'videocount': uploads['videocount'],
+			'scenecount': uploads['scenecount'],
 			'searchterm': '',
-			'uploads': getUploads(),
+			'uploads': uploads['uploads'],
 			'content': content
 		}
 
 		return renderTemplate('template.html', config)
 
-
-class Search(object):
 	@cherrypy.expose
-	def index(self, name = None):
-		if not name:
-			raise cherrypy.HTTPRedirect('/')
-
-		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
-
-		if not videosFromDb:
-			content = 'No Videos found.'
-		else:
-			videos = []
-
-			for video in videosFromDb:
-				fps = int(video['fps'])
-				filename = str(video['filename'])
-				vidid = str(video['_id'])
-
-				videoconfig = {
-					'thumbnail': 'images/thumb.png',
-					'videoid': vidid,
-					'filename': filename,
-					'length': formatTime(int(video['framecount']), fps)
-				}
-				
-				videos.append(renderTemplate('video.html', videoconfig))
-
-			content = ""
-			for video in videos:
-				content += video
-
-		config = {
-			'title': 'find.vid - The Videosearch Engine: Search',
-			'videocount': '0',
-			'scenecount': '0',
-			'searchterm': name,
-			'uploads': getUploads(),
-			'content': content
-		}
-
-		return renderTemplate('template.html', config)
-
+	def upload(self):
+		filename = os.path.basename(cherrypy.request.headers['x-filename'])
+		destination = os.path.join(UPLOADDIR, filename)
+		with open(destination, 'wb') as f:
+			shutil.copyfileobj(cherrypy.request.body, f)
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
-	
-	cherrypy.tree.mount(Root(), '/', './app.conf')
-	cherrypy.tree.mount(Video(), '/video', './app.conf')
-	cherrypy.tree.mount(Search(), '/search', './app.conf')
+
+	conf = {
+		'/js': {
+			'tools.staticdir.on': True,
+			'tools.staticdir.dir': os.path.join(ROOTDIR, 'js')
+		},
+		'/css': {
+			'tools.staticdir.on': True,
+			'tools.staticdir.dir': os.path.join(ROOTDIR, 'css')
+		},
+		'/images': {
+			'tools.staticdir.on': True,
+			'tools.staticdir.dir': os.path.join(ROOTDIR, 'images')
+		},
+		'/thumbnails': {
+			'tools.staticdir.on': True,
+			'tools.staticdir.dir': THUMBNAILDIR
+		},
+		'/videos': {
+			'tools.staticdir.on': True,
+			'tools.staticdir.dir': VIDEODIR
+		}
+	}
+
+	cherrypy.tree.mount(Root(), '/', conf)
 
 	cherrypy.server.max_request_body_size = 0
 
