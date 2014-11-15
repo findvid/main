@@ -1,3 +1,5 @@
+#include <Python.h>
+
 #include <unistd.h>
 
 #include "fvutils.h"
@@ -282,7 +284,7 @@ int processVideo(char *filename, uint32_t **cuts) {
 	// Better do an extra catch here in case there was a 0 on the list for some reason
 	return cutCount;
 }
-
+/*
 int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
@@ -300,4 +302,4 @@ int main(int argc, char **argv) {
 	printf("\n");
 	free(cuts);
 	return 0;
-}
+}*/
