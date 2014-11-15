@@ -70,22 +70,51 @@ $(function() {
 		for(var i = 0; i < event.target.files.length; i += 1) {
 			upload(event.target.files[i]); 
 		}
-		//$('.uploadform').reset();
 	});
 
-	$('.scene').on('click', function() {
+	$('.scene .meta').on('click', function() {
 		var $this = $(this),
+			$thumb = $this.parent().find('.thumbnail'),
+			display = $thumb.css('display');
+
+		if ($thumb.hasClass('active')) {
+			$thumb.slideUp().removeClass('active');
+		} else {
+			$('.scene .thumbnail.active').slideUp().removeClass('active');
+
+			var $img = $thumb.find('img');
+
+			$img.attr('src', $img.data('src'));
+
+			$img.ready(function() {
+				$thumb.slideDown().addClass('active');
+				$this.parent().css({
+					'background-color': '#a0a0a0',
+					'color': '#fff'
+				});
+			});
+		}
+	});
+
+	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta').on('click', function() {
+		var $this = $(this).parent(),
 
 			videourl = $this.data('url'),
 			format = $this.data('extension'),
 			time = $this.data('time'),
 
-			title = $this.find('.meta .label.title').html() + " " + $this.find('.meta .label.scenecount').html(),
+			scenecount = $this.find('.meta .label.scenecount').html(),
+
+			title = $this.find('.meta .label.title').html(),
 			poster = $this.find('.thumbnail img').attr('src'),
 
 			$videoplayerWrap = $('.videoplayer-wrap'),
 			$overlayLabel = $videoplayerWrap.find('.overlay .label.title'),
 			$videoplayer = $videoplayerWrap.find('video');
+
+		if (scenecount != undefined) {
+			title += " " + scenecount;
+		}
 
 		$overlayLabel.html(title);
 		$videoplayer.attr('poster', poster);

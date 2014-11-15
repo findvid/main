@@ -39,6 +39,15 @@ body {
 	}
 }
 
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+a:visited {
+	color: inherit;
+	text-decoration: none;
+}
 
 .clear {
 	float: none;
@@ -310,41 +319,81 @@ body {
 		height: 100%;
 		margin: auto;
 
-		.scene {
-			
+		.scene-wrap {
+
 			float: left;
-			width: 246px;
+			width: 450px;
+			padding-right: 5px;
 
-			cursor: pointer;
+			.scene {
+				width: 427px;
 
-			padding: 10px 5px 0 5px;
+				cursor: pointer;
+
+				padding: 5px 5px 0 5px;
+
+				.thumbnail {
+					display: none;
+
+
+					img {
+						width: 427px;
+					}
+				}
+
+				.meta {
+					padding-bottom: 5px;
+
+					.label {
+
+						font-size: 11pt;
+						
+					}
+
+					&:hover {
+						color: #dadada;
+					}
+				}
+
+			}
+
+		}
+
+		.originvideo {
+			float: left;
+			height: 100%;
+			width: 545px;
+			padding: 5px 0 5px 20px;
+
+			border-left: 1px dashed #cacaca;
 
 			.thumbnail {
-				height: 138px;
+
+				cursor: pointer;
 
 				img {
-					width: 246px;
+					width: 543px;
 				}
 			}
 
 			.meta {
+				cursor: pointer;
+			}
 
-				.label {
+			.tag-wrap {
+				.tag {
+					float: left;
 
-					font-size: 10pt;
-					
-					&.title {
-						font-weight: bold;
-						
-					}
+					margin: 5px 5px 0 0;
+					padding: 3px 5px;
 
-					&.scenecount {
+					cursor: pointer;
 
-					}
+					background-color: #dadada;
 
-					&.interval {
-						font-size: 9pt;
-						float: left;
+					&:hover {
+						background-color: #a0a0a0;
+						color: #fff;
 					}
 				}
 			}
@@ -357,12 +406,6 @@ body {
 			width: 246px;
 
 			padding: 10px 5px 0 5px;
-
-			a {
-				color: inherit;
-				text-decoration: none;
-			}
-
 			
 			.thumbnail {
 				height: 138px;

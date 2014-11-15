@@ -155,9 +155,26 @@ class Video(object):
 
 			scenes.append(renderTemplate('scene.html', sceneconfig))
 
-		content = ""
+		content = '<div class="scene-wrap">'
 		for scene in scenes:
 			content += scene
+
+		content += "</div>"
+
+		videoFromDb = VIDEOS.find_one({'_id': str(vidid)})
+
+		fps = int(videoFromDb['fps'])
+		filename = str(videoFromDb['filename'])
+		vidid = str(videoFromDb['_id'])
+
+		videoconfig = {
+			'thumbnail': 'images/thumb.png',
+			'videoid': vidid,
+			'filename': filename,
+			'length': formatTime(int(videoFromDb['framecount']), fps)
+		}
+		
+		content += renderTemplate('originvideo.html', videoconfig)
 
 		config = {
 			'title': 'find.vid - The Videosearch Engine: Scenes',
