@@ -87,12 +87,11 @@ int main(int argc, char** argv) {
 			if (frameFinished) {
 				frameCount++;
 				
-				SaveFrameG8(pFrame, pCodecCtx->width, pCodecCtx->height, 0);
 				//Get EdgeProfile and save it to disk
-				AVFrame * pFrameRGB = getEdgeProfile(pFrame, img_convert_ctx, pCodecCtx->width, pCodecCtx->height);
-				SaveFrameG8(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
+				AVFrame * gFrame = getEdgeProfile(pFrame, img_convert_ctx, pCodecCtx->width, pCodecCtx->height);
+				SaveFrameG8(gFrame, pCodecCtx->width, pCodecCtx->height, 1);
 
-				av_free(pFrameRGB);
+				av_frame_free(&gFrame);
 			}
 
 		}

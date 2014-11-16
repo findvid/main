@@ -6,8 +6,8 @@ BUILDFILE= obj/edgedetect.o
 obj/%.o: src/%.c
 	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
-build: $(BUILDFILE)
-	gcc $(CFLAGS) $(BUILDFILE) -o shotbounds $(LIBSFFMPEG)
+build: $(BUILDFILE) src/frametest.c
+	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o edges $(LIBSFFMPEG)
 
 test: $(BUILDFILE) src/frametest.c 
 	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o test $(LIBSFFMPEG)

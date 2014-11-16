@@ -1,18 +1,6 @@
 #include <math.h>
 #include "edgedetect.h"
 
-void imageAdd(AVFrame * img1, AVFrame **imgs, int c, int width, int height) {
-	for (int x = 0; x < width; x++ ) {
-		for ( int y = 0; y < height; y++ ) {
-			int g = 0;
-			for(int i = 0; i < c; i++)
-				g += getPixelG8(imgs[i], x, y);
-
-			setPixelG8(img1, x, y, g);
-		}
-	}
-}
-
 //Improve contrast by linear scaling
 void linearScale(AVFrame * pic, int width, int height) {
 	int min = 255, max = 0;
@@ -44,6 +32,7 @@ double gauss1(double x, double deviation) {
 double gauss2(double x, double deviation) {
 	return x*x/(deviation*deviation*deviation*deviation) * exp(-(x*x/(2 * deviation * deviation)));
 }
+
 /**
  * Convolve the area around a given position with a gaussian first derivative operator
  */
@@ -62,35 +51,63 @@ double convolveAt(AVFrame * pic, int x, int y, OperatorMask * mask, int width, i
 	return fabs(output);
 }
 
-AVFrame * getGaussianGradient(AVFrame * gray, OperatorMask * mask, int width, int height) {
-	AVFrame *res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
-	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
-
-	for (int x = 0; x < width; x++)	 {
+AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx, int width, int height) {
+	AVFrame * smoothed = av_frame_alloc();
+	avpicture_alloc((AVPicture *)smoothed, PIX_FMT_GRAY8, width, height);
+	
+	for (int x = 0; x < width; x++) {
 		for (int y = 0; y < height; y++) {
-			setPixelG8(res, x, y, convolveAt(gray, x, y, mask, width, height));
+			double c = 0.0;
+			c += 0.00366 * getPixelG8(gray, x-2, y-2);
+			c += 0.01465 * getPixelG8(gray, x-1, y-2);
+			c += 0.02564 * getPixelG8(gray, x, y-2);
+			c += 0.01465 * getPixelG8(gray, x+1, y-2);
+			c += 0.00366 * getPixelG8(gray, x+2, y-2);
+
+			c += 0.01465 * getPixelG8(gray, x-2, y-1);
+			c += 0.05860 * getPixelG8(gray, x-1, y-1);
+			c += 0.09523 * getPixelG8(gray, x, y-1);
+			c += 0.05860 * getPixelG8(gray, x+1, y-1);
+			c += 0.01465 * getPixelG8(gray, x+2, y-1);
+
+			c += 0.02564 * getPixelG8(gray, x-2, y);
+			c += 0.09523 * getPixelG8(gray, x-1, y);
+			c += 0.15018 * getPixelG8(gray, x, y);
+			c += 0.09523 * getPixelG8(gray, x+1, y);
+			c += 0.02564 * getPixelG8(gray, x+2, y);
+	
+			c += 0.01465 * getPixelG8(gray, x-2, y+1);
+			c += 0.05860 * getPixelG8(gray, x-1, y+1);
+			c += 0.09523 * getPixelG8(gray, x, y+1);
+			c += 0.05860 * getPixelG8(gray, x+1, y+1);
+			c += 0.01465 * getPixelG8(gray, x+2, y+1);
+		
+			c += 0.00366 * getPixelG8(gray, x-2, y+2);
+			c += 0.01465 * getPixelG8(gray, x-1, y+2);
+			c += 0.02564 * getPixelG8(gray, x, y+2);
+			c += 0.01465 * getPixelG8(gray, x+1, y+2);
+			c += 0.00366 * getPixelG8(gray, x+2, y+2);
+
+			setPixelG8(smoothed, x, y, c);
 		}
 	}
 
-	return res;
+	return smoothed;
 }
 
-/**
- * Convolve image with sodel operator
- */
-AVFrame * getGradientMagnitudeMap(AVFrame * gray, int width, int height) {
-	AVFrame *res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
-	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
+struct t_sobelOutput {
+	AVFrame * mag;
+	AVFrame * dir;
+};
+
+void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out, int width, int height) {
+	AVFrame *mag = av_frame_alloc();
+	avpicture_alloc((AVPicture *)mag, PIX_FMT_GRAY8, width, height);
+	AVFrame *dir = av_frame_alloc();
+	avpicture_alloc((AVPicture *)dir, PIX_FMT_GRAY8, width, height);
 
 
 //For each pixel, apply sodel operator to obtain grayscale intensity changes in different directions
-	double maxmag = 0.0;
 	for ( int y = 0; y < height; y++ ) {
 		for ( int x = 0; x < width; x++ ) {
 			
@@ -103,170 +120,134 @@ AVFrame * getGradientMagnitudeMap(AVFrame * gray, int width, int height) {
 			dy /= 9;
 
 			//each pixel saves the magnitude of the sodel operator at this point
- 			double mag = sqrt(dx * dx + dy * dy);
-			if (maxmag < mag) maxmag = mag;
-			res->data[0][x + y * res->linesize[0]] = (uint8_t)mag;
+ 			double magvar = sqrt(dx * dx + dy * dy);
+			mag->data[0][x + y * mag->linesize[0]] = (uint8_t)magvar;
+
+			double dirvar = atan2(dx, dy);
+			//Encode direction into a gray value: [-90|90] -> [0|3]
+			//-180 = 0
+			if (dirvar < 0) //]-90|0[ -> [180|90[
+				dirvar = (M_PI / 2) - dirvar;
+			//[0|180] -> [0|255]
+			//No need for drastic precision, use multiples of 45 degrees
+			dirvar = round(dirvar / (M_PI /4));
+			printf("dirvarf = %f\n", dirvar);
+			//dirvar *= (M_PI / 4);
+			//dirvar = (dirvar/(2 * M_PI)) * 255;
+
+			dir->data[0][x + y * dir->linesize[0]] = (uint8_t)dirvar;
 		}
 	}
 
-	return res;	
+	out->mag = mag;
+	out->dir = dir;
 }
 
-
-/**
- * Takes an array of masks and returns 1 if any mask matches the coord (x,y) as local maximum
- * This assumes there are as many masks as OPERATOR_DIRECTIONS defines
- */
-int isEdgePixel(AVFrame * varmap, int x, int y, OperatorMask * masks, int width, int height) {
-	int isEdge = 0;
-	for ( int i = 0; i < OPERATOR_DIRECTIONS; i++) {
-		int isLocalMax = 1;
-		int center = getPixelG8(varmap, x, y);
-		for (int p = 0; p < masks[i].width; p++) {
-			int xo = masks[i].off[2 * p];
-			int yo = masks[i].off[2 * p + 1];
-			if (getPixelG8(varmap, x-xo, y-yo) >= center) {
-				isLocalMax = 0;
-			} else if (getPixelG8(varmap, x+xo, y+yo) >= center) {
-				isLocalMax = 0;
-			}
-			if (isLocalMax) isEdge = 1;
-		}
-	}
-	return isEdge;
-}
-
-AVFrame * getEdgeProfileSodel(AVFrame *original, struct SwsContext * swsctx, int width, int height) {
-	//Retrieve a grayscale copy of the image; the SwsContext must be set properly
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
+	// Step 0: Get grayscal picture
 	AVFrame *gray = av_frame_alloc();
-	avpicture_alloc((AVPicture *)gray, PIX_FMT_GRAY8, width, height);
-	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
 
-	avpicture_fill((AVPicture *)gray, buffer, PIX_FMT_GRAY8, width, height);
-	sws_scale(swsctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
-	
-	linearScale(gray, width, height);
-	
-	AVFrame * sodel = getGradientMagnitudeMap(gray, width, height);
-	linearScale(sodel, width, height);
+	sws_scale(ctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
 
-	SaveFrameG8(sodel, width, height, 20);
+	//Step 1: gaussian smoothing
+	AVFrame * sgray = smoothGauss(gray, ctx, width, height);
+	SaveFrameG8(sgray, width, height, 2);
+	av_frame_free(&gray);
 
-	//Initialize an empty frame
-	AVFrame *res = av_frame_alloc();
+	//Step 2: Get SobelOutput
+	struct t_sobelOutput sobel;
+	getSobelOutput(sgray, &sobel, width, height);
+	av_frame_free(&sgray);
+	SaveFrameG8(sobel.mag, width, height, 3);
+	SaveFrameG8(sobel.dir, width, height, 4);
+
+	//Step 3: Non-maxmimum suppression
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < width; y++) {
+			int ox, oy;
+			switch(getPixelG8(sobel.dir, x, y))  {
+				case 0: //0 degree
+				case 4: // or 180
+					ox = 0;
+					oy = 1;
+					break;
+				case 1: //45 degree
+					ox = 1;
+					oy = -1;
+					break;
+				case 2: //90 degree
+					ox = 1;
+					oy = 0;
+					break;
+				case 3:
+					ox = 1;
+					oy = 1;
+					break;
+			}
+			if ((getPixelG8(sobel.mag, x, y) < getPixelG8(sobel.mag, x-oy, y-oy)) || (getPixelG8(sobel.mag, x,y) < getPixelG8(sobel.mag, x+ox, y+oy)))
+				setPixelG8(sobel.mag, x, y, 0);
+		}
+	}
+
+	SaveFrameG8(sobel.mag, width, height, 5);
+
+	//Step 4:Hysteresis thresholding
+	AVFrame * res = av_frame_alloc();
 	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
-	numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
 
-	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
-
-	for ( int y = 0; y < height; y++ ) {
-		for ( int x = 0; x < width; x++ ) {
-		//Mark an edge pixel if it's a significant maximum in the neighborhood
-			int center = getPixelG8(sodel, x, y);
-			int max_fitness = 0;
-			for(int xo = -4; xo <= 4; xo++) {
-				for(int yo = -4; yo <= 4; yo++) {
-					max_fitness += (center > getPixelG8(sodel, x+xo, y+yo));
+	
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < width; y++) {
+			if (getPixelG8(sobel.mag, x, y) > 63) {
+				setPixelG8(res, x, y, 255);
+				int ox = 0, oy = 0;
+				switch(getPixelG8(sobel.dir, x, y))  {
+					case 0: //0 degree
+					case 4: // or 180
+						ox = 1;
+						oy = 0;
+						break;
+					case 1: //45 degree
+						ox = 1;
+						oy = 1;
+						break;
+					case 2: //90 degree
+						ox = 0;
+						oy = 1;
+						break;
+					case 3: //135 degree
+						ox = -1;
+						oy = 1;
+						break;
+				}
+				//Follow edge in "+"-direction
+				int ox2 = ox, oy2 = oy;
+				while (getPixelG8(sobel.mag, x+ox2, y+oy2) > 48) {
+//					printf("Follow(+) edge to (%d,%d)\n", (x+ox2), (y+oy2));
+					//Set this as edge pixel
+					setPixelG8(res, x+ox2, y+oy2, 255);
+					//No need to repeat this
+					setPixelG8(sobel.mag, x+ox2, y+oy2, 0);
+					ox2 += ox;
+					oy2 += oy;
+				}
+				//Repeat in "-"-direction
+				ox2 = ox, oy2 = oy;
+				while (getPixelG8(sobel.mag, x-ox2, y-oy2) > 48) {
+//					printf("Follow(-) edge to (%d,%d)\n", (x-ox2), (y-oy2));
+					//Set this as edge pixel
+					setPixelG8(res, x+ox2, y+oy2, 255);
+					//No need to repeat this
+					setPixelG8(sobel.mag, x+ox2, y+oy2, 0);
+					ox2 += ox;
+					oy2 += oy;
 				}
 			}
-			// width = 3 -> 48 pixels (49-1) to compare to
-			//75% is smaller than center
-			if (max_fitness > 48)
-				setPixelG8(res, x, y, 0xff);
 		}
 	}
-
-	av_free(sodel);
-	av_free(gray);
-	return res;
-}
-
-AVFrame * getEdgeProfileGauss(AVFrame *original, struct SwsContext * swsctx, int width, int height) {
-	//Retrieve a grayscale copy of the image; the SwsContext must be set properly
-	AVFrame *gray = av_frame_alloc();
-	avpicture_alloc((AVPicture *)gray, PIX_FMT_GRAY8, width, height);
-	int numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-
-	avpicture_fill((AVPicture *)gray, buffer, PIX_FMT_GRAY8, width, height);
-	sws_scale(swsctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
-
-	linearScale(gray, width, height);
-	
-	//Initialze an empty frame
-	AVFrame *res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
-	numBytes = avpicture_get_size(PIX_FMT_GRAY8, width, height);
-	buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-
-	avpicture_fill((AVPicture *)res, buffer, PIX_FMT_GRAY8, width, height);
-
-
-	//Calculate some operator masks
-	OperatorMask masks[OPERATOR_DIRECTIONS];
-	for ( int a = 0; a < OPERATOR_DIRECTIONS; a++ ) {
-		double angle = (3.1415 / OPERATOR_DIRECTIONS) * a;
-		masks[a].width = 3;
-		masks[a].off = (short *)malloc(sizeof(short) * 2 * 3);
-		masks[a].weights = (double *)malloc(sizeof(double) * 2 * 3);
-		for (int p = 1; p <= masks[a].width; p++) {
-			masks[a].off[2 * (p-1)] = (short)round(p * cos(angle));
-			masks[a].off[2 * (p-1) + 1] = (short)round(p * sin(angle));
-			masks[a].weights[2 + p] = gauss1(p, 9);
-			masks[a].weights[p] = gauss1(-p, 9);
-		}
-	}
-	
-
-	//Other shit
-	AVFrame * ggrad1 = getGaussianGradient(gray, &masks[0], width, height);
-	AVFrame **ggrads = malloc(5 * sizeof(AVFrame *));
-	ggrads[0] = getGaussianGradient(gray, &masks[1], width, height);
-	ggrads[1] = getGaussianGradient(gray, &masks[2], width, height);
-	ggrads[2] = getGaussianGradient(gray, &masks[3], width, height);
-	ggrads[3] = getGaussianGradient(gray, &masks[4], width, height);
-	ggrads[4] = getGaussianGradient(gray, &masks[5], width, height);
-
-	imageAdd(ggrad1, ggrads, 5, width, height);
-
-	//linearScale(ggrad1, width, height);
-	
-
-	av_free(ggrads[0]);
-	av_free(ggrads[1]);
-	av_free(ggrads[2]);
-	av_free(ggrads[3]);
-	av_free(ggrads[4]);
-	free(ggrads);
-
-	//Calculate average value for intensity in ggrad1
-	double avg = 0.0;
-	for ( int y = 0; y < height; y++ ) {
-		for ( int x = 0; x < width; x++ ) {
-			avg += (double)(getPixelG8(ggrad1, x, y));
-		}
-	}
-	avg /= (width * height);
-	//Mark them as pixel if any mask detects a local extremum in change
-	for ( int y = 0; y < height; y++ ) {
-		for ( int x = 0; x < width; x++ ) {
-			if (getPixelG8(ggrad1, x, y) > avg)
-				res->data[0][x + y * res->linesize[0]] = 255;	
-		}
-	}
-
-	//Clean up + Ship it
-	
-	//wreck calculated masks
-	for ( int i = 0; i < OPERATOR_DIRECTIONS; i++) {
-		free(masks[i].weights);
-		free(masks[i].off);
-	}
-
-	av_free(ggrad1);
-	av_free(gray);	
-	
+	//Free the rest and return result
+	av_frame_free(&sobel.mag);
+	av_frame_free(&sobel.dir);
 	return res;
 }
