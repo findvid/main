@@ -10,8 +10,8 @@ clean:
 obj/%.o: src/%.c
 	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
-build: $(BUILDFILES)
+build_old: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o thumbnails $(LIBSFFMPEG)
 
-build_alt: obj/thumbnails2.o
+build: obj/thumbnails2.o
 	gcc $(CFLAGS) obj/thumbnails2.o -o thumbnails $(LIBSFFMPEG)

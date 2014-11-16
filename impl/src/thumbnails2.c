@@ -113,7 +113,17 @@ int main(int argc, char** argv) {
 
 	//Create the folder for this video under a set path
 	char folder[256];
-	sprintf(folder, "/thumbnails/%s", videoName);
+	char *p = NULL;
+
+	int path_override = 0;
+	strtol(argv[2], &p, 10);
+	if (*p != '\0') {
+		//This is the path override, as non-digits were found in argv[2]
+		sprintf(folder, "%s/%s", argv[2], videoName);
+		path_override = 1;
+	} else
+		sprintf(folder, "/var/www/findvid/thumbnails/%s", videoName); //Default
+	
 	if (mkdir(folder, 0777) < 0) {
 		if (errno != EEXIST) {
 			printf("Cannot create folder to save to!(%s)\nERROR = %d\n", folder, errno);
@@ -123,7 +133,7 @@ int main(int argc, char** argv) {
 
 	int frameCount = 0;
 	int frameFinished = 0;
-	int argpos = 2; //0 = cmd, 1 = videopath, 2,3,4,5,6,...=frames to capture
+	int argpos = 2 + path_override; //0 = cmd, 1 = videopath, 2,3,4,5,6,...=frames to capture
 	int nextFrame = strtol(argv[argpos++], NULL, 10); //Convert to base 10
 	AVPacket packet;
 	while (av_read_frame(pFormatCtx, &packet)>=0) {
@@ -142,19 +152,18 @@ int main(int argc, char** argv) {
 					p2.size = 0;
 					p2.data = NULL;
 					av_init_packet(&p2);
-					int writtenBytes = avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
+					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
 
-					printf("p2.size = %d\n", p2.size);
-
-					sprintf(thumbnailFilename, "/thumbnails/%s/frame%d.jpeg", videoName, frameCount);
+					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-2-path_override));
 
 					FILE * thumbFile = fopen(thumbnailFilename, "wb");
 					if (!thumbFile) {
 						printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
 						return -1;
 					}
-					writtenBytes = fwrite(p2.data, 1, p2.size, thumbFile);
+					fwrite(p2.data, 1, p2.size, thumbFile);
 					fclose(thumbFile);
+					printf("Wrote frame #%d as scene-thumb #%d\n", frameCount, (argpos-2-path_override));
 					if (argc <= argpos) {
 						break; //Arguments are exhausted, no need to look for further frames
 					}
