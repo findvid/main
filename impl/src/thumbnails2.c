@@ -134,7 +134,9 @@ int main(int argc, char** argv) {
 	int frameCount = 0;
 	int frameFinished = 0;
 	int argpos = 2 + path_override; //0 = cmd, 1 = videopath, 2,3,4,5,6,...=frames to capture
-	int nextFrame = strtol(argv[argpos++], NULL, 10); //Convert to base 10
+	int nextFrame = strtol(argv[argpos++], &p, 10); //Convert to base 10
+	if (*p != '\0')
+		fprintf(stderr, "Arg #%d appears to be a non-number!\n", (argpos-1));
 	AVPacket packet;
 	while (av_read_frame(pFormatCtx, &packet)>=0) {
 		if (packet.stream_index==videoStream) {
@@ -163,11 +165,14 @@ int main(int argc, char** argv) {
 					}
 					fwrite(p2.data, 1, p2.size, thumbFile);
 					fclose(thumbFile);
-					printf("Wrote frame #%d as scene-thumb #%d\n", frameCount, (argpos-2-path_override));
 					if (argc <= argpos) {
 						break; //Arguments are exhausted, no need to look for further frames
 					}
-					nextFrame = strtol(argv[argpos++], NULL, 10);
+					nextFrame = strtol(argv[argpos++], &p, 10);
+					if (*p != '\0')
+						fprintf(stderr, "Arg #%d appears to be a non-number!\n", (argpos-1));
+					if (nextFrame < frameCount)
+						fprintf(stderr, "Arg #%d specifies a frame that has been passed already. Make sure you pass the frame arguments in ascending numberical order!\n", (argpos-1));
 				}
 			}
 
