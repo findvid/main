@@ -108,9 +108,6 @@ int main(int argc, char** argv) {
 		return -1;	
 	}
 
-	int numBytes = avpicture_get_size(PIX_FMT_YUVJ422P, pCodecCtx->width, pCodecCtx->height);
-	uint8_t * buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-
 	//Create the folder for this video under a set path
 	char folder[256];
 	char *p = NULL;
@@ -133,7 +130,12 @@ int main(int argc, char** argv) {
 
 	int frameCount = 0;
 	int frameFinished = 0;
-	int argpos = 2 + path_override; //0 = cmd, 1 = videopath, 2,3,4,5,6,...=frames to capture
+	
+	int videothumb = strtol(argv[2 + path_override], &p, 10);
+	if (*p != '\0')
+		fprintf(stderr, "Arg for videothumbnail seems malformed!\n");
+
+	int argpos = 3 + path_override; //0 = cmd, 1 = videopath, 2,3,4,5,6,...=frames to capture
 	int nextFrame = strtol(argv[argpos++], &p, 10); //Convert to base 10
 	if (*p != '\0')
 		fprintf(stderr, "Arg #%d appears to be a non-number!\n", (argpos-1));
@@ -145,6 +147,24 @@ int main(int argc, char** argv) {
 
 			if (frameFinished) {
 				frameCount++;
+				if (frameCount == videothumb) {
+					AVPacket p2;
+					p2.size = 0;
+					p2.data = NULL;
+					av_init_packet(&p2);
+					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
+
+					sprintf(thumbnailFilename, "%s/video.jpeg", folder);
+
+					FILE * thumbFile = fopen(thumbnailFilename, "wb");
+					if (!thumbFile) {
+						printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
+						return -1;
+					}
+					fwrite(p2.data, 1, p2.size, thumbFile);
+					fclose(thumbFile);
+					av_free_packet(&p2);
+				}
 				if (frameCount == nextFrame) {
 					//Encode this frame using the target Encoder and save it to a frame
 					pFrame->pts = frameCount;
@@ -156,7 +176,7 @@ int main(int argc, char** argv) {
 					av_init_packet(&p2);
 					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
 
-					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-2-path_override));
+					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-3-path_override));
 
 					FILE * thumbFile = fopen(thumbnailFilename, "wb");
 					if (!thumbFile) {
@@ -165,6 +185,7 @@ int main(int argc, char** argv) {
 					}
 					fwrite(p2.data, 1, p2.size, thumbFile);
 					fclose(thumbFile);
+					av_free_packet(&p2);
 					if (argc <= argpos) {
 						break; //Arguments are exhausted, no need to look for further frames
 					}
@@ -180,7 +201,6 @@ int main(int argc, char** argv) {
 		av_free_packet(&packet);
 	}
 
-	av_free(buffer);
 	av_frame_free(&pFrame);
 
 	avcodec_close(pCodecCtx);
@@ -188,5 +208,5 @@ int main(int argc, char** argv) {
 
 	avformat_close_input(&pFormatCtx);
 
-
+	free(videoName);
 }
