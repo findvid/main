@@ -110,8 +110,8 @@ class Root(object):
 
 		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
 
-		if not videosFromDb:
-			content = 'No Videos found.'
+		if videosFromDb.count() == 0:
+			content = 'No Videos found, for your search query: "'+name+'".'
 		else:
 			videos = []
 
@@ -136,7 +136,7 @@ class Root(object):
 		uploads = getUploads()
 
 		config = {
-			'title': 'find.vid - The Videosearch Engine: Search',
+			'title': 'Search',
 			'videocount': uploads['videocount'],
 			'scenecount': uploads['scenecount'],
 			'searchterm': name,
@@ -148,41 +148,46 @@ class Root(object):
 
 	@cherrypy.expose
 	def searchScene(self, vidid = None, frame = None):
-		if not name:
+		if not vidid or not frame:
 			raise cherrypy.HTTPRedirect('/')
+		
+		videoFromDb = VIDEOS.find_one({'_id': str(vidid)})
 
-		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
-
-		if not videosFromDb:
-			content = 'No Videos found.'
+		if not videoFromDb:
+			content = 'No Videos found, for your search query.'
 		else:
-			videos = []
+			scenes = []
+			path = videoFromDb['path']
+			filename = videoFromDb['filename']
+			fullpath = os.path.join(path, filename)
+			fps = videoFromDb['fps']
 
-			for video in videosFromDb:
-				fps = int(video['fps'])
-				filename = str(video['filename'])
-				vidid = str(video['_id'])
+			for scene in videoFromDb['scenes']:
 
-				videoconfig = {
+				sceneconfig = {
+					'url': fullpath,
+					'extension': os.path.splitext(filename)[1][1:],
+					'time': str(scene['startframe'] / fps),
 					'thumbnail': '/images/thumb.png',
-					'videoid': vidid,
 					'filename': filename,
-					'length': formatTime(int(video['framecount']), fps)
+					'scenecount': str(int(scene['_id'])),
+					'starttime': formatTime(int(scene['startframe']), fps),
+					'endtime': formatTime(int(scene['endframe']), fps)
 				}
-				
-				videos.append(renderTemplate('video.html', videoconfig))
+
+				scenes.append(renderTemplate('similarscene.html', sceneconfig))
 
 			content = ""
-			for video in videos:
-				content += video
+			for scene in scenes:
+				content += scene
 
 		uploads = getUploads()
 
 		config = {
-			'title': 'find.vid - The Videosearch Engine: Search',
+			'title': 'Found Scenes',
 			'videocount': uploads['videocount'],
 			'scenecount': uploads['scenecount'],
-			'searchterm': name,
+			'searchterm': '',
 			'uploads': uploads['uploads'],
 			'content': content
 		}
@@ -244,7 +249,7 @@ class Root(object):
 		uploads = getUploads()
 
 		config = {
-			'title': 'find.vid - The Videosearch Engine: Scenes',
+			'title': 'Scenes',
 			'videocount': uploads['videocount'],
 			'scenecount': uploads['scenecount'],
 			'searchterm': '',
