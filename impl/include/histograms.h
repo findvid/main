@@ -41,7 +41,7 @@ void rgbToHsv(HSV* hsv, int r, int g, int b);
  *
  * @return	pointer to the newly allocated histogram
  */
-uint32_t* newHistRgb();
+uint32_t* newHistRgb(void);
 
 /**
  * Allocates a 8x4x4 color histogram
@@ -51,7 +51,7 @@ uint32_t* newHistRgb();
  *
  * @return	pointer to the newly allocated histogram
  */
-uint32_t* newHistHsv();
+uint32_t* newHistHsv(void);
 
 /**
  * Fills a color histogram with data from a frame
@@ -103,5 +103,8 @@ typedef struct {
  * @param list_cuts	List the detected cuts will be added to
  * @param frame_no	Index of the first frame. Used to add the detected cuts to the list
  * @param feedback	Feedback from the last call
+ * @param histDiff	List to witch the differences of the histograms from frame to frame will get stored in
  */
-void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback);
+void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback, LargeList *histDiff);
+
+uint32_t *applyRectWindow(uint32_t *signal, int len, int win);

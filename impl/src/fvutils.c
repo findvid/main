@@ -59,3 +59,45 @@ void SaveFrameG8(AVFrame * pFrame, int width, int height, int i) {
 	// Close file
 	fclose(pFile);
 }
+
+
+typedef struct {
+	uint8_t *data;
+	int w;
+	int h;
+} Image;
+
+int saveImage(Image *img, char *filename) {
+	FILE *pFile;
+	pFile = fopen(filename, "wb");
+	if (pFile == NULL) {
+		return -1;
+	}
+	
+	fprintf(pFile, "P6\n%d %d\n255\n", img->w, img->h);
+	fwrite(img->data, 3*img->w*img->h, 1, pFile);
+	fclose(pFile);
+	return 0;
+}
+
+int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
+	Image graph;
+	graph.data = (uint8_t *)calloc(len * 3 * height, sizeof(uint8_t));
+	graph.w = len;
+	graph.h = height;
+	int x;
+	int y;
+	for (x = 0; x < len; x++) {
+		uint32_t value = ((double)data[x]) * scale;
+	//	printf("Draw (%d,%d)\n", x, value);
+		for (y = 1; (y <= value) && (y <= height); y++) {
+			graph.data[((height - y) * len + x) * 3] = 255;
+		}
+	}
+
+	char filename[32];
+	sprintf(filename, "graph%d.ppm", nr);
+	saveImage(&graph, filename);
+	free(graph.data);
+	return 0;
+}

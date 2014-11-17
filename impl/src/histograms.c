@@ -3,6 +3,7 @@
 #include <libavutil/mem.h>
 #include <math.h>
 #include "histograms.h"
+#include "largelist.h"
 
 #define MAX(a, b) ((a>b) ? a : b)
 #define MIN(a, b) ((a<b) ? a : b)
@@ -46,7 +47,7 @@ void rgbToHsv(HSV* hsv, int r, int g, int b) {
 }
 
 
-uint32_t* newHistRgb() {
+uint32_t* newHistRgb(void) {
 	uint32_t* result = (uint32_t *)calloc(sizeof(uint32_t), HIST_RGB_SIZE);
 	if (!result) {
 		printf("Calloc failed in newHistRgb()\n");
@@ -55,7 +56,7 @@ uint32_t* newHistRgb() {
 	return result;
 }
 
-uint32_t* newHistHsv() {
+uint32_t* newHistHsv(void) {
 	uint32_t* result = (uint32_t *)calloc(sizeof(uint32_t), HIST_HSV_SIZE);
 	if (!result) {
 		printf("Calloc failed in newHistRgb()\n");
@@ -72,7 +73,7 @@ void fillHistRgb(uint32_t* hist, AVFrame* img) {
 	}
 	// Increase each bin for each pixel with the right color
 	for (i = 0; i < img->width * img->height; i++) {
-		hist[GETBINRGB(img->data[0][i * 3] , img->data[0][i * 3 + 1], img->data[0][i * 3 +2])]++;
+		hist[GETBINRGB(img->data[0][i * 3] , img->data[0][i * 3 + 1], img->data[0][i * 3 + 2])]++;
 	}
 }
 
@@ -112,7 +113,7 @@ uint32_t histDiffHsv(uint32_t *h1, uint32_t *h2) {
 }
 
 #define CUT_DETECT_LEVEL 20000 // Magic number that hopefully does the trick
-void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback) {
+void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_t frame_no, ColorHistFeedback *feedback, LargeList *frameDiff) {
 	// get the values of the last feedback for the start
 	uint32_t *h1 = feedback->last_hist;
 	uint32_t *tmp; // Histogram for the last frame
@@ -141,6 +142,9 @@ void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_
 			list_push(list_cuts, (void *)(intptr_t)(frame_no - 2));
 		}
 
+		// Push the difference between the frames on the list for later evaluation
+		list_push(frameDiff, (void *)(intptr_t)d2);
+
 		// Swap the last and this histogram
 		tmp = h1;
 		h1 = h2;
@@ -161,4 +165,20 @@ void detectCutsByHistogram(LargeList *list_frames, LargeList *list_cuts, uint32_
 	feedback->last_hist = h1;
 	feedback->last_diff = d1;
 	feedback->last_derivation = dd1;
+}
+
+uint32_t *applyRectWindow(uint32_t *signal, int len, int win) {
+	int i;
+	uint32_t *retval = (uint32_t *)calloc(len, sizeof(uint32_t));
+	uint64_t sum = 0;
+	int winWidth = win * 2;
+	for (i = 0; i < winWidth; i++) {
+		sum += signal[i];
+	}
+	for (i = win; i < (len - win); i++) {
+		retval[i] = sum / winWidth;
+		sum -= signal[i - win];
+		sum += signal[i + win];
+	}
+	return retval;
 }

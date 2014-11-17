@@ -100,15 +100,20 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 	int frameFinished = 0;
 	AVPacket packet;
 
-	//List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
-	//Each block of data should be the size of a mempage and contains pointers.
-	LargeList * list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET); //Subtract this value so the list-struct fields don't exceed the page size
+	// List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
+	// Each block of data should be the size of a mempage and contains pointers.
+	// Subtract this value so the list-struct fields don't exceed the page size
+	LargeList * list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET);
 
-	//Another list to store the position of cut frames; a bit ugly, because void pointers store integers this way, but pragmatic
-	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
-	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET); //Will likely never have to create a new link with a whole page of cuts
+	// Another list to store the position of cut frames; a bit ugly, because void pointers store integers this way, but pragmatic
+	// Will likely never have to create a new link with a whole page of cuts
+	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
-	//Store feedback given by a detection feature and pass it as an argument to the next call to it
+	// List for the histogram differences between the frames of the video 
+	LargeList * list_hist_diff = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+
+	// Store feedback given by a detection feature and pass it as an argument to the next call to it
 	ShotFeedback feedback_edges;
 	feedback_edges.lastFrame = NULL;
 	feedback_edges.diff = NULL;
@@ -167,7 +172,7 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 					feedback_edges.lastFrame = list_pop(list_frames);
 					*/
 
-					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
+					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 					
 					// Get rid of the old frames and destroy the list
 					// TODO Why is this line not needed? -> list_forall(list_frames, avpicture_free);
@@ -188,9 +193,27 @@ int findCuts(AVFormatContext *pFormatCtx, AVCodecContext *pCodecCtx, int videoSt
 					
 	// call a method to fill list_cuts with detected cut frames
 	// detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &feedback_edges, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors);
+	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 
-	// TODO Check if this call is alright // Free the frame buffers
+/* WIP: Fade/Disolve detection
+	int hist_diff_size = list_hist_diff->size;
+	uint32_t *hist_diff = (uint32_t *)malloc(sizeof(uint32_t) * hist_diff_size);
+	ListIterator *listIt = list_iterate(list_hist_diff);
+	int i;
+	for (i = 0; i < hist_diff_size; i++) {
+		hist_diff[i] = (uint32_t)(intptr_t)list_next(listIt);
+	}
+
+	uint32_t *hist_diff_conv = applyRectWindow(hist_diff, hist_diff_size, 3);
+
+	drawGraph(hist_diff_conv, hist_diff_size, 400, 0.01, 1);
+	drawGraph(hist_diff, hist_diff_size, 400, 0.01, 0);
+
+	free(hist_diff);
+	free(hist_diff_conv);
+*/
+	list_destroy(list_hist_diff);
+	
 
 	// Final feedback goes nowhere
 	free(feedback_edges.diff);
@@ -284,7 +307,7 @@ int processVideo(char *filename, uint32_t **cuts) {
 	// Better do an extra catch here in case there was a 0 on the list for some reason
 	return cutCount;
 }
-/*
+
 int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
@@ -302,4 +325,4 @@ int main(int argc, char **argv) {
 	printf("\n");
 	free(cuts);
 	return 0;
-}*/
+}
