@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
 	// Retrieve stream information
 	if(avformat_find_stream_info(pFormatCtx, NULL)<0) {
-		printf("Coul not find stream info!\n");
+		printf("Could not find stream info!\n");
 		return -1; // Couldn't find stream information
 	}
 

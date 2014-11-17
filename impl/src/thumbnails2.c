@@ -127,12 +127,16 @@ int main(int argc, char** argv) {
 			return -1;
 		}
 	}
+	
+	//Deprechated way with a manually allocated buffer
+	int numBytes = avpicture_get_size(PIX_FMT_YUVJ420P, pCodecCtx->width, pCodecCtx->height);
+	uint8_t * buffer = av_malloc(numBytes);
 
 	int frameCount = 0;
 	int frameFinished = 0;
 
 	//FFMPEg is a fugly dumb motherfucker and needs the frames properly enumerated to encode them
-	int hadVidThumb = 0;
+	int writtenFrames = 0;
 
 	int videothumb = strtol(argv[2 + path_override], &p, 10);
 	if (*p != '\0')
@@ -151,15 +155,14 @@ int main(int argc, char** argv) {
 			if (frameFinished) {
 				frameCount++;
 				if (frameCount == videothumb) {
-					hadVidThumb = 1;
-					pFrame->pts = frameCount;
+					pFrame->pts = writtenFrames++;
 					pFrame->quality = trgtCtx->global_quality;
 					
 					AVPacket p2;
 					p2.size = 0;
 					p2.data = NULL;
 					av_init_packet(&p2);
-					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
+					//avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
 
 					sprintf(thumbnailFilename, "%s/video.jpeg", folder);
 
@@ -168,20 +171,23 @@ int main(int argc, char** argv) {
 						printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
 						return -1;
 					}
-					fwrite(p2.data, 1, p2.size, thumbFile);
+					//fwrite(p2.data, 1, p2.size, thumbFile);
+					int written = avcodec_encode_video(trgtCtx, buffer, numBytes, pFrame);					
+					fwrite(buffer, 1, written, thumbFile);
 					fclose(thumbFile);
 					av_free_packet(&p2);
 				}
 				if (frameCount == nextFrame) {
 					//Encode this frame using the target Encoder and save it to a frame
-					pFrame->pts = frameCount + hadVidThumb;
+					pFrame->pts = writtenFrames++;
 					pFrame->quality = trgtCtx->global_quality;
 					
 					AVPacket p2;
 					p2.size = 0;
 					p2.data = NULL;
 					av_init_packet(&p2);
-					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
+					//avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
+
 
 					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-4-path_override));
 
@@ -190,7 +196,11 @@ int main(int argc, char** argv) {
 						printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
 						return -1;
 					}
-					fwrite(p2.data, 1, p2.size, thumbFile);
+					//fwrite(p2.data, 1, p2.size, thumbFile);
+					//Deprechated way with a manually allocated buffer
+					int written = avcodec_encode_video(trgtCtx, buffer, numBytes, pFrame);					
+					fwrite(buffer, 1, written, thumbFile);
+
 					fclose(thumbFile);
 					av_free_packet(&p2);
 					if (argc <= argpos) {
@@ -207,6 +217,8 @@ int main(int argc, char** argv) {
 		}
 		av_free_packet(&packet);
 	}
+
+	av_free(buffer);
 
 	av_frame_free(&pFrame);
 
