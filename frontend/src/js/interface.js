@@ -1,4 +1,16 @@
 $(function() {
+	
+	$(document).keypress(function(e) {
+	    /* Event which is triggered, when the "Enter"-Key is pressed */
+	    if(e.which == 13) {
+			/* Check if the user is inside the searchfield */
+			if ($('input.searchfield').is(':focus')) {
+				/* Press the "Go!"-Button for the user */
+				$('.button.search').click();
+			}
+		}
+	});
+
 	function upload(file) {
 		var xhr = new XMLHttpRequest();
 
@@ -32,6 +44,41 @@ $(function() {
 		xhr.send(file);
 	}
 
+	function loadContent(url, data) {
+		$.ajax({
+			url: url,
+			data: data,
+			type: 'GET',
+			
+			beforeSend: function() {
+				$('#content').html('<div class="loading"></div>');
+			},
+
+			success: function(data) {
+				$('#content').html($(data).find('#content').html());
+			}
+		});
+	}
+
+	/*
+	$('.video').on('click', function() {
+		var vidid = $(this).data('vidid');
+		console.log('test');
+		loadContent('/video/', {'vidid': vidid})
+	});
+	*/
+	$('input.searchfield').on('input', function() {
+		if ($(this).val() == "") {
+			loadContent('/', {})
+		} else {
+			$('.button.search').click();
+		}
+	});
+
+	$('.button.searchscene').on('click', function() {
+		loadContent('/searchScene/', {'vidid':'0', 'frame':'0'})
+	});
+
 	$('.menu .searchnavi .icon.closeicon').on('click', function() {
 		$('.menu .searchnavi .searchfield').val('');
 	});
@@ -45,19 +92,7 @@ $(function() {
 	});
 
 	$('.button.search').on('click', function() {
-		$.ajax({
-			url: '/search/',
-			data: {'name':$('.searchbar .searchfield').val()},
-			type: 'GET',
-			
-			beforeSend: function() {
-				$('#content').html('Loading...');
-			},
-
-			success: function(data) {
-				$('#content').html($(data).find('#content').html());
-			}
-		});
+		loadContent('/search/', {'name':$('.searchbar .searchfield').val()})
 
 		//window.location.href =  + $('.searchbar .searchfield').val();
 	});
