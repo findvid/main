@@ -130,7 +130,10 @@ int main(int argc, char** argv) {
 
 	int frameCount = 0;
 	int frameFinished = 0;
-	
+
+	//FFMPEg is a fugly dumb motherfucker and needs the frames properly enumerated to encode them
+	int hadVidThumb = 0;
+
 	int videothumb = strtol(argv[2 + path_override], &p, 10);
 	if (*p != '\0')
 		fprintf(stderr, "Arg for videothumbnail seems malformed!\n");
@@ -148,6 +151,10 @@ int main(int argc, char** argv) {
 			if (frameFinished) {
 				frameCount++;
 				if (frameCount == videothumb) {
+					hadVidThumb = 1;
+					pFrame->pts = frameCount;
+					pFrame->quality = trgtCtx->global_quality;
+					
 					AVPacket p2;
 					p2.size = 0;
 					p2.data = NULL;
@@ -167,7 +174,7 @@ int main(int argc, char** argv) {
 				}
 				if (frameCount == nextFrame) {
 					//Encode this frame using the target Encoder and save it to a frame
-					pFrame->pts = frameCount;
+					pFrame->pts = frameCount + hadVidThumb;
 					pFrame->quality = trgtCtx->global_quality;
 					
 					AVPacket p2;
