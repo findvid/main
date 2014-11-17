@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
 		sprintf(folder, "%s/%s", argv[2], videoName);
 		path_override = 1;
 	} else
-		sprintf(folder, "/var/www/findvid/thumbnails/%s", videoName); //Default
+		sprintf(folder, "/video/videosearch/findvid/thumbnails/%s", videoName); //Default
 	
 	if (mkdir(folder, 0777) < 0) {
 		if (errno != EEXIST) {
@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
 					av_init_packet(&p2);
 					avcodec_encode_video2(trgtCtx, &p2, pFrame, &frameFinished);
 
-					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-3-path_override));
+					sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, (argpos-4-path_override));
 
 					FILE * thumbFile = fopen(thumbnailFilename, "wb");
 					if (!thumbFile) {
