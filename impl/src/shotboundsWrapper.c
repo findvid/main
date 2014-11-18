@@ -33,7 +33,7 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 PyMethodDef CutDetectMethods[] = {{"getCutsWrapper", getCutsWrapper, METH_VARARGS, "Passing a filename of a videofile, retrieve a list of cuts(framenumber)"}};
 
 #if PYVERSION == 3
-PyModuleDef mod = {PyModuleDef_HEAD_INIT, "CutDetect", "CutDetect-Wrapper", 0, &CutDetectMethods, NULL, NULL, NULL, NULL};
+PyModuleDef mod = {PyModuleDef_HEAD_INIT, "CutDetect", "CutDetect-Wrapper", 0, CutDetectMethods, NULL, NULL, NULL, NULL};
 #endif
 
 #if PYVERSION == 3
@@ -42,7 +42,7 @@ PyMODINIT_FUNC PyInit_CutDetect() {
 }
 #endif
 #if PYVERSION == 2
-PyMODINIT_FUNC Py+initCutDetect() {
-	(void) Py_InitModule("CutDetect", &CutDetectMethods);
+PyMODINIT_FUNC initCutDetect() {
+	(void) Py_InitModule("CutDetect", CutDetectMethods);
 }
 #endif
