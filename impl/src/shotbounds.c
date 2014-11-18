@@ -316,6 +316,11 @@ int main(int argc, char **argv) {
 	}
 	uint32_t *cuts;
 	int cutCount = processVideo(argv[1], &cuts);
+
+	if (cutCount < 0) {
+		printf("0");
+		return 0;
+	}
 	
 	//printf("RESULTS (%d, %p):\n", cutCount, cuts);
 	printf("0");
