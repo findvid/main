@@ -3,6 +3,7 @@ import pymongo
 import shutil
 import os
 import re
+import cutter
 
 ROOTDIR = os.path.abspath('.')
 
@@ -39,7 +40,6 @@ def formatTime(frame, fps):
 
 def getUploads():
 
-	# todo: only find videos where upload=true
 	uploadsFromDb = VIDEOS.find(
 		{
 			'_id': 
@@ -70,7 +70,7 @@ def getUploads():
 
 		uploadconfig = {
 			'progress': progress,
-			'thumbnail': os.path.join('thumbnails/', vidid, 'thumb.png'),
+			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 			'videoid': vidid,
 			'scenecount': scenes,
 			'filename': filename,
@@ -121,7 +121,7 @@ class Root(object):
 				vidid = str(video['_id'])
 
 				videoconfig = {
-					'thumbnail': '/images/thumb.png',
+					'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 					'videoid': vidid,
 					'filename': filename,
 					'length': formatTime(int(video['framecount']), fps)
@@ -157,9 +157,8 @@ class Root(object):
 			content = 'No Videos found, for your search query.'
 		else:
 			scenes = []
-			path = videoFromDb['path']
 			filename = videoFromDb['filename']
-			fullpath = os.path.join(path, filename)
+			fullpath = os.path.join('/videos/', filename)
 			fps = videoFromDb['fps']
 
 			for scene in videoFromDb['scenes']:
@@ -168,7 +167,7 @@ class Root(object):
 					'url': fullpath,
 					'extension': os.path.splitext(filename)[1][1:],
 					'time': str(scene['startframe'] / fps),
-					'thumbnail': '/images/thumb.png',
+					'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+scene['_id']+'.jpeg'),
 					'filename': filename,
 					'scenecount': str(int(scene['_id'])),
 					'starttime': formatTime(int(scene['startframe']), fps),
@@ -205,9 +204,8 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		scenes = []
-		path = videoFromDb['path']
 		filename = videoFromDb['filename']
-		fullpath = os.path.join(path, filename)
+		fullpath = os.path.join('/videos/', filename)
 		fps = videoFromDb['fps']
 
 		for scene in videoFromDb['scenes']:
@@ -216,7 +214,7 @@ class Root(object):
 				'url': fullpath,
 				'extension': os.path.splitext(filename)[1][1:],
 				'time': str(scene['startframe'] / fps),
-				'thumbnail': '/images/thumb.png',
+				'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+scene['_id']+'.jpeg'),
 				'filename': filename,
 				'scenecount': str(int(scene['_id'])),
 				'starttime': formatTime(int(scene['startframe']), fps),
@@ -238,7 +236,7 @@ class Root(object):
 		vidid = str(videoFromDb['_id'])
 
 		videoconfig = {
-			'thumbnail': '/images/thumb.png',
+			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 			'videoid': vidid,
 			'filename': filename,
 			'length': formatTime(int(videoFromDb['framecount']), fps)
@@ -265,6 +263,8 @@ class Root(object):
 		destination = os.path.join(UPLOADDIR, filename)
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
+
+		cutter.save_cuts(os.path.join('uploads/', filename), True)
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
