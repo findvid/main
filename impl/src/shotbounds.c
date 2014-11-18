@@ -1,5 +1,3 @@
-#include <Python.h>
-
 #include <unistd.h>
 
 #include "fvutils.h"

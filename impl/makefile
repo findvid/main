@@ -7,7 +7,7 @@ BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o # ob
 
 obj/%.o: src/%.c
 	mkdir -p obj/
-	gcc $(CFLAGS) $(PYFLAGS) -c -o $@ $< $(LIBSFFMPEG)
+	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
