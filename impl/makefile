@@ -50,3 +50,6 @@ clean:
 	rm -rf obj/
 	rm -f shotbounds
 
+
+thumbs: obj/thumbnails2.o
+	gcc $(CFLAGS) obj/thumbnails2.o -o thumbnails $(LIBSFFMPEG)
