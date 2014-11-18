@@ -109,13 +109,12 @@ int main(int argc, char** argv) {
 			// frameFinished is set be avcodec_decode_video2 accordingly
 			if (frameFinished) {
 				frameCount++;
-				// Convert pFrame into a simple bitmap format
-				sws_scale(img_convert_ctx,(const uint8_t* const*)pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
-				AVFrame * edge = getEdgeProfile(pFrameRGB, convert_gray, pCodecCtx->width, pCodecCtx->height);
-				// and save the first 5 frames to disk. Because we can
-				SaveFrameRGB24(pFrameRGB, pCodecCtx->width, pCodecCtx->height, frameCount);
-				SaveFrameG8(edge, pCodecCtx->width, pCodecCtx->height, 10+frameCount);
+				
+				//Get EdgeProfile and save it to disk
+				AVFrame * gFrame = getEdgeProfile(pFrame, img_convert_ctx, pCodecCtx->width, pCodecCtx->height);
+				SaveFrameG8(gFrame, pCodecCtx->width, pCodecCtx->height, 1);
 
+				av_frame_free(&gFrame);
 			}
 
 		}

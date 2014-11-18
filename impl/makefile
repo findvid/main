@@ -12,6 +12,7 @@ obj/%.o: src/%.c
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
 
+
 pylib: $(BUILDFILES)
 	gcc $(CFLAGS) $(PYFLAGSLIB) $(BUILDFILES) -o shotbounds.so $(LIBSFFMPEG)
 
@@ -20,6 +21,9 @@ frametest: src/frametest.c $(BUILDFILES)
 
 edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
+
+edges: $(BUILDFILE) src/frametest.c
+	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o edges $(LIBSFFMPEG)
 
 histtests: src/histtests.c
 	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)
