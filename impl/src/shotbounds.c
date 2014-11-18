@@ -320,7 +320,8 @@ int main(int argc, char **argv) {
 	int cutCount = processVideo(argv[1], &cuts);
 
 	if (cutCount < 0) {
-		return -1;
+		printf("0");
+		return 0;
 	}
 	
 	//printf("RESULTS (%d, %p):\n", cutCount, cuts);
