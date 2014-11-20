@@ -104,6 +104,7 @@ int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
 
 VideoIterator * get_VideoIterator(char * filename) {
 	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
+	
 	if(avformat_open_input(&iter->fctx, filename, NULL, NULL) != 0)
 		goto failure;
 	if(avformat_find_stream_info(iter->fctx, NULL) < 0)
@@ -150,7 +151,11 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 		res = iter->frame;
 	
 	AVPacket p;
-	while (av_read_frame(iter->fctx, &p) >= 0 && !*gotFrame)
+	while (!*gotFrame) {
+		if (av_read_frame(iter->fctx, &p) < 0) {
+			av_frame_free(&res);
+			return NULL;
+		}
 		if (p.stream_index == iter->videoStream) {
 			int len = avcodec_decode_video2(iter->cctx, res, gotFrame, &p);
 			if (len<0) {
@@ -168,6 +173,7 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 				av_free_packet(iter->packet);
 			}*/
 		}
+	}
 
 	return res;
 }

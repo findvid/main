@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 
 	struct SwsContext *img_convert_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, iter->cctx->width, iter->cctx->height, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 
-	while ((frame = nextFrame(iter, &gotFrame)) != NULL && gotFrame) {
+	while ((frame = nextFrame(iter, &gotFrame))) { // != NULL && gotFrame) {
 		sws_scale(img_convert_ctx, (const uint8_t * const *)frame->data, frame->linesize, 0, iter->cctx->height, pFrameRGB->data, pFrameRGB->linesize);
 		SaveFrameRGB24(pFrameRGB, iter->cctx->width, iter->cctx->height, i++);
 		av_frame_free(&frame);
