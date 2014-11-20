@@ -28,3 +28,18 @@ AVFrame * copyFrame(AVFrame *pPic, struct SwsContext * ctx, int width, int heigh
 void SaveFrameRGB24(AVFrame *pFrame, int width, int height, int i);
 void SaveFrameG8(AVFrame * pFrame, int width, int height, int i);
 int drawGraph(uint32_t *data, int len, int height, double scale, int nr);
+
+//Video iterator
+typedef struct {
+	struct AVFormatContext * fctx;
+	struct AVCodecContext * cctx;
+	int videoStream;
+	
+	//In case one packet did not suffice for a frame
+	AVPacket * packet;
+	AVFrame * frame;
+} VideoIterator;
+
+VideoIterator * get_VideoIterator(char *);
+AVFrame * nextFrame(VideoIterator *, int *);
+void destroy_VideoIterator(VideoIterator *);

@@ -122,8 +122,8 @@ int main(int argc, char** argv) {
 	}
 
 	av_free(buffer);
-	av_free(pFrameRGB);
-	av_free(pFrame);
+	av_frame_free(pFrameRGB);
+	av_frame_free(pFrame);
 
 	avcodec_close(pCodecCtx);
 

@@ -19,6 +19,8 @@ pylib: $(BUILDFILES)
 frametest: src/frametest.c $(BUILDFILES)
 	gcc $(CFLAGS) obj/fvutils.o obj/edgedetect.o obj/largelist.o src/frametest.c -o frametest $(LIBSFFMPEG)
 
+iter_test: src/frametest_iter.c obj/fvutils.o
+	gcc $(CFLAGS) src/frametest_iter.c obj/fvutils.o -o itertest $(LIBSFFMPEG)
 edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
 

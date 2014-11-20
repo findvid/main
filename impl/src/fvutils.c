@@ -101,3 +101,81 @@ int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
 	free(graph.data);
 	return 0;
 }
+
+VideoIterator * get_VideoIterator(char * filename) {
+	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
+	if(avformat_open_input(&iter->fctx, filename, NULL, NULL) != 0)
+		goto failure;
+	if(avformat_find_stream_info(iter->fctx, NULL) < 0)
+		goto failure;
+
+	iter->videoStream = -1;
+	for (int i = 0; i < iter->fctx->nb_streams; i++ )
+		if (iter->fctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+			iter->videoStream = i;
+			break;
+		}
+
+	if (iter->videoStream == -1) {
+		goto failure;
+	}
+
+	iter->cctx = iter->fctx->streams[iter->videoStream]->codec;
+	AVCodec * pCodec = avcodec_find_decoder(iter->cctx->codec_id);
+	if (pCodec == NULL)
+		goto failure;
+	
+	if (avcodec_open2(iter->cctx, pCodec, NULL) < 0)
+		goto failure;
+
+	return iter;
+
+failure:
+	free(iter);
+	return NULL;
+}
+
+AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
+	//Possibly omitt this and force passing an actual pointer because this should always be checked...technically.
+	int gotFrameInt;
+	if (gotFrame == NULL) {
+		gotFrame = &gotFrameInt;
+	}
+	*gotFrame = 0;
+
+	AVFrame * res;
+	if (iter->frame == NULL && iter->packet == NULL)
+		res = av_frame_alloc();
+	else
+		res = iter->frame;
+	
+	AVPacket p;
+	while (av_read_frame(iter->fctx, &p) >= 0 && !*gotFrame)
+		if (p.stream_index == iter->videoStream) {
+			int len = avcodec_decode_video2(iter->cctx, res, gotFrame, &p);
+			if (len<0) {
+				av_frame_free(&res);
+				return NULL;
+			}
+			/*
+			if (!*gotFrame) {
+				//Save the packet and frame and return the frame as does decode
+				av_copy_packet(iter->packet, &p);
+				iter->frame = res;
+				return res;
+			} else if(iter->packet != NULL) {
+				//Clean up Iterator from feedback vars
+				av_free_packet(iter->packet);
+			}*/
+		}
+
+	return res;
+}
+
+void destroy_VideoIterator(VideoIterator * iter) {
+	if (iter->frame != NULL) av_frame_free(&iter->frame);
+	if (iter->packet != NULL) av_free_packet(iter->packet);
+	avcodec_close(iter->cctx);
+	avformat_close_input(&iter->fctx);
+	free(iter);
+}
