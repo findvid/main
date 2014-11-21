@@ -150,17 +150,28 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 	else
 		res = iter->frame;
 	
+	readFrame(iter, res, gotFrame);
+
+	return res;
+}
+
+void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
+	//Possibly omitt this and force passing an actual pointer because this should always be checked...technically.
+	int gotFrameInt;
+	if (gotFrame == NULL) {
+		gotFrame = &gotFrameInt;
+	}
+	*gotFrame = 0;
+
 	AVPacket p;
 	while (!*gotFrame) {
 		if (av_read_frame(iter->fctx, &p) < 0) {
-			av_frame_free(&res);
-			return NULL;
+			return;
 		}
 		if (p.stream_index == iter->videoStream) {
-			int len = avcodec_decode_video2(iter->cctx, res, gotFrame, &p);
+			int len = avcodec_decode_video2(iter->cctx, targetFrame, gotFrame, &p);
 			if (len<0) {
-				av_frame_free(&res);
-				return NULL;
+				return;
 			}
 			/*
 			if (!*gotFrame) {
@@ -174,8 +185,6 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 			}*/
 		}
 	}
-
-	return res;
 }
 
 void destroy_VideoIterator(VideoIterator * iter) {
