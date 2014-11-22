@@ -38,7 +38,8 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	res->feature_list[3] = malloc(sizeof(uint32_t *) * sceneCount);
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
-	res->feature_count = FEATURE_AMNT;
+	//res->feature_count = sceneCount;
+	res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
 
 	char * videoName = getVideoname(filename);
@@ -165,14 +166,25 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	av_free(buffer);
 	free(videoName);
 	destroy_VideoIterator(iter);
+	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
 	return res;
 }
 
+void destroyFeatures(FeatureTuple * t) {
+	for (int i = 0; i < FEATURE_AMNT; i++) {
+		for(int j = 0; j < t->feature_count; j++)
+			free(t->feature_list[i][j]);
+		free(t->feature_list[i]);
+	}
+	free(t->feature_list);
+	free(t->feature_length);
+	free(t);
+}
 
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
 	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
 
-	free(r);
+	destroyFeatures(r);
 }
