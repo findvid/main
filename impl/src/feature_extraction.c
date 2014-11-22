@@ -6,9 +6,23 @@
 
 #include "feature_extraction.h"
 #include "largelist.h"
+#include "histograms.h"
 
 
-void dummyFeatureLength(int * l) {
+#define DESTINATION_WIDTH 320
+#define DESTINATION_HEIGHT 200
+
+
+void histogramLength(uint32_t * l) {
+	*l = 128;
+}
+
+void histogramFeature(AVFrame * frame, uint32_t ** data, int position) {
+	data[position] = (uint32_t *)calloc(128, sizeof(uint32_t));
+	fillHistHsv(data[position], frame);
+}
+
+void dummyFeatureLength(uint32_t * l) {
 	*l = 5;
 }
 
@@ -23,7 +37,7 @@ void dummyFeature(AVFrame * frame, uint32_t ** data, int position) {
 
 //Extract the videos name without extension from the given path
 char * getVideoname(char *path) {
-	int start, end;
+	int start = 0, end = 0;
 	int pos = 0;
 	while (path[pos] != '\0') {
 		if (path[pos] == '/') start = pos+1;
@@ -51,18 +65,21 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	res->feature_list[3] = malloc(sizeof(uint32_t *) * sceneCount);
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
-	dummyFeatureLength(&res->feature_length[0]); 
+	histogramLength(&res->feature_length[0]); 
 	dummyFeatureLength(&res->feature_length[1]); 
 	dummyFeatureLength(&res->feature_length[2]); 
 	dummyFeatureLength(&res->feature_length[3]); 
-	//res->feature_count = sceneCount;
-	res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
+	res->feature_count = sceneCount;
+	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
 
 	char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
 
 	VideoIterator * iter = get_VideoIterator(filename);
+
+	// Get Sws context to downscalse the frames
+	struct SwsContext * convert_rgb24 = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 
 	//Get a target codec to write to JPEG files
 	AVCodecContext * trgtCtx = avcodec_alloc_context3(NULL);
@@ -119,8 +136,6 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	int numBytes = avpicture_get_size(PIX_FMT_YUVJ420P, iter->cctx->width, iter->cctx->height);
 	uint8_t * buffer = av_malloc(numBytes);
 
-
-
 	frame->pts = 0;
 	frame->quality = trgtCtx->global_quality;
 	
@@ -170,14 +185,33 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			
 			currentScene++;
 
+			AVFrame * pFrameRGB24 = av_frame_alloc();
+			if (!pFrameRGB24) {
+				// TODO Errorhandleing / frees
+				return NULL;
+			}
+			if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
+				// TODO Errorhandleing / frees
+				return NULL;
+			}
+
+			// Convert to a smaller frame for faster processing     
+			sws_scale(convert_rgb24, (const uint8_t* const*)frame->data, frame->linesize, 0, iter->cctx->height, pFrameRGB24->data, pFrameRGB24->linesize);
+
+			pFrameRGB24->width = DESTINATION_WIDTH;
+			pFrameRGB24->height = DESTINATION_HEIGHT;
+			
 			//Get features from different components for this frame
 			//Do some M.A.G.I.C.
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
-			dummyFeature(frame, res->feature_list[0], currentScene);
+			histogramFeature(pFrameRGB24, res->feature_list[0], currentScene);
 			dummyFeature(frame, res->feature_list[1], currentScene);
 			dummyFeature(frame, res->feature_list[2], currentScene);
 			dummyFeature(frame, res->feature_list[3], currentScene);
+
+			avpicture_free((AVPicture *)pFrameRGB24);
+			av_free(pFrameRGB24);
 		}
 		if (currentScene >= sceneCount && hadVidThumb) break; //Everything's done
 		currentFrame++;
@@ -194,8 +228,9 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 
 void destroyFeatures(FeatureTuple * t) {
 	for (int i = 0; i < FEATURE_AMNT; i++) {
-		for(int j = 0; j < t->feature_count; j++)
+		for(int j = 0; j < t->feature_count; j++) {
 			free(t->feature_list[i][j]);
+		}
 		free(t->feature_list[i]);
 	}
 	free(t->feature_list);
