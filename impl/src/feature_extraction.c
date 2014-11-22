@@ -28,6 +28,7 @@ char * getVideoname(char *path) {
 }
 
 FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
+	av_register_all();
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
 	res->feature_list = malloc(sizeof(uint32_t **) * FEATURE_AMNT);
@@ -38,6 +39,7 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
 	res->feature_count = FEATURE_AMNT;
+
 
 	char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
@@ -107,12 +109,15 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	int gotFrame = 0;
 	int currentFrame = 0;
 	int currentScene = 0;
+	int writtenFrames = 0;
+	int hadVidThumb = 0;
 	readFrame(iter, frame, &gotFrame);
 	while (gotFrame) {
 		if (currentFrame == vidThumb) {
 			//Just save a thumbnail for the video
-			
+			hadVidThumb = 1;
 			//Encode frame into buffer
+			frame->pts = writtenFrames++;
 			int written = avcodec_encode_video(trgtCtx, buffer, numBytes, frame);
 
 			sprintf(thumbnailFilename, "%s/video.jpeg", folder);
@@ -126,12 +131,12 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			fwrite(buffer, 1, written, thumbFile);
 			fclose(thumbFile);
 			
-			frame->pts++;
 		}
 		if (currentFrame == sceneFrames[currentScene]) {
 			//First save the thumbnail
 			
 			//Encode frame into buffer
+			frame->pts = writtenFrames++;
 			int written = avcodec_encode_video(trgtCtx, buffer, numBytes, frame);
 
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
@@ -145,7 +150,6 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			fwrite(buffer, 1, written, thumbFile);
 			fclose(thumbFile);
 			
-			frame->pts++;
 			currentScene++;
 
 			//Get features from different components for this frame
@@ -153,6 +157,7 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], &res->feature_length[0]);
 			//...
 		}
+		if (currentScene >= sceneCount && hadVidThumb) break; //Everything's done
 		currentFrame++;
 		readFrame(iter, frame, &gotFrame);
 	}
@@ -162,4 +167,12 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	destroy_VideoIterator(iter);
 	avcodec_free_context(&trgtCtx);
 	return res;
+}
+
+
+int main(int argc, char **argv) {
+	uint32_t d[5] = {5, 50, 150, 250, 450};
+	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
+
+	free(r);
 }

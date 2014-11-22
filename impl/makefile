@@ -13,14 +13,17 @@ obj/%.o: src/%.c
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
 
-features: $(FEATURES) unittests/feature_test.cc
+features: $(FEATURES)
+	gcc $(CFLAGS) $^ -o feats $(LIBSFFMPEG)
+
+feature_test: $(FEATURES) unittests/feature_test.cc
 	g++ $(CFLAGS) $^ -o feats $(LIBSFFMPEG) -lgtest -lpthread
 
 pylib: $(BUILDFILES)
 	gcc $(CFLAGS) $(PYFLAGSLIB) $(BUILDFILES) -o shotbounds.so $(LIBSFFMPEG)
 
 frametest: src/frametest.c $(BUILDFILES)
-	gcc $(CFLAGS) obj/fvutils.o obj/edgedetect.o obj/largelist.o src/frametest.c -o frametest $(LIBSFFMPEG)
+	gcc $(CFLAGS) $^ -o frametest $(LIBSFFMPEG)
 
 iter_test: src/frametest_iter.c obj/fvutils.o
 	gcc $(CFLAGS) src/frametest_iter.c obj/fvutils.o -o itertest $(LIBSFFMPEG)
