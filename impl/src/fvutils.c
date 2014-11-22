@@ -171,6 +171,7 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 		if (p.stream_index == iter->videoStream) {
 			int len = avcodec_decode_video2(iter->cctx, targetFrame, gotFrame, &p);
 			if (len<0) {
+				*gotFrame = 0;
 				return;
 			}
 			/*
