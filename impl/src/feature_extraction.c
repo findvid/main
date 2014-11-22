@@ -30,6 +30,7 @@ char * getVideoname(char *path) {
 FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
+	res->feature_list = malloc(sizeof(uint32_t **) * FEATURE_AMNT);
 	res->feature_list[0] = malloc(sizeof(uint32_t *) * sceneCount);
 	res->feature_list[1] = malloc(sizeof(uint32_t *) * sceneCount);
 	res->feature_list[2] = malloc(sizeof(uint32_t *) * sceneCount);
@@ -107,7 +108,7 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	int currentFrame = 0;
 	int currentScene = 0;
 	readFrame(iter, frame, &gotFrame);
-	while (frame != NULL) {
+	while (gotFrame) {
 		if (currentFrame == vidThumb) {
 			//Just save a thumbnail for the video
 			

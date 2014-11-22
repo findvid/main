@@ -6,6 +6,7 @@
 #include <libswscale/swscale.h>
 #include <libavutil/mem.h>
 
+#include "fvutils.h"
 #include "largelist.h"
 
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)

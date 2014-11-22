@@ -240,7 +240,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 					ox = 1;
 					oy = 0;
 					break;
-				case 3 //135 degree:
+				case 3: //135 degree:
 					ox = 1;
 					oy = 1;
 					break;
