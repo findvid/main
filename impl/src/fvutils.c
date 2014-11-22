@@ -104,7 +104,12 @@ int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
 
 VideoIterator * get_VideoIterator(char * filename) {
 	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
-	
+
+	iter->fctx = NULL;
+	iter->cctx = NULL;
+	iter->frame = NULL;
+	iter->packet = NULL;
+
 	if(avformat_open_input(&iter->fctx, filename, NULL, NULL) != 0)
 		goto failure;
 	if(avformat_find_stream_info(iter->fctx, NULL) < 0)
