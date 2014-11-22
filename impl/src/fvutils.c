@@ -156,7 +156,10 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 		res = iter->frame;
 	
 	readFrame(iter, res, gotFrame);
-
+	if (!*gotFrame) {
+		av_frame_free(&res);
+		return NULL;
+	}
 	return res;
 }
 
@@ -171,14 +174,18 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 	AVPacket p;
 	while (!*gotFrame) {
 		if (av_read_frame(iter->fctx, &p) < 0) {
+			*gotFrame = 0;
+			av_free_packet(&p);
 			return;
 		}
 		if (p.stream_index == iter->videoStream) {
 			int len = avcodec_decode_video2(iter->cctx, targetFrame, gotFrame, &p);
 			if (len<0) {
 				*gotFrame = 0;
+				av_free_packet(&p);
 				return;
 			}
+			av_free_packet(&p);
 			/*
 			if (!*gotFrame) {
 				//Save the packet and frame and return the frame as does decode
