@@ -34,10 +34,6 @@ typedef struct {
 	struct AVFormatContext * fctx;
 	struct AVCodecContext * cctx;
 	int videoStream;
-	
-	//In case one packet did not suffice for a frame
-	AVPacket * packet;
-	AVFrame * frame;
 } VideoIterator;
 
 VideoIterator * get_VideoIterator(char *);
