@@ -5,6 +5,28 @@
 
 #include "fvutils.h"
 
+//Leak free version
+/*
+int main(int argc, char **argv) {
+	av_register_all();
+	if (argc < 2) return -1;
+	VideoIterator * iter = get_VideoIterator(argv[1]);
+
+	if (iter == NULL) return -1;
+	
+	int gf = 0;
+	AVFrame * f = nextFrame(iter, &gf);
+	av_frame_free(&f);
+
+	AVFrame *pFrameRGB = av_frame_alloc();
+	avpicture_alloc((AVPicture *)pFrameRGB, PIX_FMT_RGB24, iter->cctx->width, iter->cctx->height);
+	avpicture_free((AVPicture *)pFrameRGB);
+	av_frame_free(&pFrameRGB);
+	destroy_VideoIterator(iter);
+}
+*/
+
+//1 free is missing, seemingly the size of a frame
 int main(int argc, char **argv) {
 	av_register_all();
 	if (argc < 2) return -1;
@@ -26,7 +48,10 @@ int main(int argc, char **argv) {
 		SaveFrameRGB24(pFrameRGB, iter->cctx->width, iter->cctx->height, i++);
 		av_frame_free(&frame);
 	}
-
+	
+	sws_freeContext(img_convert_ctx);
+	
+	avpicture_free((AVPicture *)pFrameRGB);
 	av_frame_free(&pFrameRGB);
 	destroy_VideoIterator(iter);
 	return 0;
