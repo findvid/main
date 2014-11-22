@@ -4,7 +4,7 @@ PYFLAGSLIB = -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-fu
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
 BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o obj/feature_extraction.o
-FEATURES = obj/fvutils.o obj/feature_extraction.o
+FEATURES = obj/fvutils.o obj/feature_extraction.o obj/histograms.o obj/largelist.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
