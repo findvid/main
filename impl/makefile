@@ -1,14 +1,14 @@
 CFLAGS = -I=usr/include/ffmpeg -Iinclude -Wall -std=c99 -g
-PYFLAGS = -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC -I/usr/include/python2.7
+PYFLAGS = -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -fPIC
 PYFLAGSLIB = -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -D_FORTIFY_SOURCE=2 -g -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wl,--export-dynamic
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
-BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o 
+BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o obj/feature_extraction.o
 FEATURES = obj/fvutils.o obj/feature_extraction.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
-	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
+	gcc $(CFLAGS) $(PYFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
@@ -19,8 +19,12 @@ features: $(FEATURES)
 feature_test: $(FEATURES) unittests/feature_test.cc
 	g++ $(CFLAGS) $^ -o feats $(LIBSFFMPEG) -lgtest -lpthread
 
-pylib: $(BUILDFILES)
-	gcc $(CFLAGS) $(PYFLAGSLIB) $(BUILDFILES) -o shotbounds.so $(LIBSFFMPEG)
+pylib: $(BUILDFILES) src/findvidWrapper.c
+	gcc $(CFLAGS) $(PYFLAGS) $(PYFLAGSLIB) -I/usr/include/python2.7 -D PYVERSION=2 $^ -o FindVid.so $(LIBSFFMPEG)
+
+#Use this target to compile against Python 3.4; 
+pylib2: $(BUILDFILES) src/findvidWrapper.c
+	gcc $(CFLAGS) $(PYFLAGS) $(PYFLAGSLIB) -I/usr/include/python3.4m -D PYVERSION=3 $^ -o FindVid.so $(LIBSFFMPEG)
 
 frametest: src/frametest.c $(BUILDFILES)
 	gcc $(CFLAGS) $^ -o frametest $(LIBSFFMPEG)

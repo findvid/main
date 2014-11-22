@@ -8,6 +8,19 @@
 #include "largelist.h"
 
 
+void dummyFeatureLength(int * l) {
+	*l = 5;
+}
+
+void dummyFeature(AVFrame * frame, uint32_t ** data, int position) {
+	data[position] = malloc(sizeof(uint32_t) * 5);
+	data[position][0] = *(((uint32_t *)frame->data[0] + 0));
+	data[position][1] = *(((uint32_t *)frame->data[0] + 1));
+	data[position][2] = *(((uint32_t *)frame->data[0] + 2));
+	data[position][3] = *(((uint32_t *)frame->data[0] + 3));
+	data[position][4] = *(((uint32_t *)frame->data[0] + 4));
+}
+
 //Extract the videos name without extension from the given path
 char * getVideoname(char *path) {
 	int start, end;
@@ -38,6 +51,10 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 	res->feature_list[3] = malloc(sizeof(uint32_t *) * sceneCount);
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
+	dummyFeatureLength(&res->feature_length[0]); 
+	dummyFeatureLength(&res->feature_length[1]); 
+	dummyFeatureLength(&res->feature_length[2]); 
+	dummyFeatureLength(&res->feature_length[3]); 
 	//res->feature_count = sceneCount;
 	res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
@@ -155,8 +172,12 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 
 			//Get features from different components for this frame
 			//Do some M.A.G.I.C.
-			//getMagicalRainbowFeatures(frame, res->feature_list[0], &res->feature_length[0]);
+			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
+			dummyFeature(frame, res->feature_list[0], currentScene);
+			dummyFeature(frame, res->feature_list[1], currentScene);
+			dummyFeature(frame, res->feature_list[2], currentScene);
+			dummyFeature(frame, res->feature_list[3], currentScene);
 		}
 		if (currentScene >= sceneCount && hadVidThumb) break; //Everything's done
 		currentFrame++;
@@ -181,10 +202,11 @@ void destroyFeatures(FeatureTuple * t) {
 	free(t->feature_length);
 	free(t);
 }
-
+/*
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
 	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
 
 	destroyFeatures(r);
 }
+*/
