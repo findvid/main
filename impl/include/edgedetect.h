@@ -6,8 +6,10 @@
 #include <libswscale/swscale.h>
 #include <libavutil/mem.h>
 
+#include "fvutils.h"
 #include "largelist.h"
 
+#define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<height) && ((x)<width))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call

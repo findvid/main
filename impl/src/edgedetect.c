@@ -240,7 +240,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 					ox = 1;
 					oy = 0;
 					break;
-				case 3 //135 degree:
+				case 3: //135 degree:
 					ox = 1;
 					oy = 1;
 					break;
@@ -319,32 +319,6 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	return res;
 }
 
-double edgeDiff(AVFrame * p1, AVFrame * p2, struct SwsContext * ctx, int width, int height) {
-	AVFrame * edge1 = getEdgeProfileSodel(p1, ctx, width, height);
-	AVFrame * edge2 = getEdgeProfileSodel(p2, ctx, width, height);
-	
-	int in; // amount of edgepixels in edge1 that are nearby/incident with a pixel in edge2
-	int out; // amount of edgepixels in edge2 that are nearby/incident with a pixel in edge1
-
-	int c1; // Total edge pixels in edge1
-	int c2; // Total edge pixels in edge2
-	
-	for ( int x = 0; x < width; x++ ) {
-		for ( int y = 0; y < height; y++ ) {
-			c1 += (getPixelG8(edge1, x, y)?1:0);
-			c2 += (getPixelG8(edge2, x, y)?1:0);
-
-			//increment in/out if the pixel is incident; ideally the edges are thin enough so this wouldn\t work and a dilated edge profile must be used. That's a toDo, however
-			in += (getPixelG8(edge1, x, y) && getPixelG8(edge2, x, y) ?1:0);
-			//out would currently do the same, so let's not calc it for now
-		}
-	}
-
-	av_free(edge1);
-	av_free(edge2);
-	return fmax(1.0 * in / c1, 1.0 * in / c2);
-}
-
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
 	//Store the difference values between each frame
 	double * differences;
@@ -380,14 +354,14 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	
 	AVFrame * lastFrame;
 	if (usefeedback) 
-		lastFrame = getEdgeProfileSodel(feedback->lastFrame, swsctx, width, height);
+		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height);
 	else
-		lastFrame = getEdgeProfileSodel(list_next(iter), swsctx, width, height);
+		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height);
 
 	AVFrame * thisFrame;
 	int pos = (usefeedback?feedback->diff_len:0);
 	while ((thisFrame = list_next(iter)) != NULL) {
-		thisFrame = getEdgeProfileSodel(thisFrame, swsctx, width, height);
+		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height);
 
 		int c1 = 0;
 		int c2 = 0;
