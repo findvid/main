@@ -185,7 +185,6 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 				av_free_packet(&p);
 				return;
 			}
-			av_free_packet(&p);
 			/*
 			if (!*gotFrame) {
 				//Save the packet and frame and return the frame as does decode
@@ -197,6 +196,7 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 				av_free_packet(iter->packet);
 			}*/
 		}
+		av_free_packet(&p);
 	}
 }
 
