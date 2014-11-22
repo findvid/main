@@ -4,6 +4,7 @@ PYFLAGSLIB = -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-fu
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
 BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o # obj/edgedetect.o 
+FEATURES = obj/fvutils.o obj/feature_extraction.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
@@ -12,6 +13,7 @@ obj/%.o: src/%.c
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
 
+features: $(FEATURES)
 
 pylib: $(BUILDFILES)
 	gcc $(CFLAGS) $(PYFLAGSLIB) $(BUILDFILES) -o shotbounds.so $(LIBSFFMPEG)
