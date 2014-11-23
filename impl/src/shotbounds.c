@@ -155,11 +155,11 @@ int processVideo(char *filename, uint32_t **cuts) {
 	free(feedback_colors.last_hist);
 
 
-/* WIP: Fade/Disolve detection
+	int i;
+// WIP: Fade/Disolve detection
 	int hist_diff_size = list_hist_diff->size;
 	uint32_t *hist_diff = (uint32_t *)malloc(sizeof(uint32_t) * hist_diff_size);
 	ListIterator *listIt = list_iterate(list_hist_diff);
-	int i;
 	for (i = 0; i < hist_diff_size; i++) {
 		hist_diff[i] = (uint32_t)(intptr_t)list_next(listIt);
 	}
@@ -172,13 +172,12 @@ int processVideo(char *filename, uint32_t **cuts) {
 	free(listIt);
 	free(hist_diff);
 	free(hist_diff_conv);
-*/
+// */
 
 	// Copy the found cuts into an array
 	int cutCount = list_cuts_colors->size;
 	*cuts = (uint32_t *)malloc(sizeof(uint32_t) * (cutCount + 1));
 	ListIterator *cutsIt = list_iterate(list_cuts_colors);
-	int i;
 	for (i = 0; i < cutCount; i++) {
 		(*cuts)[i] = (uint32_t)(intptr_t)list_next(cutsIt);
 	}
