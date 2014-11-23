@@ -183,7 +183,6 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			fwrite(buffer, 1, written, thumbFile);
 			fclose(thumbFile);
 			
-			currentScene++;
 
 			AVFrame * pFrameRGB24 = av_frame_alloc();
 			if (!pFrameRGB24) {
@@ -210,13 +209,21 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 			dummyFeature(frame, res->feature_list[2], currentScene);
 			dummyFeature(frame, res->feature_list[3], currentScene);
 
+			currentScene++;
+			
 			avpicture_free((AVPicture *)pFrameRGB24);
-			av_free(pFrameRGB24);
+			av_frame_free(&pFrameRGB24);
 		}
-		if (currentScene >= sceneCount && hadVidThumb) break; //Everything's done
+		if (currentScene > sceneCount && hadVidThumb) break; //Everything's done
 		currentFrame++;
 		readFrame(iter, frame, &gotFrame);
 	}
+	//ToDO: Discuss - and then implement - whether a cut at the end of the video will be ignored this way/how to deal with requested features that are possibly beyond the bounds of the video
+	if (currentScene < sceneCount) {
+		//res->feature_count--;
+		res->feature_count -= (sceneCount - currentScene);
+	}
+
 	av_frame_free(&frame);
 	av_free(buffer);
 	free(videoName);
