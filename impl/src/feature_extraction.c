@@ -36,8 +36,8 @@ void dummyFeature(AVFrame * frame, uint32_t ** data, int position) {
 }
 
 //Extract the videos name without extension from the given path
-char * getVideoname(char *path) {
-	int start = 0, end = 0;
+char * getVideoname(const char *path) {
+	int start, end;
 	int pos = 0;
 	while (path[pos] != '\0') {
 		if (path[pos] == '/') start = pos+1;
@@ -54,7 +54,7 @@ char * getVideoname(char *path) {
 	return res;
 }
 
-FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
+FeatureTuple * getFeatures(const char * filename, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
 	av_register_all();
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 

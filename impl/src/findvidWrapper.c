@@ -141,12 +141,12 @@ PyModuleDef mod = {PyModuleDef_HEAD_INIT, "FindVid", "FindVid-Backendwrapper", -
 #endif
 
 #if PYVERSION == 3
-PyMODINIT_FUNC PyInit_FindVid() {
+PyMODINIT_FUNC PyInit_FindVid(void) {
 	(void) PyModule_Create(&mod);
 }
 #endif
 #if PYVERSION == 2
-PyMODINIT_FUNC initFindVid() {
+PyMODINIT_FUNC initFindVid(void) {
 	(void) Py_InitModule("FindVid", FindVidMethods);
 }
 #endif
