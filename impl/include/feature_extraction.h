@@ -11,5 +11,5 @@ typedef struct {
 	uint32_t feature_count;
 } FeatureTuple;
 
-FeatureTuple * getFeatures(char *, char*, int, uint32_t *, int);
+FeatureTuple * getFeatures(const char *, const char *, int, uint32_t *, int);
 void destroyFeatures(FeatureTuple * t);
