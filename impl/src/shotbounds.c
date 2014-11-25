@@ -69,7 +69,7 @@ uint32_t mergeListsToArray(LargeList *l1, LargeList *l2, uint32_t **array) {
 }
 
 
-int processVideo(char *filename, uint32_t **cuts) {
+int processVideo(const char *filename, uint32_t **cuts) {
 	av_register_all();
 	// Count of frames in the video
 	int frameCount = 0;
@@ -196,7 +196,7 @@ int processVideo(char *filename, uint32_t **cuts) {
 
 	return cutCount;
 }
-/*
+
 int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
@@ -210,11 +210,11 @@ int main(int argc, char **argv) {
 	int cutCount = processVideo(argv[1], &cuts);
 
 	int i;
-	print("%d", cuts[0]);
+	printf("%d", cuts[0]);
 	for (i = 1; i < cutCount; i++) {
 		printf(" %d", cuts[i]);
 	}
 	printf("\n");
 	free(cuts);
 	return 0;
-}*/
+}
