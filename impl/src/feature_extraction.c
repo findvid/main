@@ -218,12 +218,14 @@ FeatureTuple * getFeatures(char * filename, char * expath, int vidThumb, uint32_
 		currentFrame++;
 		readFrame(iter, frame, &gotFrame);
 	}
-	//ToDO: Discuss - and then implement - whether a cut at the end of the video will be ignored this way/how to deal with requested features that are possibly beyond the bounds of the video
 	if (currentScene < sceneCount) {
-		//res->feature_count--;
-		res->feature_count -= (sceneCount - currentScene);
+		int diff = (sceneCount - currentScene);
+		for (int i = (res->feature_count - 1); i >= (res->feature_count - diff); i--) {
+			free(res->feature_list[i]);
+			printf("Freeing feature_list[%d]\n", i);
+		}
+		res->feature_count -= diff;
 	}
-
 	av_frame_free(&frame);
 	av_free(buffer);
 	free(videoName);
