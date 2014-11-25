@@ -102,7 +102,7 @@ int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
 	return 0;
 }
 
-VideoIterator * get_VideoIterator(char * filename) {
+VideoIterator * get_VideoIterator(const char * filename) {
 	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
 
 	iter->fctx = NULL;

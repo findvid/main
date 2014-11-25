@@ -36,7 +36,7 @@ typedef struct {
 	int videoStream;
 } VideoIterator;
 
-VideoIterator * get_VideoIterator(char *);
+VideoIterator * get_VideoIterator(const char *);
 AVFrame * nextFrame(VideoIterator *, int *);
 void readFrame(VideoIterator *, AVFrame *, int *);
 void destroy_VideoIterator(VideoIterator *);
