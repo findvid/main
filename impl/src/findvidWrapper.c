@@ -65,9 +65,13 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 			return NULL;
 		}
 	}
-	
+
 	FeatureTuple * results = getFeatures(filename, path, vidThumb, scenes,(int)size);
-	printf("Building tuples from results...\n");
+
+	if (size > results->feature_count) {
+		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
+		size = (Py_ssize_t)results->feature_count;
+	}
 	//Convert struct of features to actual tuple
 	PyObject * pyList = PyList_New(size);
 	PyObject * item;
@@ -122,7 +126,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 		item = Py_BuildValue("(OOOO)", f1, f2, f3, f4);	
 		PyList_SET_ITEM(pyList, i, item);
 	}
-	printf("Destroying features...\n");
+
 	destroyFeatures(results);
 	return pyList;
 }
