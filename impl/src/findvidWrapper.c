@@ -67,7 +67,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	}
 
 	FeatureTuple * results = getFeatures(filename, path, vidThumb, scenes,(int)size);
-
+	printf("Got features\n");
 	if (size > results->feature_count) {
 		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
 		size = (Py_ssize_t)results->feature_count;
