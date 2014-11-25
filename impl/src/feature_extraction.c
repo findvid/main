@@ -27,6 +27,39 @@ char * getVideoname(const char *path) {
 	return res;
 }
 
+// TODO: Probably should be moved to fvutils
+/*
+ * Save a video frame to a file
+ *
+ * @param filename	path to where the frame should be saved
+ * @param avctx		AVCodecContext containing information about the frame
+ * @param frame		Frame to be saved
+ *
+ * @return		0 on success, negative value on failure
+ */
+int writeFrame(const char * filename, AVCodecContext * avctx, const AVFrame * frame) {
+	int got_packet;
+	AVPacket avpkt;
+	avpkt.data = NULL;
+	avpkt.size = 0;
+	//Encode frame into buffer
+	int ret = avcodec_encode_video2(avctx, &avpkt, frame, &got_packet);
+	if (ret != 0) {
+		printf("avcodec_encode_video2 failed :-(\n");
+	}
+
+	FILE * thumbFile = fopen(filename, "wb");
+	if (!thumbFile) {
+		printf("Cannot open file to save thumbnail to!(%s)\n", filename);
+		return -1;
+	}
+
+	fwrite(avpkt.data, 1, avpkt.size, thumbFile);
+	fclose(thumbFile);
+	// TODO: Do we need a free here? av_free_packet(&avpkt); causes crash...
+	return 0;
+}
+
 FeatureTuple * getFeatures(const char * filename, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
 	av_register_all();
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
@@ -118,39 +151,15 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 			//Just save a thumbnail for the video
 			hadVidThumb = 1;
 			//Encode frame into buffer
-			frame->pts = writtenFrames++;
-			int written = avcodec_encode_video(trgtCtx, buffer, numBytes, frame);
-
 			sprintf(thumbnailFilename, "%s/video.jpeg", folder);
-			FILE * thumbFile = fopen(thumbnailFilename, "wb");
-			if (!thumbFile) {
-				printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
-				free(res);
-				return NULL;
-			}
-
-			fwrite(buffer, 1, written, thumbFile);
-			fclose(thumbFile);
-			
+			writeFrame(thumbnailFilename, trgtCtx, frame);
 		}
 		if (currentFrame == sceneFrames[currentScene]) {
 			//First save the thumbnail
 			
-			//Encode frame into buffer
-			frame->pts = writtenFrames++;
-			int written = avcodec_encode_video(trgtCtx, buffer, numBytes, frame);
-
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
-			FILE * thumbFile = fopen(thumbnailFilename, "wb");
-			if (!thumbFile) {
-				printf("Cannot open file to save thumbnail to!(%s)\n", thumbnailFilename);
-				free(res);
-				return NULL;
-			}
+			writeFrame(thumbnailFilename, trgtCtx, frame);
 
-			fwrite(buffer, 1, written, thumbFile);
-			fclose(thumbFile);
-			
 			currentScene++;
 
 			//Get features from different components for this frame
