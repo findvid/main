@@ -8,7 +8,7 @@ FEATURES = obj/fvutils.o obj/feature_extraction.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
-	gcc $(CFLAGS) -c -o $@ $< $(LIBSFFMPEG)
+	gcc $(CFLAGS) $(PYFLAGS) -c -o $@ $< $(LIBSFFMPEG)
 
 build: $(BUILDFILES)
 	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
