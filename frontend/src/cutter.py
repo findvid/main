@@ -2,7 +2,18 @@
 from pymongo import MongoClient
 from subprocess import Popen, PIPE
 from sys import argv, exit
+import hashlib
 import os
+
+def hashFile(filename, blocksize):
+	hash = hashlib.sha1()
+	with open(filename, 'rb') as f:
+		buffer = f.read(blocksize)
+		while len(buffer) > 0:
+			hash.update(buffer)
+			buffer = f.read(blocksize)
+	
+	return hash.hexdigest()
 
 # returns the configuration dictionary
 def config(db="findvid", collection="videos", config={"_id": "config"}):
@@ -44,6 +55,17 @@ def makethumbs(cuts, videofile):
 #		exit(1)
 
 def save_cuts(videofile, uploaded=False):
+	client = MongoClient()
+	db = client["findvid"]
+	videos = db["videos"]
+	
+	fileHash = str(hashFile(os.path.join('/video/videosearch/findvid/videos/', videofile), 65536))
+
+	video = videos.find_one({'_id': fileHash})
+
+	if (video):
+		return False
+
 	cuts = cut(videofile)
 	makethumbs(cuts, videofile)
 	prev = 0 # start at frame 0
@@ -55,18 +77,17 @@ def save_cuts(videofile, uploaded=False):
 		scene["endframe"] = c
 		scenes.append(scene)
 		prev = c
-	client = MongoClient()
-	db = client["findvid"]
-	videos = db["videos"]
 	video = {}
 	# TODO sequence counter
-	video["_id"] = str(videos.find().count() - 1)
+	video["_id"] = fileHash
 	video["filename"] = videofile
 	video["fps"] = 25
 	video["framecount"] = cuts[-1:][0] # last entry
 	video["scenes"] = scenes
 	video["upload"] = uploaded
 	videos.insert(video)
+
+	return True
 
 if __name__ == "__main__":
 	if len(argv) < 2:

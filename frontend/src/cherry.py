@@ -264,7 +264,9 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		cutter.save_cuts(os.path.join('uploads/', filename), True)
+		if not cutter.save_cuts(os.path.join('uploads/', filename), True)
+			# TODO: Aussagekräftige Fehlermeldungen etc.
+			print "Error: File already exists"
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
