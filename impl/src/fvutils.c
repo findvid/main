@@ -59,3 +59,151 @@ void SaveFrameG8(AVFrame * pFrame, int width, int height, int i) {
 	// Close file
 	fclose(pFile);
 }
+
+
+typedef struct {
+	uint8_t *data;
+	int w;
+	int h;
+} Image;
+
+int saveImage(Image *img, char *filename) {
+	FILE *pFile;
+	pFile = fopen(filename, "wb");
+	if (pFile == NULL) {
+		return -1;
+	}
+	
+	fprintf(pFile, "P6\n%d %d\n255\n", img->w, img->h);
+	fwrite(img->data, 3*img->w*img->h, 1, pFile);
+	fclose(pFile);
+	return 0;
+}
+
+int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
+	Image graph;
+	graph.data = (uint8_t *)calloc(len * 3 * height, sizeof(uint8_t));
+	graph.w = len;
+	graph.h = height;
+	int x;
+	int y;
+	for (x = 0; x < len; x++) {
+		uint32_t value = ((double)data[x]) * scale;
+	//	printf("Draw (%d,%d)\n", x, value);
+		for (y = 1; (y <= value) && (y <= height); y++) {
+			graph.data[((height - y) * len + x) * 3] = 255;
+		}
+	}
+
+	char filename[32];
+	sprintf(filename, "graph%d.ppm", nr);
+	saveImage(&graph, filename);
+	free(graph.data);
+	return 0;
+}
+
+VideoIterator * get_VideoIterator(char * filename) {
+	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
+
+	iter->fctx = NULL;
+	iter->cctx = NULL;
+	iter->frame = NULL;
+	iter->packet = NULL;
+
+	if(avformat_open_input(&iter->fctx, filename, NULL, NULL) != 0)
+		goto failure;
+	if(avformat_find_stream_info(iter->fctx, NULL) < 0)
+		goto failure;
+
+	iter->videoStream = -1;
+	for (int i = 0; i < iter->fctx->nb_streams; i++ )
+		if (iter->fctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+			iter->videoStream = i;
+			break;
+		}
+
+	if (iter->videoStream == -1) {
+		goto failure;
+	}
+
+	iter->cctx = iter->fctx->streams[iter->videoStream]->codec;
+	AVCodec * pCodec = avcodec_find_decoder(iter->cctx->codec_id);
+	if (pCodec == NULL)
+		goto failure;
+	
+	if (avcodec_open2(iter->cctx, pCodec, NULL) < 0)
+		goto failure;
+
+	return iter;
+
+failure:
+	free(iter);
+	return NULL;
+}
+
+AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
+	//Possibly omitt this and force passing an actual pointer because this should always be checked...technically.
+	int gotFrameInt;
+	if (gotFrame == NULL) {
+		gotFrame = &gotFrameInt;
+	}
+	*gotFrame = 0;
+
+	AVFrame * res;
+	if (iter->frame == NULL && iter->packet == NULL)
+		res = av_frame_alloc();
+	else
+		res = iter->frame;
+	
+	readFrame(iter, res, gotFrame);
+	if (!*gotFrame) {
+		av_frame_free(&res);
+		return NULL;
+	}
+	return res;
+}
+
+void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
+	//Possibly omitt this and force passing an actual pointer because this should always be checked...technically.
+	int gotFrameInt;
+	if (gotFrame == NULL) {
+		gotFrame = &gotFrameInt;
+	}
+	*gotFrame = 0;
+
+	AVPacket p;
+	while (!*gotFrame) {
+		if (av_read_frame(iter->fctx, &p) < 0) {
+			*gotFrame = 0;
+			av_free_packet(&p);
+			return;
+		}
+		if (p.stream_index == iter->videoStream) {
+			int len = avcodec_decode_video2(iter->cctx, targetFrame, gotFrame, &p);
+			if (len<0) {
+				*gotFrame = 0;
+				av_free_packet(&p);
+				return;
+			}
+			/*
+			if (!*gotFrame) {
+				//Save the packet and frame and return the frame as does decode
+				av_copy_packet(iter->packet, &p);
+				iter->frame = res;
+				return res;
+			} else if(iter->packet != NULL) {
+				//Clean up Iterator from feedback vars
+				av_free_packet(iter->packet);
+			}*/
+		}
+		av_free_packet(&p);
+	}
+}
+
+void destroy_VideoIterator(VideoIterator * iter) {
+	if (iter->frame != NULL) av_frame_free(&iter->frame);
+	if (iter->packet != NULL) av_free_packet(iter->packet);
+	avcodec_close(iter->cctx);
+	avformat_close_input(&iter->fctx);
+	free(iter);
+}

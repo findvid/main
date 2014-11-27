@@ -1,6 +1,51 @@
 #include <math.h>
 #include "edgedetect.h"
 
+void saveGraph(int id, double * vars, int vars_len){
+	AVFrame * graph = av_frame_alloc();
+	avpicture_alloc((AVPicture *)graph, PIX_FMT_RGB24, vars_len, 200);
+	int numBytes = avpicture_get_size(PIX_FMT_RGB24, vars_len, 200);
+	uint8_t * buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+
+	avpicture_fill((AVPicture *)graph, buffer, PIX_FMT_RGB24, vars_len, 200);
+	for(int i = 0; i < vars_len; i++) {
+		int var = (int)(200.0 - vars[i] * 200.0);
+		for (int j = 200; j >= var; j--) 
+			setPixel(graph, i, j, 0xff0000);
+		printf("Plotting (%d,%d)\n", i, var);
+	}
+	SaveFrameRGB24(graph, vars_len, 200, id);
+	av_free(graph);
+
+
+}
+
+//Normalized gaussian with µ = 0
+double gauss(double x, double deviation) {
+	return ((1/(deviation * sqrt(2 * M_PI))) * exp(-(x*x)/(2 * deviation * deviation)));
+}
+
+/*
+ * creates a mask operator without creating offset values
+*/
+OperatorMask * getBellOperatorLinear(int width) {
+	OperatorMask * mask = malloc(sizeof(OperatorMask));
+	mask->width = width;
+	mask->weights = malloc(sizeof(double) * (2 * width - 1));
+	for (int i = 0; i < width; i++) {
+		mask->weights[i] = gauss((double)i, (width/3.0));
+		printf("Weight[%d] = %f\n", i, mask->weights[i]);
+	}
+	for (int i = width; i < (2 * width - 1); i++) {
+		// (width - 1) - (2 * width - 2) = width - 1 - 2 * width + 2
+		// = -width + 1
+		int x = (width - 1) - i;
+		mask->weights[i] = gauss((double)x, (width/3.0));
+		printf("Weight[%d] = %f\n", x, mask->weights[i]);
+	}
+	return mask;
+}
+
 #define HYSTERESIS_T1 16
 #define HYSTERESIS_T2 4
 
@@ -27,6 +72,8 @@ void linearScale(AVFrame * pic, int width, int height) {
 		}
 	}
 }
+
+
 
 double gauss1(double x, double deviation) {
 	return -x/(deviation*deviation) * exp(-(x*x/(2 * deviation * deviation)));
@@ -98,6 +145,9 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx, int width, int he
 	return smoothed;
 }
 
+/**
+ * Convolve image with sodel operator
+ */
 struct t_sobelOutput {
 	AVFrame * mag;
 	AVFrame * dir;
@@ -169,8 +219,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	struct t_sobelOutput sobel;
 	getSobelOutput(sgray, &sobel, width, height);
 	av_frame_free(&sgray);
-	SaveFrameG8(sobel.mag, width, height, 3);
-	SaveFrameG8(sobel.dir, width, height, 4);
+	//SaveFrameG8(sobel.mag, width, height, 3);
+	//SaveFrameG8(sobel.dir, width, height, 4);
 
 	//Step 3: Non-maxmimum suppression
 	for (int x = 0; x < width; x++) {
@@ -203,7 +253,9 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	}
 
 	linearScale(sobel.mag, width, height);
-	SaveFrameG8(sobel.mag, width, height, 5);
+	//SaveFrameG8(sobel.mag, width, height, 5);
+
+	//SaveFrameG8(sodel, width, height, 20);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
@@ -265,4 +317,188 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	av_frame_free(&sobel.mag);
 	av_frame_free(&sobel.dir);
 	return res;
+}
+
+double edgeDiff(AVFrame * p1, AVFrame * p2, struct SwsContext * ctx, int width, int height) {
+	AVFrame * edge1 = getEdgeProfileSodel(p1, ctx, width, height);
+	AVFrame * edge2 = getEdgeProfileSodel(p2, ctx, width, height);
+	
+	int in; // amount of edgepixels in edge1 that are nearby/incident with a pixel in edge2
+	int out; // amount of edgepixels in edge2 that are nearby/incident with a pixel in edge1
+
+	int c1; // Total edge pixels in edge1
+	int c2; // Total edge pixels in edge2
+	
+	for ( int x = 0; x < width; x++ ) {
+		for ( int y = 0; y < height; y++ ) {
+			c1 += (getPixelG8(edge1, x, y)?1:0);
+			c2 += (getPixelG8(edge2, x, y)?1:0);
+
+			//increment in/out if the pixel is incident; ideally the edges are thin enough so this wouldn\t work and a dilated edge profile must be used. That's a toDo, however
+			in += (getPixelG8(edge1, x, y) && getPixelG8(edge2, x, y) ?1:0);
+			//out would currently do the same, so let's not calc it for now
+		}
+	}
+
+	av_free(edge1);
+	av_free(edge2);
+	return fmax(1.0 * in / c1, 1.0 * in / c2);
+}
+
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
+	//Store the difference values between each frame
+	double * differences;
+	int diff_len;
+
+	//Smoothing operator
+	OperatorMask * smoothing = getBellOperatorLinear(10);
+	double * smoothed = malloc(sizeof(double) * diff_len);
+
+
+	//Encodes wether feedback is being used or not
+	int usefeedback;
+	if ( feedback->diff != NULL ) {
+		//Allocate space for the feedback + n-1 differences and another one for "lastFrame - firstFrame"
+		diff_len = (feedback->diff_len + list_frames->size);
+		differences = malloc(sizeof(double) * diff_len);
+		//Copy over the feedback vars
+		for (int i = 0; i < feedback->diff_len; i++ ) {
+			differences[i] = feedback->diff[i];
+		}
+		//
+		free(feedback->diff);
+		
+		usefeedback = 1;
+	} else {
+		//Without feedback, we calculate n-1 differences, 1 between each frame
+		diff_len = (list_frames->size - 1);
+		differences = malloc(sizeof(double) * diff_len);
+		usefeedback = 0;
+	}
+
+	ListIterator * iter = list_iterate(list_frames);
+	
+	AVFrame * lastFrame;
+	if (usefeedback) 
+		lastFrame = getEdgeProfileSodel(feedback->lastFrame, swsctx, width, height);
+	else
+		lastFrame = getEdgeProfileSodel(list_next(iter), swsctx, width, height);
+
+	AVFrame * thisFrame;
+	int pos = (usefeedback?feedback->diff_len:0);
+	while ((thisFrame = list_next(iter)) != NULL) {
+		thisFrame = getEdgeProfileSodel(thisFrame, swsctx, width, height);
+
+		int c1 = 0;
+		int c2 = 0;
+
+		int out = 0;
+		int in = 0;
+
+		for ( int x = 0; x < width; x++ )
+			for ( int y = 0; y < height; y++ ) {
+				c1 += (getPixelG8(lastFrame, x, y)?1:0);
+				c2 += (getPixelG8(thisFrame, x, y)?1:0);
+
+				out += (getPixelG8(lastFrame, x, y) && !getPixelG8(thisFrame, x, y));
+				in += (!getPixelG8(lastFrame, x, y) && getPixelG8(thisFrame, x, y));
+			}
+
+		differences[pos++] = fmax(1.0 * out / c1, 1.0 *  in / c2);
+		av_free(lastFrame);
+		lastFrame = thisFrame;
+	}
+
+	av_free(thisFrame);
+
+	//create and fill new feedback array with unsmoothed values
+	int fb_len = (list_frames->size < MAX_FEEDBACK_LENGTH?list_frames->size:MAX_FEEDBACK_LENGTH);
+
+	double * newdiff = malloc(sizeof(double) * fb_len);
+	for (int i = 0; i < fb_len; i++) {
+		newdiff[i] = differences[(diff_len - fb_len + i)];
+	}
+	feedback->diff = newdiff;
+	//Not yet; we still need to know how long the old feedback, which is now in differences, was
+	//feedback->diff_len = fb_len;
+printf("Saving unsmoothed graph\n");
+	saveGraph(2700000+startframe, differences, diff_len);
+printf("Saved unsmoothed graph\n");
+	
+	//apply smoothing
+
+	//Convolve at borders
+	for (int i = 0; i < smoothing->width; i++) {
+		//!!!! Initialize field before blatantly adding onto it
+		smoothed[i] = 0;
+		//Add weighted values left of position i
+		for (int j = 1; j <= smoothing->width; j++)
+			if ((i - j) >= 0) smoothed[i] += smoothing->weights[smoothing->width + (j - 1)] * differences[i-j];
+		// No if-clause, we assume the rest will be long enough
+		for (int j = 0; j < smoothing->width; j++)
+			smoothed[i] += smoothing->weights[j] * differences[i + j];
+	}
+printf("smoothed left border\n");
+
+	for (int i = smoothing->width; i < (diff_len - smoothing->width); i++) {
+		//!!!! Initialize field before blatantly adding onto it
+		smoothed[i] = 0;
+		//Add weighted values left of position i
+		for (int j = 1; j <= smoothing->width; j++) {
+			printf("Adding %f to smoothed[%d]\n", differences[i-j], i);
+			smoothed[i] += (smoothing->weights[smoothing->width + (j - 1)] * differences[i-j]);
+		}
+
+		for (int j = 0; j < smoothing->width; j++)
+			smoothed[i] += (smoothing->weights[j] * differences[i + j]);
+		
+		if (smoothed[i] < 0.0 || smoothed[i] > 1.0)
+			printf("ILLEGAL SMOOTHED VAR!(%f)\n", smoothed[i]);
+	}
+printf("smoothed center\n");
+	
+	for (int i = (diff_len - smoothing->width); i < diff_len; i++) {
+			//!!!! Initialize field before blatantly adding onto it
+			smoothed[i] = 0;
+			//Add weighted values left of position i
+			for (int j = 1; j <= smoothing->width; j++)
+				smoothed[i] += smoothing->weights[smoothing->width + (j - 1)] * differences[i-j];
+			// No if-clause, we assume the rest will be long enough
+			for (int j = 0; j < smoothing->width; j++)
+				if (i + j < (diff_len)) smoothed[i] += smoothing->weights[j] * differences[i + j];
+	}
+
+printf("smoothed right border\n");
+
+	free(smoothing->weights);
+	free(smoothing);
+
+	//Switch arrays
+	free(differences);
+	differences = smoothed;
+
+printf("Saving smoothed graph\n");
+	saveGraph(3700000+startframe, differences, diff_len);
+printf("Saved smoothed graph\n");
+	
+	//Start searching through differences to mark cuts
+	double extr = 0;
+	int asc = 1;
+	for (int i = (usefeedback?feedback->diff_len:0); i < diff_len; i++) {
+		if (asc) {
+			if (differences[i] > extr) {
+				extr = differences[i];
+				asc = 0; //Descent to next minimum
+
+				if (i >= feedback->diff_len) // only push this result if we're beyond the feedback, otherwise we have a dupe result
+					list_push(list_cuts, (void *)((startframe + i)));
+			}
+		} else if (differences[i] < extr) {
+			extr = differences[i];
+			asc = 1; //search next maximum again
+		}
+	}
+	printf("Searched the bulk, setting feedback to length %d\n", fb_len);
+	feedback->diff_len = fb_len;
+	for (int i = 0; i < fb_len; i++) printf("FEEDBACK[%d] = %f\n", i, feedback->diff[i]);
 }
