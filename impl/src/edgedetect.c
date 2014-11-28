@@ -69,12 +69,12 @@ OperatorMask * getBellOperatorLinear(int width) {
 #define HYSTERESIS_T2 4
 
 //Improve contrast by linear scaling
-void linearScale(AVFrame * pic, int width, int height) {
+void linearScale(AVFrame * pic) {
 	int min = 255, max = 0;
 
 
-	for( int y = 0; y < height; y++ ) {
-		for( int x = 0; x < width; x++ ) {
+	for( int y = 0; y < pic->height; y++ ) {
+		for( int x = 0; x < pic->width; x++ ) {
 			int p = getPixelG8(pic, x, y);
 			if (min > p) min = p;
 			else if(max < p) max = p;
@@ -83,8 +83,8 @@ void linearScale(AVFrame * pic, int width, int height) {
 
 	if(min!=0 || max!= 255) {
 		double scaling = 255.0 / (max - min);
-		for( int y = 0; y < height; y++ ) {
-			for( int x = 0; x < width; x++ ) {
+		for( int y = 0; y < pic->height; y++ ) {
+			for( int x = 0; x < pic->width; x++ ) {
 				pic->data[0][x + y * pic->linesize[0]] -= min;
 				pic->data[0][x + y * pic->linesize[0]] *= scaling;
 			}
@@ -120,12 +120,14 @@ double convolveAt(AVFrame * pic, int x, int y, OperatorMask * mask, int width, i
 	return fabs(output);
 }
 
-AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx, int width, int height) {
+AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 	AVFrame * smoothed = av_frame_alloc();
-	avpicture_alloc((AVPicture *)smoothed, PIX_FMT_GRAY8, width, height);
+	avpicture_alloc((AVPicture *)smoothed, PIX_FMT_GRAY8, gray->width, gray->height);
+	smoothed->width = gray->width;
+	smoothed->height = gray->height;
 	
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < height; y++) {
+	for (int x = 0; x < gray->width; x++) {
+		for (int y = 0; y < gray->height; y++) {
 			double c = 0.0;
 			c += 0.00366 * getPixelG8(gray, x-2, y-2);
 			c += 0.01465 * getPixelG8(gray, x-1, y-2);
@@ -172,16 +174,20 @@ struct t_sobelOutput {
 	AVFrame * dir;
 };
 
-void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out, int width, int height) {
+void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 	AVFrame *mag = av_frame_alloc();
-	avpicture_alloc((AVPicture *)mag, PIX_FMT_GRAY8, width, height);
+	avpicture_alloc((AVPicture *)mag, PIX_FMT_GRAY8, gray->width, gray->height);
+	mag->width = gray->width;
+	mag->height = gray->height;
 	AVFrame *dir = av_frame_alloc();
-	avpicture_alloc((AVPicture *)dir, PIX_FMT_GRAY8, width, height);
+	avpicture_alloc((AVPicture *)dir, PIX_FMT_GRAY8, gray->width, gray->height);
+	dir->width = gray->width;
+	dir->height = gray->height;
 
 
 //For each pixel, apply sodel operator to obtain grayscale intensity changes in different directions
-	for ( int y = 0; y < height; y++ ) {
-		for ( int x = 0; x < width; x++ ) {
+	for ( int y = 0; y < gray->height; y++ ) {
+		for ( int x = 0; x < gray->width; x++ ) {
 			
 			//Gradients of sodel operator
 			int dx = getPixelG8(gray, x-1, y-1) + 2 * getPixelG8(gray, x-1, y) + getPixelG8(gray, x-1, y+1) - getPixelG8(gray, x+1, y-1) - 2 * getPixelG8(gray, x+1, y) - getPixelG8(gray, x+1, y+1);
@@ -222,21 +228,24 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out, int width, int h
 	out->dir = dir;
 }
 
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 	// Step 0: Get grayscale picture
 	AVFrame *gray = av_frame_alloc();
-	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
+	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, original->width, original->height);
 
-	sws_scale(ctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
-
+	sws_scale(ctx, (const uint8_t * const*)original->data, original->linesize, 0, original->height, gray->data, gray->linesize);
+	gray->height = original->height;
+	gray->width = original->width;
 
 	//Step 1: gaussian smoothing
-	AVFrame * sgray = smoothGauss(gray, ctx, width, height);
+	AVFrame * sgray = smoothGauss(gray, ctx);
+	avpicture_free(gray);
 	av_frame_free(&gray);
 
 	//Step 2: Get SobelOutput
 	struct t_sobelOutput sobel;
-	getSobelOutput(sgray, &sobel, width, height);
+	getSobelOutput(sgray, &sobel);
+	avpicture_free(sgray);
 	av_frame_free(&sgray);
 	//av_frame_free(&gray);
 	
@@ -244,8 +253,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	//SaveFrameG8(sobel.dir, width, height, 4);
 
 	//Step 3: Non-maxmimum suppression
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < width; y++) {
+	for (int x = 0; x < sobel.mag->width; x++) {
+		for (int y = 0; y < sobel.mag->height; y++) {
 			int ox, oy;
 			switch(getPixelG8(sobel.dir, x, y))  {
 				case 0: //0 degree
@@ -273,17 +282,18 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 		}
 	}
 
-	linearScale(sobel.mag, width, height);
+	linearScale(sobel.mag);
 
 	//SaveFrameG8(sobel.mag, width, height, 5);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, width, height);
+	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
+	res->width = sobel.mag->width;
+	res->height = sobel.mag->height;
 
-
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < width; y++) {
+	for (int x = 0; x < sobel.mag->width; x++) {
+		for (int y = 0; y < sobel.mag->height; y++) {
 			if (getPixelG8(sobel.mag, x, y) > HYSTERESIS_T1) {
 				setPixelG8(res, x, y, 255);
 				setPixelG8(sobel.mag, x, y, 0);
@@ -334,20 +344,19 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 		}
 	}
 	//Free the rest and return result
+	avpicture_free(sobel.mag);
 	av_frame_free(&sobel.mag);
+	avpicture_free(sobel.dir);
 	av_frame_free(&sobel.dir);
 	//SaveFrameG8(res, width, height, 1);
 	return res;
 }
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx) {
 	//Store the difference values between each frame
 	double * differences;
 	int diff_len;
 
-	//Smoothing operator
-	OperatorMask * smoothing = getBellOperatorLinear(10);
-	double * smoothed = malloc(sizeof(double) * diff_len);
 
 
 	//Encodes wether feedback is being used or not
@@ -370,19 +379,23 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 		differences = malloc(sizeof(double) * diff_len);
 		usefeedback = 0;
 	}
-
+	
+	//Smoothing operator and smoothed results
+	OperatorMask * smoothing = getBellOperatorLinear(10);
+	double * smoothed = malloc(sizeof(double) * diff_len);
+	
 	ListIterator * iter = list_iterate(list_frames);
 	
 	AVFrame * lastFrame;
 	if (usefeedback) 
-		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height);
+		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx);
 	else
-		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height);
+		lastFrame = getEdgeProfile(list_next(iter), swsctx);
 
 	AVFrame * thisFrame;
 	int pos = (usefeedback?feedback->diff_len:0);
 	while ((thisFrame = list_next(iter)) != NULL) {
-		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height);
+		thisFrame = getEdgeProfile(thisFrame, swsctx);
 
 		int c1 = 0;
 		int c2 = 0;
@@ -390,8 +403,8 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 		int out = 0;
 		int in = 0;
 
-		for ( int x = 0; x < width; x++ )
-			for ( int y = 0; y < height; y++ ) {
+		for ( int x = 0; x < thisFrame->width; x++ )
+			for ( int y = 0; y < thisFrame->height; y++ ) {
 				c1 += (getPixelG8(lastFrame, x, y)?1:0);
 				c2 += (getPixelG8(thisFrame, x, y)?1:0);
 

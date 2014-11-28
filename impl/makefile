@@ -26,8 +26,8 @@ edge_cmp: src/edgecmp.c $(BUILDFILES)
 edgetests: obj/edgedetect.o unittests/edgetest_unit.cc $(UTILS)
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
 
-edges: $(BUILDFILES) src/frametest_iter.c
-	gcc $(CFLAGS) $(BUILDFILES) src/frametest_iter.c -o edges $(LIBSFFMPEG)
+edges: $(BUILDFILES) src/frametest.c
+	gcc $(CFLAGS) $(BUILDFILES) src/frametest.c -o edges $(LIBSFFMPEG)
 
 histtests: src/histtests.c
 	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)

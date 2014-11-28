@@ -30,10 +30,11 @@ int main(int argc, char **argv) {
 	readFrame(iter, frame, &gotFrame);
 	readFrame(ref_iter, realedges, &gotFrame2);
 	while (gotFrame && gotFrame2) { 
-		
-		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
-		SaveFrameG8(g, iter->cctx->width, iter->cctx->height, respos);
-
+	
+		frame->width = iter->cctx->width;
+		frame->height = iter->cctx->height;
+		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx);
+		SaveFrameG8(g, g->width, g->height, respos);
 		//Use frame to save realedges as grayscale picture
 		sws_scale(g2g_ctx, (const uint8_t * const *)realedges->data, realedges->linesize, 0, ref_iter->cctx->height, frame->data, frame->linesize);
 
@@ -42,15 +43,16 @@ int main(int argc, char **argv) {
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
 		results[respos++] = (uint32_t)(500 * cmpProfiles(g, frame));	
-		
-		printf("%d: %d\n", respos, results[respos-1]);
-
+	
+		avpicture_free(g);
 		av_frame_free(&g);
 		readFrame(iter, frame, &gotFrame);
 		readFrame(ref_iter, realedges, &gotFrame2);
 	}
-	
+
+	avpicture_free(realedges);
 	av_frame_free(&realedges);
+	avpicture_free(frame);
 	av_frame_free(&frame);
 	sws_freeContext(rgb2g_ctx);
 	sws_freeContext(g2g_ctx);

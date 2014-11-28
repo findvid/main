@@ -29,9 +29,9 @@ typedef struct {
 
 double cmpProfiles(AVFrame * p1, AVFrame * p2);
 
-void linearScale(AVFrame * pic, int width, int height);
+void linearScale(AVFrame * pic);
 
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx);
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx);
 #endif
