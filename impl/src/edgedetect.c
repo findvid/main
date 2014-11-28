@@ -1,4 +1,6 @@
 #include <math.h>
+#include "fvutils.h"
+#include "largelist.h"
 #include "edgedetect.h"
 
 void saveGraph(int id, double * vars, int vars_len){
@@ -12,12 +14,29 @@ void saveGraph(int id, double * vars, int vars_len){
 		int var = (int)(200.0 - vars[i] * 200.0);
 		for (int j = 200; j >= var; j--) 
 			setPixel(graph, i, j, 0xff0000);
-		printf("Plotting (%d,%d)\n", i, var);
 	}
 	SaveFrameRGB24(graph, vars_len, 200, id);
 	av_free(graph);
 
 
+}
+
+//EPR = Edge Persist Ratio
+//Calculate EPR between two frames
+double cmpProfiles(AVFrame * p1, AVFrame * p2) {
+	int matches = 0;
+	int p1_edges = 0;
+	int p2_edges = 0;
+	for (int x = 0; x < p1->width; x++) {
+		for (int y = 0; y < p1->height; y++) {
+			p1_edges += (getPixelG8(p1, x, y)?1:0);
+			p2_edges += (getPixelG8(p2, x, y)?1:0);
+			matches += (getPixelG8(p1, x, y) && getPixelG8(p2, x, y));
+		}
+	}
+	double res = fmin(((double)matches/p1_edges),((double)matches/p2_edges));
+	printf("EPR = %f(%d, %d, %d)\n", res, matches, p1_edges, p2_edges);
+	return res;
 }
 
 //Normalized gaussian with µ = 0
@@ -204,21 +223,23 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out, int width, int h
 }
 
 AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
-	// Step 0: Get grayscal picture
+	// Step 0: Get grayscale picture
 	AVFrame *gray = av_frame_alloc();
 	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
 
 	sws_scale(ctx, (const uint8_t * const*)original->data, original->linesize, 0, height, gray->data, gray->linesize);
 
+
 	//Step 1: gaussian smoothing
 	AVFrame * sgray = smoothGauss(gray, ctx, width, height);
-	SaveFrameG8(sgray, width, height, 2);
 	av_frame_free(&gray);
 
 	//Step 2: Get SobelOutput
 	struct t_sobelOutput sobel;
 	getSobelOutput(sgray, &sobel, width, height);
 	av_frame_free(&sgray);
+	//av_frame_free(&gray);
+	
 	//SaveFrameG8(sobel.mag, width, height, 3);
 	//SaveFrameG8(sobel.dir, width, height, 4);
 
@@ -240,7 +261,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 					ox = 1;
 					oy = 0;
 					break;
-				case 3 //135 degree:
+				case 3: //135 degree
 					ox = 1;
 					oy = 1;
 					break;
@@ -253,9 +274,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	}
 
 	linearScale(sobel.mag, width, height);
-	//SaveFrameG8(sobel.mag, width, height, 5);
 
-	//SaveFrameG8(sodel, width, height, 20);
+	//SaveFrameG8(sobel.mag, width, height, 5);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
@@ -316,33 +336,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	//Free the rest and return result
 	av_frame_free(&sobel.mag);
 	av_frame_free(&sobel.dir);
+	//SaveFrameG8(res, width, height, 1);
 	return res;
-}
-
-double edgeDiff(AVFrame * p1, AVFrame * p2, struct SwsContext * ctx, int width, int height) {
-	AVFrame * edge1 = getEdgeProfileSodel(p1, ctx, width, height);
-	AVFrame * edge2 = getEdgeProfileSodel(p2, ctx, width, height);
-	
-	int in; // amount of edgepixels in edge1 that are nearby/incident with a pixel in edge2
-	int out; // amount of edgepixels in edge2 that are nearby/incident with a pixel in edge1
-
-	int c1; // Total edge pixels in edge1
-	int c2; // Total edge pixels in edge2
-	
-	for ( int x = 0; x < width; x++ ) {
-		for ( int y = 0; y < height; y++ ) {
-			c1 += (getPixelG8(edge1, x, y)?1:0);
-			c2 += (getPixelG8(edge2, x, y)?1:0);
-
-			//increment in/out if the pixel is incident; ideally the edges are thin enough so this wouldn\t work and a dilated edge profile must be used. That's a toDo, however
-			in += (getPixelG8(edge1, x, y) && getPixelG8(edge2, x, y) ?1:0);
-			//out would currently do the same, so let's not calc it for now
-		}
-	}
-
-	av_free(edge1);
-	av_free(edge2);
-	return fmax(1.0 * in / c1, 1.0 * in / c2);
 }
 
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
@@ -380,14 +375,14 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	
 	AVFrame * lastFrame;
 	if (usefeedback) 
-		lastFrame = getEdgeProfileSodel(feedback->lastFrame, swsctx, width, height);
+		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height);
 	else
-		lastFrame = getEdgeProfileSodel(list_next(iter), swsctx, width, height);
+		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height);
 
 	AVFrame * thisFrame;
 	int pos = (usefeedback?feedback->diff_len:0);
 	while ((thisFrame = list_next(iter)) != NULL) {
-		thisFrame = getEdgeProfileSodel(thisFrame, swsctx, width, height);
+		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height);
 
 		int c1 = 0;
 		int c2 = 0;
@@ -421,9 +416,8 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	feedback->diff = newdiff;
 	//Not yet; we still need to know how long the old feedback, which is now in differences, was
 	//feedback->diff_len = fb_len;
-printf("Saving unsmoothed graph\n");
+	
 	saveGraph(2700000+startframe, differences, diff_len);
-printf("Saved unsmoothed graph\n");
 	
 	//apply smoothing
 
@@ -438,7 +432,6 @@ printf("Saved unsmoothed graph\n");
 		for (int j = 0; j < smoothing->width; j++)
 			smoothed[i] += smoothing->weights[j] * differences[i + j];
 	}
-printf("smoothed left border\n");
 
 	for (int i = smoothing->width; i < (diff_len - smoothing->width); i++) {
 		//!!!! Initialize field before blatantly adding onto it
@@ -455,7 +448,6 @@ printf("smoothed left border\n");
 		if (smoothed[i] < 0.0 || smoothed[i] > 1.0)
 			printf("ILLEGAL SMOOTHED VAR!(%f)\n", smoothed[i]);
 	}
-printf("smoothed center\n");
 	
 	for (int i = (diff_len - smoothing->width); i < diff_len; i++) {
 			//!!!! Initialize field before blatantly adding onto it
@@ -490,8 +482,9 @@ printf("Saved smoothed graph\n");
 				extr = differences[i];
 				asc = 0; //Descent to next minimum
 
-				if (i >= feedback->diff_len) // only push this result if we're beyond the feedback, otherwise we have a dupe result
-					list_push(list_cuts, (void *)((startframe + i)));
+				if (i >= feedback->diff_len) { // only push this result if we're beyond the feedback, otherwise we have a dupe result
+					list_push(list_cuts, (void *)((intptr_t)(startframe + i)));
+				}
 			}
 		} else if (differences[i] < extr) {
 			extr = differences[i];

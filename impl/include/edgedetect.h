@@ -9,7 +9,7 @@
 #include "fvutils.h"
 #include "largelist.h"
 
-#define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<height) && ((x)<width))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
+#define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<((p)->height)) && ((x)<((p)->width)))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
 #define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
@@ -27,10 +27,10 @@ typedef struct {
 } OperatorMask;
 
 
-//Expose these functions for testing purposes
+double cmpProfiles(AVFrame * p1, AVFrame * p2);
+
 void linearScale(AVFrame * pic, int width, int height);
 
-//AVFrame * getEdgeProfileGauss(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
