@@ -17,6 +17,9 @@
 
 #define OPERATOR_DIRECTIONS 6
 
+#define HYSTERESIS_T1 16
+#define HYSTERESIS_T2 4
+
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
 //struct to save the offsets for an operator mask to efficiently precalculate them

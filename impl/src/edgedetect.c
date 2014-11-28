@@ -35,7 +35,6 @@ double cmpProfiles(AVFrame * p1, AVFrame * p2) {
 		}
 	}
 	double res = fmin(((double)matches/p1_edges),((double)matches/p2_edges));
-	printf("EPR = %f(%d, %d, %d)\n", res, matches, p1_edges, p2_edges);
 	return res;
 }
 
@@ -64,9 +63,6 @@ OperatorMask * getBellOperatorLinear(int width) {
 	}
 	return mask;
 }
-
-#define HYSTERESIS_T1 16
-#define HYSTERESIS_T2 4
 
 //Improve contrast by linear scaling
 void linearScale(AVFrame * pic) {
@@ -239,19 +235,17 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 
 	//Step 1: gaussian smoothing
 	AVFrame * sgray = smoothGauss(gray, ctx);
-	avpicture_free(gray);
+	avpicture_free((AVPicture *)gray);
 	av_frame_free(&gray);
 
 	//Step 2: Get SobelOutput
 	struct t_sobelOutput sobel;
 	getSobelOutput(sgray, &sobel);
-	avpicture_free(sgray);
+	avpicture_free((AVPicture *)sgray);
 	av_frame_free(&sgray);
-	//av_frame_free(&gray);
 	
-	//SaveFrameG8(sobel.mag, width, height, 3);
-	//SaveFrameG8(sobel.dir, width, height, 4);
-
+	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 3);
+	
 	//Step 3: Non-maxmimum suppression
 	for (int x = 0; x < sobel.mag->width; x++) {
 		for (int y = 0; y < sobel.mag->height; y++) {
@@ -284,13 +278,18 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 
 	linearScale(sobel.mag);
 
-	//SaveFrameG8(sobel.mag, width, height, 5);
+	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 5);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
 	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
 	res->width = sobel.mag->width;
 	res->height = sobel.mag->height;
+	
+	//Appearantly it is possible that res "inherits" the data of a grayscale picture rather than being all black. Therefore, we have to do it ourselves. Again.
+	//SaveFrameG8(res, res->width, res->height, 1);
+
+	
 
 	for (int x = 0; x < sobel.mag->width; x++) {
 		for (int y = 0; y < sobel.mag->height; y++) {
@@ -340,15 +339,17 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 					ox2 += ox;
 					oy2 += oy;
 				}
+			//This position was not marked a pixel in res, but sodel output wasn't strong enough either...this is a memory artifact
+			} else if (getPixelG8(res, x, y) < 255) {
+				setPixelG8(res, x, y, 0);
 			}
 		}
 	}
 	//Free the rest and return result
-	avpicture_free(sobel.mag);
+	avpicture_free((AVPicture *)sobel.mag);
 	av_frame_free(&sobel.mag);
-	avpicture_free(sobel.dir);
+	avpicture_free((AVPicture *)sobel.dir);
 	av_frame_free(&sobel.dir);
-	//SaveFrameG8(res, width, height, 1);
 	return res;
 }
 
