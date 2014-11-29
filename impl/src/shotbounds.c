@@ -69,7 +69,7 @@ uint32_t mergeListsToArray(LargeList *l1, LargeList *l2, uint32_t **array) {
 }
 
 
-int processVideo(char *filename, uint32_t **cuts) {
+int processVideo(const char *filename, uint32_t **cuts) {
 	av_register_all();
 	// Count of frames in the video
 	int frameCount = 0;
@@ -175,12 +175,15 @@ int processVideo(char *filename, uint32_t **cuts) {
 // */
 
 	// Copy the found cuts into an array
-	int cutCount = list_cuts_colors->size;
-	*cuts = (uint32_t *)malloc(sizeof(uint32_t) * (cutCount + 1));
+	int cutCount = list_cuts_colors->size + 2;
+	*cuts = (uint32_t *)malloc(sizeof(uint32_t) * (cutCount));
 	ListIterator *cutsIt = list_iterate(list_cuts_colors);
-	for (i = 0; i < cutCount; i++) {
+	int i;
+	for (i = 1; i < cutCount - 1; i++) {
 		(*cuts)[i] = (uint32_t)(intptr_t)list_next(cutsIt);
 	}
+	// Add 0 as first cut an the frame count as the last cut
+	(*cuts)[0] = 0;
 	(*cuts)[i] = frameCount;
 	free(cutsIt);
 
@@ -206,10 +209,9 @@ int main(int argc, char **argv) {
 
 	int cutCount = processVideo(argv[1], &cuts);
 
-	printf("0");
-
 	int i;
-	for (i = 0; i <= cutCount; i++) {
+	printf("%d", cuts[0]);
+	for (i = 1; i < cutCount; i++) {
 		printf(" %d", cuts[i]);
 	}
 	printf("\n");
