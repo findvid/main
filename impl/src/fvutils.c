@@ -102,13 +102,11 @@ int drawGraph(uint32_t *data, int len, int height, double scale, int nr) {
 	return 0;
 }
 
-VideoIterator * get_VideoIterator(char * filename) {
+VideoIterator * get_VideoIterator(const char * filename) {
 	VideoIterator * iter = (VideoIterator *)malloc(sizeof(VideoIterator));
 
 	iter->fctx = NULL;
 	iter->cctx = NULL;
-	iter->frame = NULL;
-	iter->packet = NULL;
 
 	if(avformat_open_input(&iter->fctx, filename, NULL, NULL) != 0)
 		goto failure;
@@ -149,11 +147,7 @@ AVFrame * nextFrame(VideoIterator * iter, int * gotFrame) {
 	}
 	*gotFrame = 0;
 
-	AVFrame * res;
-	if (iter->frame == NULL && iter->packet == NULL)
-		res = av_frame_alloc();
-	else
-		res = iter->frame;
+	AVFrame * res = av_frame_alloc();
 	
 	readFrame(iter, res, gotFrame);
 	if (!*gotFrame) {
@@ -201,8 +195,6 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 }
 
 void destroy_VideoIterator(VideoIterator * iter) {
-	if (iter->frame != NULL) av_frame_free(&iter->frame);
-	if (iter->packet != NULL) av_free_packet(iter->packet);
 	avcodec_close(iter->cctx);
 	avformat_close_input(&iter->fctx);
 	free(iter);
