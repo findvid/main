@@ -13,19 +13,19 @@ class EdgeTest : public testing::Test {
 		AVFrame * box;
 		AVFrame * hbox;
 
+		t_sobelOutput sobel_box;
+		t_sobelOutput sobel_hbox;
+
 		AVFrame * testFrame1(int,int);
 		AVFrame * testFrameBox(int,int);
 		AVFrame * testFrameHBox(int, int);
 
 		uint8_t getImagePixel(int x, int y) {
-			int width = 640, height = 400;
 			return getPixelG8(img, x, y);
 		}
 
 		//returns 1 if all edge pixels in profile are found in container aswell
 		int profileIsIn(AVFrame * profile, AVFrame * container) {
-			int width = profile->width;
-			int height = profile->height;
 			int res = 1;
 			for (int x = 0; x < profile->width; x++) {
 				for (int y = 0; y < profile->height; y++) {
@@ -40,24 +40,54 @@ class EdgeTest : public testing::Test {
 		virtual void SetUp() {
 			int width = 640, height = 400;
 			struct SwsContext * sws = sws_getContext(width, height, PIX_FMT_RGB24, width, height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+
 			AVFrame * i = testFrame1(width, height);
-			this->img = getEdgeProfile(i, sws, width, height);
+			i->width = width;
+			i->height = height;
+			this->img = getEdgeProfile(i, sws);
+			//avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 			
+			AVFrame * ig = av_frame_alloc();
+			avpicture_alloc((AVPicture *)ig, PIX_FMT_GRAY8, width, height);
 			i = testFrameBox(width, height);
+			i->width = width;
+			i->height = height;
 			SaveFrameRGB24(i, width, height, 10);
-			this->box = getEdgeProfile(i, sws, width, height);
-			SaveFrameG8(this->box, width, height, 100);
+
+			sws_scale(sws, (const uint8_t * const*)i->data, i->linesize, 0, height, ig->data, ig->linesize);
+			ig->width = width;
+			ig->height = height;
+			getSobelOutput(ig, &this->sobel_box);
+
+			this->box = getEdgeProfile(i, sws);
 			this->box->width = width;
 			this->box->height = height;
+			SaveFrameG8(this->box, width, height, 100);
+			//avpicture_free((AVPicture *)ig);
+			av_frame_free(&ig);
+			//avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 			
 			i = testFrameHBox(width, height);
+			i->width = width;
+			i->height = height;
+			
+			ig = av_frame_alloc();
+			avpicture_alloc((AVPicture *)ig, PIX_FMT_GRAY8, width, height);
+			sws_scale(sws, (const uint8_t * const *)i->data, i->linesize, 0, height, ig->data, ig->linesize);
+			ig->width = width;
+			ig->height = height;
+			getSobelOutput(ig, &this->sobel_hbox);
 			SaveFrameRGB24(i, width, height, 20);
-			this->hbox = getEdgeProfile(i, sws, width, height);
-			SaveFrameG8(this->hbox, width, height, 200);
+			this->hbox = getEdgeProfile(i, sws);
 			this->hbox->width = width;
 			this->hbox->height = height;
+			SaveFrameG8(this->hbox, width, height, 200);
+
+			avpicture_free((AVPicture *)ig);
+			av_frame_free(&ig);
+			avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 		}
 
@@ -143,7 +173,13 @@ TEST_F(EdgeTest, SimpleEdge1) {
 }
 
 TEST_F(EdgeTest, BoxCmp) {
-	EXPECT_EQ(profileIsIn(this->box, this->hbox), 1);
+	EXPECT_GT(cmpProfiles(this->box, this->hbox), 0.5);
+}
+
+TEST_F(EdgeTest, SobelMagCheck) {
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 420, 130), 0);
+	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 419, 130), 20);
+	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
 }
 
 int main(int argc, char **argv) {

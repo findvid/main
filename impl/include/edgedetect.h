@@ -17,8 +17,8 @@
 
 #define OPERATOR_DIRECTIONS 6
 
-#define HYSTERESIS_T1 16
-#define HYSTERESIS_T2 4
+#define HYSTERESIS_T1 20
+#define HYSTERESIS_T2 10
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
@@ -29,12 +29,18 @@ typedef struct {
 	double * weights;
 } OperatorMask;
 
+struct t_sobelOutput {
+	AVFrame * mag;
+	AVFrame * dir;
+};
 
 double cmpProfiles(AVFrame * p1, AVFrame * p2);
 
 void linearScale(AVFrame * pic);
 
 AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx);
+
+void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx);
 #endif

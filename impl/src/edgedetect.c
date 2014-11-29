@@ -121,7 +121,22 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 	avpicture_alloc((AVPicture *)smoothed, PIX_FMT_GRAY8, gray->width, gray->height);
 	smoothed->width = gray->width;
 	smoothed->height = gray->height;
-	
+	for (int x = 0; x < gray->width; x++) {
+		for (int y = 0; y < gray->height; y++) {
+			double c = 0.0;
+			c += 0.0425 * getPixelG8(gray, x-1, y-1);
+			c += 0.0825 * getPixelG8(gray, x  , y-1);
+			c += 0.0425 * getPixelG8(gray, x+1, y-1);
+			c += 0.0825 * getPixelG8(gray, x-1, y  );
+			c += 0.5    * getPixelG8(gray, x  , y  );
+			c += 0.0825 * getPixelG8(gray, x+1, y  );
+			c += 0.0425 * getPixelG8(gray, x+1, y+1);
+			c += 0.0825 * getPixelG8(gray, x  , y+1);
+			c += 0.0425 * getPixelG8(gray, x-1, y+1);
+			setPixelG8(smoothed, x, y, c);
+		}
+	}
+	/* TOO BIG! Makes the image washed out and creates multiple edges that sneak past the NMS!!
 	for (int x = 0; x < gray->width; x++) {
 		for (int y = 0; y < gray->height; y++) {
 			double c = 0.0;
@@ -158,18 +173,13 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 			setPixelG8(smoothed, x, y, c);
 		}
 	}
-
+	*/
 	return smoothed;
 }
 
 /**
  * Convolve image with sodel operator
  */
-struct t_sobelOutput {
-	AVFrame * mag;
-	AVFrame * dir;
-};
-
 void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 	AVFrame *mag = av_frame_alloc();
 	avpicture_alloc((AVPicture *)mag, PIX_FMT_GRAY8, gray->width, gray->height);
@@ -186,8 +196,20 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 		for ( int x = 0; x < gray->width; x++ ) {
 			
 			//Gradients of sodel operator
-			int dx = getPixelG8(gray, x-1, y-1) + 2 * getPixelG8(gray, x-1, y) + getPixelG8(gray, x-1, y+1) - getPixelG8(gray, x+1, y-1) - 2 * getPixelG8(gray, x+1, y) - getPixelG8(gray, x+1, y+1);
-			int dy = getPixelG8(gray,x-1,y-1) + 2 * getPixelG8(gray, x, y-1) + getPixelG8(gray, x+1, y-1) - getPixelG8(gray, x-1, y+1) - 2 * getPixelG8(gray, x, y+1) - getPixelG8(gray, x+1, y+1);
+			int dx = getPixelG8( gray, x+1, y-1)
+				+ 2 * getPixelG8(gray, x+1, y  )
+				+ getPixelG8(    gray, x+1, y+1)
+				
+				- getPixelG8(    gray, x-1, y-1)
+				- 2 * getPixelG8(gray, x-1, y  )
+				- getPixelG8(    gray, x-1, y+1);
+
+			int dy = getPixelG8( gray, x-1, y+1)
+				+ 2 * getPixelG8(gray, x,   y+1)
+				+ getPixelG8(    gray, x+1, y+1)
+				- getPixelG8(    gray, x-1, y-1)
+				- 2 * getPixelG8(gray, x,   y-1)
+				- getPixelG8(    gray, x+1, y-1);
 
 			//normalize output
 			dx /= 9;
@@ -195,28 +217,24 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 
 			//each pixel saves the magnitude of the sodel operator at this point
  			double magvar = sqrt(dx * dx + dy * dy);
-			mag->data[0][x + y * mag->linesize[0]] = (uint8_t)magvar;
+			setPixelG8(mag, x, y, magvar);
 
 			double dirvar = atan2(dx, dy);
 			
-			//Encode direction into a gray value: [-90|90] -> [0|3]
+			//Encode direction into a gray value: [-90|90] -> [0|4]
 			//-180 = 0
-			if (dirvar < 0) //]-90|0[ -> [180|90[
+			if (dirvar < 0) //]-90|0[ -> ]90|180]
 				dirvar = M_PI + dirvar;
-			//[0|180] -> [0|255]
 			//No need for drastic precision, use multiples of 45 degrees
-			if (dirvar < 0 || dirvar > (M_PI))
-				printf("invalid dirvar = %f\n", dirvar);
+			//if (dirvar < 0 || dirvar > (M_PI))
+			//	printf("invalid dirvar = %f\n", dirvar);
 
 			dirvar = round(dirvar / (M_PI / 4));
-			if (dirvar > 4.0)
-				printf("invalid dircode = %f\n", dirvar);
-			//dirvar *= (M_PI / 4);
-			//dirvar = (dirvar/(M_PI)) * 255;
+		
+			dirvar *= (M_PI / 4);
+			dirvar = ((dirvar/(M_PI)) * 240);
 
-
-			dir->data[0][x + y * dir->linesize[0]] = (uint8_t)dirvar;
-			//printf("dirvarf = %d\n", getPixelG8(dir, x, y));
+			setPixelG8(dir, x, y, dirvar);
 		}
 	}
 
@@ -233,39 +251,44 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 	gray->height = original->height;
 	gray->width = original->width;
 
-	//Step 1: gaussian smoothing
-	AVFrame * sgray = smoothGauss(gray, ctx);
-	avpicture_free((AVPicture *)gray);
-	av_frame_free(&gray);
+	//This seems to easily mess up the sobel operator in the detection of primitive forms	//Step 1: gaussian smoothing
+	//AVFrame * sgray = smoothGauss(gray, ctx);
+	//avpicture_free((AVPicture *)gray);
+	//av_frame_free(&gray);
+
+	//SaveFrameG8(gray, gray->width, gray->height, 40);
 
 	//Step 2: Get SobelOutput
 	struct t_sobelOutput sobel;
-	getSobelOutput(sgray, &sobel);
-	avpicture_free((AVPicture *)sgray);
-	av_frame_free(&sgray);
+	getSobelOutput(gray, &sobel);
+	avpicture_free((AVPicture *)gray);
+	av_frame_free(&gray);
 	
 	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 3);
-	
+
+	linearScale(sobel.mag);
+
 	//Step 3: Non-maxmimum suppression
+	//Check for greater magnitudes orthogonal to the edge
 	for (int x = 0; x < sobel.mag->width; x++) {
 		for (int y = 0; y < sobel.mag->height; y++) {
 			int ox, oy;
 			switch(getPixelG8(sobel.dir, x, y))  {
 				case 0: //0 degree
-				case 4: // or 180
-					ox = 0;
-					oy = 1;
-					break;
-				case 1: //45 degree
-					ox = 1;
-					oy = -1;
-					break;
-				case 2: //90 degree
+				case 240: // or 180
 					ox = 1;
 					oy = 0;
 					break;
-				case 3: //135 degree
+				case 60: //45 degree
 					ox = 1;
+					oy = 1;
+					break;
+				case 120: //90 degree
+					ox = 0;
+					oy = 1;
+					break;
+				case 180: //135 degree
+					ox = -1;
 					oy = 1;
 					break;
 				default:
@@ -278,7 +301,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 
 	linearScale(sobel.mag);
 
-	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 5);
+	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 50);
+	//	SaveFrameG8(sobel.dir, sobel.dir->width, sobel.dir->height, 60);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
@@ -287,6 +311,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 	res->height = sobel.mag->height;
 	
 	//Appearantly it is possible that res "inherits" the data of a grayscale picture rather than being all black. Therefore, we have to do it ourselves. Again.
+	memset(res->data[0], 0, res->linesize[0] * res->height);
 	//SaveFrameG8(res, res->width, res->height, 1);
 
 	
@@ -299,20 +324,20 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 				int ox = 0, oy = 0;
 				switch(getPixelG8(sobel.dir, x, y))  {
 					case 0: //0 degree
-					case 4: // or 180
-						ox = 1;
-						oy = 0;
-						break;
-					case 1: //45 degree
-						ox = 1;
-						oy = 1;
-						break;
-					case 2: //90 degree
+					case 240: // or 180
 						ox = 0;
 						oy = 1;
 						break;
-					case 3: //135 degree
-						ox = -1;
+					case 60: //45 degree
+						ox = 1;
+						oy = -1;
+						break;
+					case 120: //90 degree
+						ox = 1;
+						oy = 0;
+						break;
+					case 180: //135 degree
+						ox = 1;
 						oy = 1;
 						break;
 				}
@@ -340,8 +365,8 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx) {
 					oy2 += oy;
 				}
 			//This position was not marked a pixel in res, but sodel output wasn't strong enough either...this is a memory artifact
-			} else if (getPixelG8(res, x, y) < 255) {
-				setPixelG8(res, x, y, 0);
+		//	} else if (getPixelG8(res, x, y) < 255) {
+		//		setPixelG8(res, x, y, 0);
 			}
 		}
 	}
@@ -414,11 +439,11 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 			}
 
 		differences[pos++] = fmax(1.0 * out / c1, 1.0 *  in / c2);
-		av_free(lastFrame);
+		av_frame_free(&lastFrame);
 		lastFrame = thisFrame;
 	}
 
-	av_free(thisFrame);
+	av_frame_free(&thisFrame);
 
 	//create and fill new feedback array with unsmoothed values
 	int fb_len = (list_frames->size < MAX_FEEDBACK_LENGTH?list_frames->size:MAX_FEEDBACK_LENGTH);
