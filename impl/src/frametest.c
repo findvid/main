@@ -7,6 +7,9 @@
 #include "largelist.h"
 #include "edgedetect.h"
 
+#define DSTW 400
+#define DSTH 300
+
 int main(int argc, char **argv) {
 	av_register_all();
 	if (argc < 2) return -1;
@@ -19,16 +22,18 @@ int main(int argc, char **argv) {
 
 
 	int gotFrame = 0;
-	struct SwsContext *rgb2g_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, iter->cctx->width, iter->cctx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *rgb2g_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DSTW, DSTH, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	//struct SwsContext *rgb2g_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, iter->cctx->width, iter->cctx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	
 	int frames = 0;
 
 	readFrame(iter, frame, &gotFrame);
-	while (gotFrame) { 
+	while (gotFrame && frames < 500) { 
 	
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
-		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx);
+		AVFrame * g = getEdgeProfile2(frame, rgb2g_ctx, DSTW, DSTH);
+		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
 		SaveFrameG8(g, g->width, g->height, frames);
 		frames++;
 	

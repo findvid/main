@@ -9,6 +9,9 @@
 #include "largelist.h"
 #include "edgedetect.h"
 
+#define DSTW 400
+#define DSTH 300
+
 uint32_t results[1024];
 uint32_t respos;
 
@@ -31,15 +34,15 @@ int main(int argc, char **argv) {
 
 	AVFrame * frame = av_frame_alloc();
 	AVFrame * refedges = av_frame_alloc();
-	avpicture_alloc((AVPicture *)refedges, PIX_FMT_GRAY8, iter->cctx->width, iter->cctx->height);
+	avpicture_alloc((AVPicture *)refedges, PIX_FMT_GRAY8, DSTW, DSTH);
 	AVFrame * realedges = av_frame_alloc();
 
 
 	int gotFrame = 0;
 	int gotFrame2 = 0;
-	struct SwsContext *rgb2g_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, iter->cctx->width, iter->cctx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *rgb2g_ctx = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DSTW, DSTH, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	
-	struct SwsContext *g2g_ctx = sws_getContext(ref_iter->cctx->width, ref_iter->cctx->height, ref_iter->cctx->pix_fmt, iter->cctx->width, iter->cctx->height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *g2g_ctx = sws_getContext(ref_iter->cctx->width, ref_iter->cctx->height, ref_iter->cctx->pix_fmt, DSTW, DSTH, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 
 	readFrame(iter, frame, &gotFrame);
 	readFrame(ref_iter, realedges, &gotFrame2);
@@ -47,17 +50,17 @@ int main(int argc, char **argv) {
 	
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
-		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx);
-		SaveFrameG8(g, g->width, g->height, respos);
+		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH);
 
 		//Convert FFMPEG's edgeprofile frame to grayscale
 		sws_scale(g2g_ctx, (const uint8_t * const *)realedges->data, realedges->linesize, 0, ref_iter->cctx->height, refedges->data, refedges->linesize);
 
 
-		g->width = iter->cctx->width;
-		g->height = iter->cctx->height;
-		refedges->width = iter->cctx->width;
-		refedges->height = iter->cctx->height;
+		g->width = DSTW;
+		g->height = DSTH;
+		refedges->width = DSTW;
+		refedges->height = DSTH;
+		//SaveFrameG8(refedges, refedges->width, refedges->height, respos);
 		results[respos++] = (uint32_t)(500 * cmpProfiles(g, refedges));	
 	
 		avpicture_free((AVPicture *)g);

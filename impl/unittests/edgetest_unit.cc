@@ -44,7 +44,7 @@ class EdgeTest : public testing::Test {
 			AVFrame * i = testFrame1(width, height);
 			i->width = width;
 			i->height = height;
-			this->img = getEdgeProfile(i, sws);
+			this->img = getEdgeProfile(i, sws, width, height);
 			//avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 			
@@ -60,7 +60,7 @@ class EdgeTest : public testing::Test {
 			ig->height = height;
 			getSobelOutput(ig, &this->sobel_box);
 
-			this->box = getEdgeProfile(i, sws);
+			this->box = getEdgeProfile(i, sws, width, height);
 			this->box->width = width;
 			this->box->height = height;
 			SaveFrameG8(this->box, width, height, 100);
@@ -80,7 +80,7 @@ class EdgeTest : public testing::Test {
 			ig->height = height;
 			getSobelOutput(ig, &this->sobel_hbox);
 			SaveFrameRGB24(i, width, height, 20);
-			this->hbox = getEdgeProfile(i, sws);
+			this->hbox = getEdgeProfile(i, sws, width, height);
 			this->hbox->width = width;
 			this->hbox->height = height;
 			SaveFrameG8(this->hbox, width, height, 200);

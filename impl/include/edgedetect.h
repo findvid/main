@@ -38,9 +38,10 @@ double cmpProfiles(AVFrame * p1, AVFrame * p2);
 
 void linearScale(AVFrame * pic);
 
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx);
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx);
+void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 #endif
