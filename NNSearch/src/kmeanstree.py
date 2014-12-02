@@ -152,21 +152,25 @@ i_max = 10
 #print data
 #print dist([0,0,0],[3,3,3])
 #print calg(data,2)
-print "Hang on. Building a tree..."
-tree = buildTree(data,k,i_max,0)
-pickle.dump(tree, open("testtree.p", "wb"))
-#tree = pickle.load(open("testtree.p", "rb"))
+
+#print "Hang on. Building a tree..."
+#tree = buildTree(data,k,i_max,0)
+#pickle.dump(tree, open("testtree.p", "wb"))
+
+print "Loading tree..."
+tree = pickle.load(open("testtree.p", "rb"))
+
 #print tree
-print "Let's try a search on it:"
+print "Test search:"
 R = searchKMeansTree(tree, [10,30], 6, 3);
 print R.get();
 print R.get();
 print R.get();
 
-raw_input("Press key to start sanity check")
+raw_input("\nPress key to start sanity check\n")
 
-print "Sanity check: 100 times linear search vs. 100 times KMeans search"
-print "100 times searchKMeansTree:"
+print "\nSanity check: 100 times linear search vs. 100 times KMeans search"
+print "\n100 times searchKMeansTree:"
 
 for i in range(1,100):
 	R = searchKMeansTree(tree, [80,30], 6, 3);
@@ -174,7 +178,7 @@ print R.get();
 print R.get();
 print R.get();
 
-print "100 times searchLinear:"
+print "\n100 times searchLinear:"
 
 index = 0
 for i in range(1,100):
