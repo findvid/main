@@ -219,7 +219,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
 			histogramFeature(pFrameRGB24, &(res->feature_list[0][currentScene]));
-			edgeFeatures(frame, &(res->feature_list[1][currentScene]), convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 			dummyFeature(frame, &(res->feature_list[2][currentScene]));
 			dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
