@@ -67,6 +67,7 @@ char * getVideoname(const char *path) {
 int writeFrame(const char * filename, AVCodecContext * avctx, const AVFrame * frame) {
 	int got_packet;
 	AVPacket avpkt;
+	av_init_packet(&avpkt);
 	avpkt.data = NULL;
 	avpkt.size = 0;
 	//Encode frame into buffer
@@ -83,7 +84,7 @@ int writeFrame(const char * filename, AVCodecContext * avctx, const AVFrame * fr
 
 	fwrite(avpkt.data, 1, avpkt.size, thumbFile);
 	fclose(thumbFile);
-	// TODO: Do we need a free here? av_free_packet(&avpkt); causes crash...
+	av_free_packet(&avpkt);
 	return 0;
 }
 
@@ -237,6 +238,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
+	sws_freeContext(convert_rgb24);
 	return res;
 }
 
@@ -251,11 +253,11 @@ void destroyFeatures(FeatureTuple * t) {
 	free(t->feature_length);
 	free(t);
 }
-/*
+
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
 	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
 
 	destroyFeatures(r);
 }
-*/
+
