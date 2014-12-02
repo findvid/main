@@ -687,7 +687,7 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, struct SwsContext * ctx, in
 			for (int x = 0; x < q_width; x++) {
 				for (int y = 0; y < q_height; y++) {
 					//Strict separation, can and should be improved by bilinear  interpolation
-					data[x + y * QUADRANTS_PER_SIDE] += (getPixelG8(profile, x+ox, y+oy)?1:0);
+					data[qx + qy * QUADRANTS_PER_SIDE] += (getPixelG8(profile, x+ox, y+oy)?1:0);
 				}
 			}
 		}
