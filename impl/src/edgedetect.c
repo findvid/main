@@ -556,9 +556,10 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, struct SwsContext * ctx, in
 			// Get beginning of the quadrant
 			int ox = qx * q_width;
 			int oy = qy * q_height;
+			data[qx + qy * QUADRANTS_PER_SIDE] = 0;
 			for (int x = 0; x < q_width; x++) {
 				for (int y = 0; y < q_height; y++) {
-					//Strict separation, can and should be improved by bilinear  interpolation
+					//Strict separation, can and should be improved by bilinear interpolation
 					data[qx + qy * QUADRANTS_PER_SIDE] += (getPixelG8(profile, x+ox, y+oy)?1:0);
 				}
 			}
