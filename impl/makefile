@@ -5,6 +5,7 @@ LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libav
 
 BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o obj/feature_extraction.o
 FEATURES = obj/fvutils.o obj/feature_extraction.o obj/histograms.o obj/largelist.o
+UTILS = obj/largelist.o obj/fvutils.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
@@ -32,11 +33,14 @@ frametest: src/frametest.c $(BUILDFILES)
 iter_test: src/frametest_iter.c obj/fvutils.o
 	gcc $(CFLAGS) src/frametest_iter.c obj/fvutils.o -o itertest $(LIBSFFMPEG)
 
-edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
+edge_cmp: src/edgecmp.c $(BUILDFILES)
+	gcc $(CFLAGS) $^ -o edgecmp $(LIBSFFMPEG)
+
+edgetests: obj/edgedetect.o unittests/edgetest_unit.cc $(UTILS)
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
 
-edges: $(BUILDFILE) src/frametest.c
-	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o edges $(LIBSFFMPEG)
+edges: $(BUILDFILES) src/frametest.c
+	gcc $(CFLAGS) $(BUILDFILES) src/frametest.c -o edges $(LIBSFFMPEG)
 
 histtests: src/histtests.c
 	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)
