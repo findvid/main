@@ -5,12 +5,25 @@
 
 #define FEATURE_AMNT 4
 
+/*
+ * As the tripple pointer can f**k with the brain quite a bit here is
+ * an explaination of it:
+ *
+ * feature_list[t][s][v]
+ * where t is the feature type (e.g. histogram, tinyimage, gist, etc.)
+ *	 s is the index of the scene to which the feature belongs
+ *	 v is the feature vector (e.g. which bin of a histogram)
+ *
+ * The length of the dimensions is given as follows:
+ *  - length of [t] by FEATURE_AMNT
+ *  - length of [s] by feature_count
+ *  - length of [v] by feature_length[t]
+ */
 typedef struct {
-	// TODO: Shouldn't this be a double pointer?
 	uint32_t *** feature_list; //< Pointer to the features arrays
 	uint32_t * feature_length; //< Length of each feature array
 	uint32_t feature_count; //< Amount of features in feature_list
-} FeatureTuple;
+} FeatureTuple; // FeatureTuples would be a better name
 
 /**
  * Calculates features for a video file and extracts thumbnails.
