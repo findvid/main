@@ -65,9 +65,13 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 			return NULL;
 		}
 	}
-	
+
 	FeatureTuple * results = getFeatures(filename, path, vidThumb, scenes,(int)size);
-	printf("Building tuples from results...\n");
+	printf("Got features\n");
+	if (size > results->feature_count) {
+		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
+		size = (Py_ssize_t)results->feature_count;
+	}
 	//Convert struct of features to actual tuple
 	PyObject * pyList = PyList_New(size);
 	PyObject * item;
@@ -75,54 +79,28 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	for (int i = 0; i < results->feature_count; i++) {
 		printf("Iteration for tuple#%d\n", i);
 		//Build a list for each feature vector at index i
-		PyObject * f1 = PyList_New((Py_ssize_t)results->feature_length[0]);
-		for(int j = 0; j < results->feature_length[0]; j++) {
-		#if PYVERSION == 3
-			item = PyLong_FromLong((long)results->feature_list[0][i][j]);
-		#endif
-		#if PYVERSION == 2
-			item = PyInt_FromLong((long)results->feature_list[0][i][j]);
-		#endif
-			PyList_SetItem(f1, j, item); 
+		PyObject ** f = (PyObject **)malloc(sizeof(PyObject *) * FEATURE_AMNT);
+
+		for (int fc = 0; fc < FEATURE_AMNT; fc++) {
+			printf("fc: %d\n", fc);
+			f[fc] = PyList_New((Py_ssize_t)results->feature_length[fc]);
+			for(int j = 0; j < results->feature_length[fc]; j++) {
+				#if PYVERSION == 3
+				item = PyLong_FromLong((long)results->feature_list[fc][i][j]);
+				#endif
+				#if PYVERSION == 2
+				printf("t: %d, s: %d, v: %d\n", fc, i, j);
+				item = PyInt_FromLong((long)results->feature_list[fc][i][j]);
+				#endif
+				PyList_SetItem(f[fc], j, item);
+			}
 		}
 
-		PyObject * f2 = PyList_New((Py_ssize_t)results->feature_length[1]);
-		for(int j = 0; j < results->feature_length[1]; j++) {
-		#if PYVERSION == 3
-			item = PyLong_FromLong((long)results->feature_list[1][i][j]);
-		#endif
-		#if PYVERSION == 2
-			item = PyInt_FromLong((long)results->feature_list[1][i][j]);
-		#endif
-			PyList_SetItem(f2, j, item); 
-		}
-			
-		PyObject * f3 = PyList_New((Py_ssize_t)results->feature_length[2]);
-		for(int j = 0; j < results->feature_length[2]; j++) {
-		#if PYVERSION == 3
-			item = PyLong_FromLong((long)results->feature_list[2][i][j]);
-		#endif
-		#if PYVERSION == 2
-			item = PyInt_FromLong((long)results->feature_list[2][i][j]);
-		#endif
-			PyList_SetItem(f3, j, item); 
-		}
-			
-		PyObject * f4 = PyList_New((Py_ssize_t)results->feature_length[3]);
-		for(int j = 0; j < results->feature_length[3]; j++) {
-		#if PYVERSION == 3
-			item = PyLong_FromLong((long)results->feature_list[3][i][j]);
-		#endif
-		#if PYVERSION == 2
-			item = PyInt_FromLong((long)results->feature_list[3][i][j]);
-		#endif
-			PyList_SetItem(f4, j, item); 
-		}
-
-		item = Py_BuildValue("(OOOO)", f1, f2, f3, f4);	
+		item = Py_BuildValue("(OOOO)", f[0], f[1], f[2], f[3]);
+		free(f);
 		PyList_SET_ITEM(pyList, i, item);
 	}
-	printf("Destroying features...\n");
+
 	destroyFeatures(results);
 	return pyList;
 }

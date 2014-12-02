@@ -326,7 +326,6 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 
 	//Smoothing operator
 	OperatorMask * smoothing = getBellOperatorLinear(10);
-	double * smoothed = malloc(sizeof(double) * diff_len);
 
 
 	//Encodes wether feedback is being used or not
@@ -349,7 +348,10 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 		differences = malloc(sizeof(double) * diff_len);
 		usefeedback = 0;
 	}
-
+	
+	//Another array for the smoothed vars
+	double * smoothed = malloc(sizeof(double) * diff_len);
+	
 	ListIterator * iter = list_iterate(list_frames);
 	
 	AVFrame * lastFrame;
@@ -465,7 +467,7 @@ printf("Saved smoothed graph\n");
 				asc = 0; //Descent to next minimum
 
 				if (i >= feedback->diff_len) // only push this result if we're beyond the feedback, otherwise we have a dupe result
-					list_push(list_cuts, (void *)((startframe + i)));
+					list_push(list_cuts, (void *)(intptr_t)((startframe + i)));
 			}
 		} else if (differences[i] < extr) {
 			extr = differences[i];
