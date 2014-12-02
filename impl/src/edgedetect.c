@@ -519,6 +519,7 @@ AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * ctx, int width
 	av_frame_free(&sobel.dir);
 	return res;
 }
+
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
 	//Store the difference values between each frame
 	double * differences;
@@ -669,4 +670,39 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	}
 	feedback->diff_len = fb_len;
 	//for (int i = 0; i < fb_len; i++) printf("FEEDBACK[%d] = %f\n", i, feedback->diff[i]);
+}
+
+void getEdgeFeatures(AVFrame * frm, uint32_t * data, struct SwsContext * ctx, int width, int height) {
+	AVFrame * profile = getEdgeProfile(frm, ctx, width, height);
+
+	//Fill FEATURE_LENGTH values with the pixels in the correspondending quadrants in profile
+	uint32_t q_width = profile->width / QUADRANTS_PER_SIDE;
+	uint32_t q_height = profile->height / QUADRANTS_PER_SIDE;
+
+	for (int qx = 0; qx < QUADRANTS_PER_SIDE; qx++) {
+		for (int qy = 0; qy < QUADRANTS_PER_SIDE; qy++) {
+			// Get beginning of the quadrant
+			int ox = qx * q_width;
+			int oy = qy * q_height;
+			for (int x = 0; x < q_width; x++) {
+				for (int y = 0; y < q_height; y++) {
+					//Strict separation, can and should be improved by bilinear  interpolation
+					data[x + y * QUADRANTS_PER_SIDE] += (getPixelG8(profile, x+ox, y+oy)?1:0);
+				}
+			}
+		}
+	}
+
+	avpicture_free((AVPicture *)profile);
+	av_frame_free(&profile);
+}
+
+void edgeFeatures_length(uint32_t * l) {
+	*l = FEATURE_LENGTH;
+}
+
+void edgeFeatures(AVFrame * frm, uint32_t ** data, struct SwsContext * ctx, int width, int height) {
+	*data = (uint32_t *)malloc(sizeof(uint32_t) * FEATURE_LENGTH);
+	getEdgeFeatures(frm, *data, ctx, width, height);
+
 }

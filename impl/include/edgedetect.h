@@ -1,5 +1,4 @@
-#ifndef _EDGEDETECT__H_
-#define _EDGEDETECT__H_
+#pragma once
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -25,6 +24,10 @@
 #define HYSTERESIS_T1 20
 #define HYSTERESIS_T2 10
 
+//
+#define QUADRANTS_PER_SIDE 6
+#define FEATURE_LENGTH (QUADRANTS_PER_SIDE*QUADRANTS_PER_SIDE)
+
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
 //struct to save the offsets for an operator mask to efficiently precalculate them
@@ -49,4 +52,6 @@ AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * swsctx, int wi
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
-#endif
+
+void edgeFeatures_length(uint32_t *);
+void edgeFeatures(AVFrame *, uint32_t **, struct SwsContext *, int, int);
