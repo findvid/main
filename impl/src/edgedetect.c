@@ -121,6 +121,7 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 	avpicture_alloc((AVPicture *)smoothed, PIX_FMT_GRAY8, gray->width, gray->height);
 	smoothed->width = gray->width;
 	smoothed->height = gray->height;
+	/*
 	for (int x = 0; x < gray->width; x++) {
 		for (int y = 0; y < gray->height; y++) {
 			double c = 0.0;
@@ -135,8 +136,8 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 			c += 0.0425 * getPixelG8(gray, x-1, y+1);
 			setPixelG8(smoothed, x, y, c);
 		}
-	}
-	/* TOO BIG! Makes the image washed out and creates multiple edges that sneak past the NMS!!
+	} */
+	/* TOO BIG! Makes the image washed out and creates multiple edges that sneak past the NMS!! */
 	for (int x = 0; x < gray->width; x++) {
 		for (int y = 0; y < gray->height; y++) {
 			double c = 0.0;
@@ -173,7 +174,7 @@ AVFrame * smoothGauss(AVFrame * gray, struct SwsContext * ctx) {
 			setPixelG8(smoothed, x, y, c);
 		}
 	}
-	*/
+	/**/
 	return smoothed;
 }
 
