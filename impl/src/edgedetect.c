@@ -255,22 +255,27 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	gray->width = width;
 
 	//This seems to easily mess up the sobel operator in the detection of primitive forms	//Step 1: gaussian smoothing
-	//AVFrame * sgray = smoothGauss(gray, ctx);
-	//avpicture_free((AVPicture *)gray);
-	//av_frame_free(&gray);
+	AVFrame * sgray = smoothGauss(gray, ctx);
+	avpicture_free((AVPicture *)gray);
+	av_frame_free(&gray);
 
-	//SaveFrameG8(gray, gray->width, gray->height, 40);
+	SaveFrameG8(sgray, sgray->width, sgray->height, 40);
 
 	//Step 2: Get SobelOutput
 	struct t_sobelOutput sobel;
-	getSobelOutput(gray, &sobel);
-	avpicture_free((AVPicture *)gray);
-	av_frame_free(&gray);
+	getSobelOutput(sgray, &sobel);
+	avpicture_free((AVPicture *)sgray);
+	av_frame_free(&sgray);
 	
 	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 3);
 
 	linearScale(sobel.mag);
 	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 40);
+
+	AVFrame * newmag = av_frame_alloc();
+	avpicture_alloc((AVPicture *)newmag, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
+	newmag->width = sobel.mag->width;
+	newmag->height = sobel.mag->height;
 
 	//Step 3: Non-maxmimum suppression
 	//Check for greater magnitudes orthogonal to the edge
@@ -280,33 +285,38 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 			switch(getPixelG8(sobel.dir, x, y))  {
 				case 0: //0 degree
 				case 240: // or 180
-					ox = 1;
-					oy = 0;
-					break;
-				case 60: //45 degree
-					ox = 1;
-					oy = 1;
-					break;
-				case 120: //90 degree
 					ox = 0;
 					oy = 1;
 					break;
+				case 60: //45 degree
+					ox = 1;
+					oy = -1;
+					break;
+				case 120: //90 degree
+					ox = 1;
+					oy = 0;
+					break;
 				case 180: //135 degree
-					ox = -1;
+					ox = 1;
 					oy = 1;
 					break;
 				default:
 					printf("INVALID DIRCODE AT (%d, %d)\n", x, y);
 			}
-			if ((getPixelG8(sobel.mag, x, y) < getPixelG8(sobel.mag, x-oy, y-oy)) || (getPixelG8(sobel.mag, x,y) < getPixelG8(sobel.mag, x+ox, y+oy)))
-				setPixelG8(sobel.mag, x, y, 0);
+			if ((getPixelG8(sobel.mag, x, y) < getPixelG8(sobel.mag, x-ox, y-oy)) || (getPixelG8(sobel.mag, x,y) < getPixelG8(sobel.mag, x+ox, y+oy)))
+				setPixelG8(newmag, x, y, 0);
+			else
+				setPixelG8(newmag, x, y, getPixelG8(sobel.mag, x, y));
 		}
 	}
 
-	linearScale(sobel.mag);
+	avpicture_free((AVPicture *)sobel.mag);
+	av_frame_free(&sobel.mag);
 
-	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 50);
-	//	SaveFrameG8(sobel.dir, sobel.dir->width, sobel.dir->height, 60);
+	sobel.mag = newmag;
+
+		SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 50);
+		SaveFrameG8(sobel.dir, sobel.dir->width, sobel.dir->height, 60);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
@@ -328,19 +338,19 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				switch(getPixelG8(sobel.dir, x, y))  {
 					case 0: //0 degree
 					case 240: // or 180
-						ox = 0;
+						ox = 1;
 						oy = 1;
 						break;
 					case 60: //45 degree
 						ox = 1;
-						oy = -1;
+						oy = 1;
 						break;
 					case 120: //90 degree
-						ox = 1;
-						oy = 0;
+						ox = 0;
+						oy = 1;
 						break;
 					case 180: //135 degree
-						ox = 1;
+						ox = -1;
 						oy = 1;
 						break;
 				}

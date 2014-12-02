@@ -10,7 +10,12 @@
 #include "largelist.h"
 
 #define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<((p)->height)) && ((x)<((p)->width)))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
-#define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
+//#define getPixelG8(p,x,y) (uint8_t)((p)->data[0][(x < 0?0:(x >= (p)->width?(p)->width:x)) + (y < 0?0:(y >= (p)->height?(p)->height:y)) * (p)->linesize[0]])
+//#define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
+#define setPixelG8(p,x,y,g) do { \
+	if (x >= 0 && x < (p)->width && y >= 0 && y < (p)->height) \
+		(p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)g; \
+	} while(0)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
 #define MAX_FEEDBACK_LENGTH 25
