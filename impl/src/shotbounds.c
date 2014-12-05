@@ -87,12 +87,18 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	// Convert into a smaller frame for easier processing
 	struct SwsContext *convert_rgb24 = sws_getContext(vidIt->cctx->width, vidIt->cctx->height, vidIt->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *g8ctx = sws_getContext(vidIt->cctx->width, vidIt->cctx->height, vidIt->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 
 	// Feedback struct for detectCutsByColors()
 	ColorHistFeedback feedback_colors;
 	feedback_colors.last_hist = newHistHsv();
 	feedback_colors.last_diff = 0;
 	feedback_colors.last_derivation = 0;
+
+	ShotFeedback edge_feedback;
+	edge_feedback.lastFrame = NULL;
+	edge_feedback.diff_len = 0;
+	edge_feedback.diff = NULL;
 
 	// List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
 	// Each block of data should be the size of a mempage and contains pointers.
@@ -101,9 +107,10 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	// List for the histogram differences between the frames of the video 
 	LargeList * list_hist_diff = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
-
 	// List for the cuts found by the color histogram approach
 	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+
+	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
 		frameCount++;
@@ -133,6 +140,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
+					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 					list_forall(list_frames, (void (*) (void *))avpicture_free);
 					list_forall(list_frames, av_free);
@@ -147,6 +155,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	// Process the remaining frames
 	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
+	detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 	list_forall(list_frames, (void (*) (void *))avpicture_free);
 	list_forall(list_frames, av_free);
