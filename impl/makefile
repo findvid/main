@@ -3,7 +3,8 @@ PYFLAGS = -pthread -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-p
 PYFLAGSLIB = -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -fno-strict-aliasing -DNDEBUG -g -fwrapv -O2 -Wall -Wstrict-prototypes -D_FORTIFY_SOURCE=2 -g -fstack-protector --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wl,--export-dynamic
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
-BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o # obj/edgedetect.o 
+UTILS = obj/largelist.o obj/fvutils.o
+BUILDFILES = obj/largelist.o obj/fvutils.o obj/histograms.o obj/edgedetect.o #obj/shotbounds.o
 
 obj/%.o: src/%.c
 	mkdir -p obj/
@@ -19,13 +20,14 @@ pylib: $(BUILDFILES)
 frametest: src/frametest.c $(BUILDFILES)
 	gcc $(CFLAGS) obj/fvutils.o obj/edgedetect.o obj/largelist.o src/frametest.c -o frametest $(LIBSFFMPEG)
 
-iter_test: src/frametest_iter.c obj/fvutils.o
-	gcc $(CFLAGS) src/frametest_iter.c obj/fvutils.o -o itertest $(LIBSFFMPEG)
-edgetests: obj/edgedetect.o unittests/edgetest_unit.cc
+edge_cmp: src/edgecmp.c $(BUILDFILES)
+	gcc $(CFLAGS) $^ -o edgecmp $(LIBSFFMPEG)
+
+edgetests: obj/edgedetect.o unittests/edgetest_unit.cc $(UTILS)
 	g++ $(CFLAGS) $^ -o test $(LIBSFFMPEG) -lgtest -lpthread
 
-edges: $(BUILDFILE) src/frametest.c
-	gcc $(CFLAGS) $(BUILDFILE) src/frametest.c -o edges $(LIBSFFMPEG)
+edges: $(BUILDFILES) src/frametest.c
+	gcc $(CFLAGS) $(BUILDFILES) src/frametest.c -o edges $(LIBSFFMPEG)
 
 histtests: src/histtests.c
 	gcc $(CFLAGS) src/histtests.c -o histtests $(LIBSFFMPEG)
