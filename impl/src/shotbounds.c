@@ -9,6 +9,7 @@
 #include <libavutil/mem.h>
 
 #include "histograms.h"
+#include "edgedetect.h"
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
@@ -87,7 +88,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	// Convert into a smaller frame for easier processing
 	struct SwsContext *convert_rgb24 = sws_getContext(vidIt->cctx->width, vidIt->cctx->height, vidIt->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
-	struct SwsContext *g8ctx = sws_getContext(vidIt->cctx->width, vidIt->cctx->height, vidIt->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *g8ctx = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 
 	// Feedback struct for detectCutsByColors()
 	ColorHistFeedback feedback_colors;
@@ -164,7 +165,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(feedback_colors.last_hist);
 
 
-	int i;
+/*	int i;
 // WIP: Fade/Disolve detection
 	int hist_diff_size = list_hist_diff->size;
 	uint32_t *hist_diff = (uint32_t *)malloc(sizeof(uint32_t) * hist_diff_size);
@@ -227,3 +228,4 @@ int main(int argc, char **argv) {
 	free(cuts);
 	return 0;
 }
+// */

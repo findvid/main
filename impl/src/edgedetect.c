@@ -4,21 +4,24 @@
 #include "edgedetect.h"
 
 void saveGraph(int id, double * vars, int vars_len){
+printf("SAVE GRAPH %d\n", id);
 	AVFrame * graph = av_frame_alloc();
 	avpicture_alloc((AVPicture *)graph, PIX_FMT_RGB24, vars_len, 200);
-	int numBytes = avpicture_get_size(PIX_FMT_RGB24, vars_len, 200);
-	uint8_t * buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
-
-	avpicture_fill((AVPicture *)graph, buffer, PIX_FMT_RGB24, vars_len, 200);
+	
 	for(int i = 0; i < vars_len; i++) {
 		int var = (int)(200.0 - vars[i] * 200.0);
-		for (int j = 200; j >= var; j--) 
+		printf("Save %f to g(%d)\n", vars[i], i);
+		for (int j = 200; j >= var; j--) {
 			setPixel(graph, i, j, 0xff0000);
+		}
+		for (int j = 0; j < var; j++) {
+			setPixel(graph, i, j, 0x0);
+		}
 	}
+
 	SaveFrameRGB24(graph, vars_len, 200, id);
-	av_free(graph);
-
-
+	avpicture_free((AVPicture *)graph);
+	av_frame_free(&graph);
 }
 
 //EPR = Edge Persist Ratio
@@ -52,14 +55,14 @@ OperatorMask * getBellOperatorLinear(int width) {
 	mask->weights = malloc(sizeof(double) * (2 * width - 1));
 	for (int i = 0; i < width; i++) {
 		mask->weights[i] = gauss((double)i, (width/3.0));
-		printf("Weight[%d] = %f\n", i, mask->weights[i]);
+	//	printf("Weight[%d] = %f\n", i, mask->weights[i]);
 	}
 	for (int i = width; i < (2 * width - 1); i++) {
 		// (width - 1) - (2 * width - 2) = width - 1 - 2 * width + 2
 		// = -width + 1
 		int x = (width - 1) - i;
 		mask->weights[i] = gauss((double)x, (width/3.0));
-		printf("Weight[%d] = %f\n", x, mask->weights[i]);
+	//	printf("Weight[%d] = %f\n", x, mask->weights[i]);
 	}
 	return mask;
 }
@@ -442,7 +445,6 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 
 		int out = 0;
 		int in = 0;
-
 		for ( int x = 0; x < thisFrame->width; x++ )
 			for ( int y = 0; y < thisFrame->height; y++ ) {
 				c1 += (getPixelG8(lastFrame, x, y)?1:0);
@@ -451,8 +453,10 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 				out += (getPixelG8(lastFrame, x, y) && !getPixelG8(thisFrame, x, y));
 				in += (!getPixelG8(lastFrame, x, y) && getPixelG8(thisFrame, x, y));
 			}
-
-		differences[pos++] = fmax(1.0 * out / c1, 1.0 *  in / c2);
+		if (c1 || c2)
+			differences[pos++] = fmax(1.0 * out / c1, 1.0 *  in / c2);
+		else 
+			differences[pos++] = 0.0;
 		av_frame_free(&lastFrame);
 		lastFrame = thisFrame;
 	}
@@ -469,7 +473,6 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	feedback->diff = newdiff;
 	//Not yet; we still need to know how long the old feedback, which is now in differences, was
 	//feedback->diff_len = fb_len;
-	
 	saveGraph(2700000+startframe, differences, diff_len);
 	
 	//apply smoothing
@@ -485,7 +488,6 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 		for (int j = 0; j < smoothing->width; j++)
 			smoothed[i] += smoothing->weights[j] * differences[i + j];
 	}
-
 	for (int i = smoothing->width; i < (diff_len - smoothing->width); i++) {
 		//!!!! Initialize field before blatantly adding onto it
 		smoothed[i] = 0;
@@ -512,12 +514,17 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 				if (i + j < (diff_len)) smoothed[i] += smoothing->weights[j] * differences[i + j];
 	}
 
+printf("smoothed\n");
 
 	free(smoothing->weights);
+printf("freed weights\n");
 	free(smoothing);
+printf("freed mask struct\n");
+
 
 	//Switch arrays
 	free(differences);
+printf("freed diffs\n");
 	differences = smoothed;
 
 	saveGraph(3700000+startframe, differences, diff_len);
