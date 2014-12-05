@@ -182,6 +182,15 @@ TEST_F(EdgeTest, SobelMagCheck) {
 	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
 }
 
+
+TEST_F(EdgeTest, FeaturesTest) {
+	uint32_t * feats;
+	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);
+	edgeFeatures(this->box, &feats, weights);
+	for (int i = 0; i < FEATURE_LENGTH; i++)
+		printf("%d\n", feats[i]);
+	free(feats);
+}
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

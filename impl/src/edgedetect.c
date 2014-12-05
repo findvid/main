@@ -282,7 +282,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	//Check for greater magnitudes orthogonal to the edge
 	for (int x = 0; x < sobel.mag->width; x++) {
 		for (int y = 0; y < sobel.mag->height; y++) {
-			int ox, oy;
+			int ox = 0, oy = 0;
 			switch(getPixelG8(sobel.dir, x, y))  {
 				case 0: //0 degree
 				case 240: // or 180
@@ -392,139 +392,10 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	return res;
 }
 
-/**
- * @brief Recursively follows the edge at sobel.mag(x,y) as dictated by sobel.dir(x,y) to set each pixel on this path as an edge pixel in res
- *
- * @param res the AVFrame to receive the synthesized edge profile
- * @param sobel-Output to perform the hysteresis on
- * @param x x coordinate of the pixel to visit
- * @param y y coordinate of the pixel to visit
- * @param dir either 1 or -1, depending on wether to go in positive or negative direction of the given sobel.dir output, 0 for both directions (entry call only!)
- * @param markMode 0 does the same as 1, except it forces the HYSTERESIS_T1 check before doing anything and should always be used to call this method,
-   1 if direction is to be strictly followed until sobel.mag(x, y) < HYSTERESIS_T2 (used for recursion)
- */
-void edgeHysteresis(AVFrame * res, struct t_sobelOutput * sobel, uint32_t x, uint32_t y, int dir) {
-	if (getPixelG8(sobel->mag, x, y) > HYSTERESIS_T2 && getPixelG8(res, x, y) < 255) {
-		setPixelG8(res, x, y, 255);
-		setPixelG8(sobel->mag, x, y, 0); //No need to revisit this pixel
-	
-		int ox = 0, oy = 0;
-		switch(getPixelG8(sobel->dir, x, y))  {
-			case 0:   // 0 degree
-			case 240: // or 180
-				ox = 0;
-				oy = 1;
-				break;
-			case 60: //45 degree
-				ox =  1;
-				oy = -1;
-				break;
-			case 120: //90 degree
-				ox = 1;
-				oy = 0;
-				break;
-			case 180: //135 degree
-				ox = 1;
-				oy = 1;
-				break;
-		}
-
-		if (dir == 0) {
-			edgeHysteresis(res, sobel, x+ox, y+oy, 0);
-			edgeHysteresis(res, sobel, x-ox, y-oy, 0);
-		} else if (dir ==  1) {
-			edgeHysteresis(res, sobel, x+ox, y+oy,  1);
-		} else if (dir == -1) {
-			edgeHysteresis(res, sobel, x-ox, y-oy, -1);
-		}
-
-	}
-}
-
-/* @brief recursively deletes all adjacent/connected pixels with sobel.mag(x, y) > HYSTERESIS_T2
- * @param sobel SobelOutput to be edited
- * @param x x coordinate of pixel to visit
- * @param y y coordinate of pixel to visit
- * @param dir doing nothing yet, entry call should always be 0 either way
- // dir kann benutzt werden, um die Richtung anzugeben, in die gelöscht wird; das kann potenziell einige überflüssige Checks unterbinden
- */
-
-void deleteConnectedPixels(struct t_sobelOutput * sobel, int x, int y, int dir) {
-	if (getPixelG8(sobel->mag, x ,y) > HYSTERESIS_T2) {
-		setPixelG8(sobel->mag, x, y, 0);
-
-		//Recursively delete neighbors
-		deleteConnectedPixels(sobel, x-1, y, 0);
-		deleteConnectedPixels(sobel, x, y-1, 0);
-		deleteConnectedPixels(sobel, x+1, y, 0);
-		deleteConnectedPixels(sobel, x, y+1, 0);
-	}
-}
-
-//Adaption of the Canny detector with hysteresis and NMS in one step
-//Idea:	Using the Hysteresis thresholds, recursively follow the direction of the edge as dictated by sobel.dir, marking each edge pixel
-//		and setting neighboring sobel.mag output to 0
-AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * ctx, int width, int height) {
-	// Step 0: Get grayscale picture
-	AVFrame *gray = av_frame_alloc();
-	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
-
-	sws_scale(ctx, (const uint8_t * const*)original->data, original->linesize, 0, original->height, gray->data, gray->linesize);
-	gray->height = height;
-	gray->width = width;
-
-	//This seems to easily mess up the sobel operator in the detection of primitive forms
-	//By causing double positives
-	//Step 1: gaussian smoothing
-	//AVFrame * sgray = smoothGauss(gray, ctx);
-	//avpicture_free((AVPicture *)gray);
-	//av_frame_free(&gray);
-
-	//SaveFrameG8(gray, gray->width, gray->height, 40);
-
-	//Step 2: Get SobelOutput
-	struct t_sobelOutput sobel;
-	getSobelOutput(gray, &sobel);
-	avpicture_free((AVPicture *)gray);
-	av_frame_free(&gray);
-	
-	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 3);
-
-	linearScale(sobel.mag);
-	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 40);
-
-	//Step 4:Hysteresis thresholding and NMS by recursively following the non-edge pixels and their respective sobel.dir output
-	AVFrame * res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
-	res->width = sobel.mag->width;
-	res->height = sobel.mag->height;
-	
-	//Appearantly it is possible that res "inherits" the data of a grayscale picture rather than being all black. Therefore, we have to do it ourselves. Again.
-	memset(res->data[0], 0, res->linesize[0] * res->height);
-
-	
-
-	for (int x = 0; x < sobel.mag->width; x++) {
-		for (int y = 0; y < sobel.mag->height; y++) {
-			if (getPixelG8(sobel.mag, x, y) > HYSTERESIS_T1) {
-				edgeHysteresis(res, &sobel, x, y, 0);
-				deleteConnectedPixels(&sobel, x, y, 0);
-			}
-		}
-	}
-	//Free the rest and return result
-	avpicture_free((AVPicture *)sobel.mag);
-	av_frame_free(&sobel.mag);
-	avpicture_free((AVPicture *)sobel.dir);
-	av_frame_free(&sobel.dir);
-	return res;
-}
-
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
 	//Store the difference values between each frame
 	double * differences;
 	int diff_len;
-
 
 
 	//Encodes wether feedback is being used or not
@@ -550,6 +421,7 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	
 	//Smoothing operator and smoothed results
 	OperatorMask * smoothing = getBellOperatorLinear(10);
+	
 	double * smoothed = malloc(sizeof(double) * diff_len);
 	
 	ListIterator * iter = list_iterate(list_frames);
@@ -672,38 +544,205 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	//for (int i = 0; i < fb_len; i++) printf("FEEDBACK[%d] = %f\n", i, feedback->diff[i]);
 }
 
-void getEdgeFeatures(AVFrame * frm, uint32_t * data, struct SwsContext * ctx, int width, int height) {
-	AVFrame * profile = getEdgeProfile(frm, ctx, width, height);
+InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
+	InterpolationWeights * res = malloc(sizeof(InterpolationWeights));
+	res->width = width;
+	res->height = height;
+
+//Allocate all the data in one bulk and assign pointers to the correct offsets in the bulk
+	res->c = malloc(sizeof(double) * width * height * 9);
+	res->nw = &res->c[width * height];
+	res->n = &res->nw[width * height];
+	res->ne = &res->n[width * height];
+	res->e = &res->ne[width * height];
+	res->se = &res->e[width * height];
+	res->s = &res->se[width * height];
+	res->sw = &res->s[width * height];
+	res->w = &res->sw[width * height];
+
+	//Define middle points of the surrounding quadrants
+	int c_x = width / 2;
+	int c_y = height / 2;
+	int nw_x = c_x - width;
+	int nw_y = c_y - height;
+	int n_x = c_x;
+	int n_y = c_y - height;
+	int ne_x = c_x + width;
+	int ne_y = c_y - height;
+	int e_x = c_x + width;
+	int e_y = c_y;
+	int se_x = c_x + width;
+	int se_y = c_y + height;
+	int s_x = c_x;
+	int s_y = c_y + height;
+	int sw_x = c_x - width;
+	int sw_y = c_y + height;
+	int w_x = c_x - width;
+	int w_y = c_y;
+
+	int dx, dy;
+	double dist, w;
+	
+	//double maxdist = fmin(width, height);
+	double maxdist = sqrt(width * width + height * height);
+	//Currently assume that width and height are the same
+
+	//To use different width and height, height and dy have to be multiplied
+	//by the ratio of (width/height) so that height = width and dy is as long as it would be in that case
+	//thus artificially expanding distances in y-direction to reduce to the case of width == height, which is considered here
+
+	//Calculate distance from each pixel in the center quadrant
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < height; y++) {
+			//distance to NW center
+			dx = nw_x - x;
+			dy = nw_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			//dist = fmax(fabs(nw_x - x),fabs(nw_y - y));
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->nw, w, x, y, width);
+
+			//distance to N center
+			dx = n_x - x;
+			dy = n_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			//dist = fabs(n_y - y);
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->n, w, x, y, width);
+
+			// NE
+			dx = ne_x - x;
+			dy = ne_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			//dist = fmax(fabs(ne_x - x),fabs(ne_y - y));
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->ne, w, x, y, width);
+
+			// E
+			dx = e_x - x;
+			dy = e_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			//dist = fabs(e_x - x);
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->e, w, x, y, width);
+
+			//SE
+			dx = se_x - x;
+			dy = se_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			//dist = fmax(fabs(se_x - x),fabs(se_y - y));
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->se, w, x, y, width);
+
+			//S
+			dx = s_x - x;
+			dy = s_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->s, w, x, y, width);
+
+			//SW
+			dx = sw_x - x;
+			dy = sw_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->sw, w, x, y, width);
+
+			//W
+			dx = w_x - x;
+			dy = w_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			w = (0.5/3) * (1.0 - dist/maxdist);
+			if (!w) w = 0; //Negative value means dist was too far away
+			setMatrixVar(res->w, w, x, y, width);
+
+			//Center
+			dx = c_x - x;
+			dy = c_y - y;
+			dist = sqrt(dx * dx + dy * dy);
+			w = 1.0 - (0.5 * dist / maxdist);
+			setMatrixVar(res->c, w, x, y, width);
+		}
+	}
+
+	return res;
+}
+
+void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weights) {
+	double * values = calloc(sizeof(double), FEATURE_LENGTH);
 
 	//Fill FEATURE_LENGTH values with the pixels in the correspondending quadrants in profile
-	uint32_t q_width = profile->width / QUADRANTS_WIDTH;
-	uint32_t q_height = profile->height / QUADRANTS_HEIGHT;
+	uint32_t q_width = frm->width / QUADRANTS_WIDTH;
+	uint32_t q_height = frm->height / QUADRANTS_HEIGHT;
 
 	for (int qx = 0; qx < QUADRANTS_WIDTH; qx++) {
 		for (int qy = 0; qy < QUADRANTS_HEIGHT; qy++) {
 			// Get beginning of the quadrant
 			int ox = qx * q_width;
 			int oy = qy * q_height;
-			data[qx + qy * QUADRANTS_WIDTH] = 0;
+			//data[qx + qy * QUADRANTS_WIDTH] = 0;
 			for (int x = 0; x < q_width; x++) {
 				for (int y = 0; y < q_height; y++) {
 					//Strict separation, can and should be improved by bilinear interpolation
-					data[qx + qy * QUADRANTS_WIDTH] += (getPixelG8(profile, x+ox, y+oy)?1:0);
+					//data[qx + qy * QUADRANTS_WIDTH] += (getPixelG8(profile, x+ox, y+oy)?1:0);
+					if (qx > 0) {
+						//Add to west
+						values[(qx-1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						if (qy > 0) {
+							//add to north west
+							values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						}
+						if (qy < (QUADRANTS_HEIGHT - 1)) {
+							//Add to south west
+							values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						}
+					}
+
+					if (qy > 0) {
+						//Add to north
+						values[qx + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+					}
+
+					if (qy < (QUADRANTS_HEIGHT - 1)) {
+						//Add to south
+						values[qx + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+					}
+
+					if (qx < (QUADRANTS_WIDTH - 1)) {
+						//Add to east
+						values[(qx+1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						if (qy > 0) {
+							//add to north east
+							values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						}
+						if (qy < (QUADRANTS_HEIGHT - 1)) {
+							//Add to south east
+							values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						}
+					}
 				}
 			}
 		}
 	}
 
-	avpicture_free((AVPicture *)profile);
-	av_frame_free(&profile);
+	for (int i = 0; i < FEATURE_LENGTH; i++)
+		data[i] = (uint32_t)values[i];
+
 }
 
 void edgeFeatures_length(uint32_t * l) {
 	*l = FEATURE_LENGTH;
 }
 
-void edgeFeatures(AVFrame * frm, uint32_t ** data, struct SwsContext * ctx, int width, int height) {
+void edgeFeatures(AVFrame * frm, uint32_t ** data, InterpolationWeights * w) {
 	*data = (uint32_t *)malloc(sizeof(uint32_t) * FEATURE_LENGTH);
-	getEdgeFeatures(frm, *data, ctx, width, height);
+	getEdgeFeatures(frm, *data, w);
 
 }

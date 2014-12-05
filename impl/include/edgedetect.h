@@ -43,6 +43,32 @@ struct t_sobelOutput {
 	AVFrame * dir;
 };
 
+
+/* Mask for billinear interpolation
+ * stores masks for up to 9 different quadrants of width*height pixels
+ * the weight at the position m(x, y) determines how much of the pixels value is used for the correspondending mask
+ */
+typedef struct t_interpolationWeights {
+	uint32_t width;
+	uint32_t height;
+	double * c;
+	double * nw;
+	double * n;
+	double * ne;
+	double * e;
+	double * se;
+	double * s;
+	double * sw;
+	double * w;
+} InterpolationWeights;
+
+//Makros to get/set a matrix' vars, given the matrix pointer, row, column and linesize
+#define getMatrixVar(p, x, y, l) ((p)[(x) + (y) * (l)])
+#define setMatrixVar(p, v, x, y, l) (p)[(x) + (y) * (l)] = v
+
+//Create a billinear interpolation mask for quadrants of the given dimensions
+InterpolationWeights * getLinearInterpolationWeights(int width, int height);
+
 double cmpProfiles(AVFrame * p1, AVFrame * p2);
 
 void linearScale(AVFrame * pic);
@@ -55,4 +81,4 @@ void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 
 void edgeFeatures_length(uint32_t *);
-void edgeFeatures(AVFrame *, uint32_t **, struct SwsContext *, int, int);
+void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *);
