@@ -5,7 +5,7 @@
 
 void saveGraph(int id, double * vars, int vars_len){
 printf("SAVE GRAPH %d\n", id);
-	AVFrame * graph = av_frame_alloc();
+	/*AVFrame * graph = av_frame_alloc();
 	avpicture_alloc((AVPicture *)graph, PIX_FMT_RGB24, vars_len, 200);
 	
 	for(int i = 0; i < vars_len; i++) {
@@ -21,7 +21,13 @@ printf("SAVE GRAPH %d\n", id);
 
 	SaveFrameRGB24(graph, vars_len, 200, id);
 	avpicture_free((AVPicture *)graph);
-	av_frame_free(&graph);
+	av_frame_free(&graph); */
+	uint32_t * data = malloc(sizeof(uint32_t) * vars_len);
+	for (int i = 0; i < vars_len; i++) {
+		data[i] = vars[i] * 500;
+	}
+	drawGraph(data, vars_len, 500, 1, id);
+	free(data);
 }
 
 //EPR = Edge Persist Ratio

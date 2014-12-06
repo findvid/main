@@ -114,7 +114,6 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
-		frameCount++;
 
 		// Allocate a new frame, obviously
 		AVFrame* pFrameRGB24 = av_frame_alloc();
@@ -143,6 +142,9 @@ int processVideo(const char *filename, uint32_t **cuts) {
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
+					if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
+					edge_feedback.lastFrame = list_pop(list_frames);
+
 					list_forall(list_frames, (void (*) (void *))avpicture_free);
 					list_forall(list_frames, av_free);
 					list_destroy(list_frames);
@@ -150,8 +152,9 @@ int processVideo(const char *filename, uint32_t **cuts) {
 					list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET);
 	
 					// Set the next bulkStart
-					bulkStart = frameCount;
+					bulkStart = frameCount+1;
 		}
+		frameCount++;
 	}
 
 	// Process the remaining frames
@@ -202,6 +205,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	list_destroy(list_hist_diff);
 
 	sws_freeContext(convert_rgb24);
+	sws_freeContext(g8ctx);
 	destroy_VideoIterator(vidIt);
 
 	return cutCount;
