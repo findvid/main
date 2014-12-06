@@ -46,7 +46,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	}
 
 	if (!PyList_Check(scenesArg)) {
-		PyErr_SetString(PyExc_TypeError, "Second parameter must be a list of numbers!");
+		PyErr_SetString(PyExc_TypeError, "Third parameter must be a list of numbers!");
 		return NULL;	
 	}
 
