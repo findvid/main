@@ -7,7 +7,7 @@
 #include "feature_extraction.h"
 #include "largelist.h"
 #include "histograms.h"
-
+#include "edgedetect.h"
 
 #define DESTINATION_WIDTH 320
 #define DESTINATION_HEIGHT 200
@@ -37,7 +37,7 @@ void dummyFeature(AVFrame * frame, uint32_t ** data) {
 
 //Extract the videos name without extension from the given path
 char * getVideoname(const char *path) {
-	int start, end;
+	int start = 0, end = 0;
 	int pos = 0;
 	while (path[pos] != '\0') {
 		if (path[pos] == '/') start = pos+1;
@@ -100,7 +100,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
 	histogramLength(&res->feature_length[0]); 
-	dummyFeatureLength(&res->feature_length[1]); 
+	edgeFeatures_length(&res->feature_length[1]); 
 	dummyFeatureLength(&res->feature_length[2]); 
 	dummyFeatureLength(&res->feature_length[3]); 
 	res->feature_count = sceneCount;
@@ -112,8 +112,11 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 
 	VideoIterator * iter = get_VideoIterator(filename);
 
-	// Get Sws context to downscalse the frames
+	// Get Sws context to downscale the frames
 	struct SwsContext * convert_rgb24 = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+	
+	// SWS Context to convert the downscaled frame grayscales
+	struct SwsContext * convert_g8 = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 
 	//Get a target codec to write to JPEG files
 	AVCodecContext * trgtCtx = avcodec_alloc_context3(NULL);
@@ -216,7 +219,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
 			histogramFeature(pFrameRGB24, &(res->feature_list[0][currentScene]));
-			dummyFeature(frame, &(res->feature_list[1][currentScene]));
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 			dummyFeature(frame, &(res->feature_list[2][currentScene]));
 			dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
