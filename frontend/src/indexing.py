@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from pymongo import MongoClient
 #from subprocess import Popen, PIPE
-import FindVidWrapper as fv
+import FindVid as fv
 from sys import argv, exit
 import hashlib
 import os
@@ -52,7 +52,7 @@ def index_video(videofile, uploaded=False):
 	#extract features from videofile given the keyframes array, use the middle keyframe as videothumb and save to default folder
 	features = fv.getFeatures(videofile, keyframes, keyframes[len(keyframes)/2])
 
-	int prev = 0
+	prev = 0
 	scenes = [] # scenes collection
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
@@ -89,3 +89,9 @@ def index_video(videofile, uploaded=False):
 
 	return True
 
+if __name__ == "__main__":
+	if len(argv) < 2:
+		print "ERROR: file missing!"
+		exit(1)
+	videofile = argv[1]
+	index_video(videofile)
