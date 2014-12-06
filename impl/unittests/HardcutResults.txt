@@ -1,0 +1,36 @@
+[==========] Running 7 tests from 1 test case.
+[----------] Global test environment set-up.
+[----------] 7 tests from detectCutsByColors
+[ RUN      ] detectCutsByColors.BOR03
+Found 205 of 231 cuts (88.744589%)
+27 of 232 detected were false alarm (11.637931%)
+[       OK ] detectCutsByColors.BOR03 (94424 ms)
+[ RUN      ] detectCutsByColors.BOR08
+Found 351 of 380 cuts (92.368421%)
+26 of 377 detected were false alarm (6.896552%)
+[       OK ] detectCutsByColors.BOR08 (96308 ms)
+[ RUN      ] detectCutsByColors.BOR12
+Found 0 of 0 cuts (-nan%)
+11 of 11 detected were false alarm (100.000000%)
+[       OK ] detectCutsByColors.BOR12 (46893 ms)
+[ RUN      ] detectCutsByColors.UGS01
+Found 86 of 88 cuts (97.727273%)
+9 of 95 detected were false alarm (9.473684%)
+[       OK ] detectCutsByColors.UGS01 (77755 ms)
+[ RUN      ] detectCutsByColors.UGS04
+Found 151 of 156 cuts (96.794872%)
+17 of 168 detected were false alarm (10.119048%)
+[       OK ] detectCutsByColors.UGS04 (95369 ms)
+[ RUN      ] detectCutsByColors.UGS05
+Found 16 of 30 cuts (53.333333%)
+10 of 26 detected were false alarm (38.461538%)
+[       OK ] detectCutsByColors.UGS05 (77765 ms)
+[ RUN      ] detectCutsByColors.UGS09
+Found 39 of 47 cuts (82.978723%)
+27 of 66 detected were false alarm (40.909091%)
+[       OK ] detectCutsByColors.UGS09 (107350 ms)
+[----------] 7 tests from detectCutsByColors (595865 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test case ran. (595865 ms total)
+[  PASSED  ] 7 tests.
