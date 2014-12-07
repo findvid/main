@@ -2,6 +2,19 @@
 #include "shotbounds.h"
 #include "feature_extraction.h"
 
+PyObject *getFramerateWrapper(PyObject *self, PyObject *args) {
+	const char * filename;
+
+	if (!PyArg_ParseTuple(args, "s", &filename)) {
+		return NULL;
+	}
+
+	PyObject *fps;
+	fps = PyFloat_FromDouble(getFramerate(filename));
+	free(filename);
+	return fps;
+}
+
 PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 	const char * filename;
 	PyObject *pyList;
@@ -106,6 +119,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 }
 
 PyMethodDef FindVidMethods[] = {
+	{"getFramerate", getFramerateWrapper, METH_VARARGS, "Passing a filename of a videofile, retrieve the video's framerate"},
 	{"getCuts", getCutsWrapper, METH_VARARGS, "Passing a filename of a videofile, retrieve a list of cuts(framenumber)"},
 	{"getFeatures", getFeaturesWrapper, METH_VARARGS, "Extract features and thumbnails in a video"}
 };
