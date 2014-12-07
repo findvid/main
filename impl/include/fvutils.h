@@ -117,6 +117,19 @@ void readFrame(VideoIterator * vidIt, AVFrame * targetFrame, int * gotFrame);
 /**
  * Closed open streams and frees a VideoIterator.
  *
- * @param vidIt		The VideoIterator to be destroied
+ * @param vidIt		The VideoIterator to be destroyed
  */
 void destroy_VideoIterator(VideoIterator * vidIt);
+
+/**
+ * Retrieves the video's framerate
+ * This is used for writing the framerate into the DB using python
+ * Returning the framerate along the features in a tuple might be more efficient,
+ * albeit making the FeatureExtraction even more monolithic than it already is.
+ * Assuming the overhead for FFMPEG to re-open the video stream without deconding anything
+ * is negligible, this approach should be ok for now
+ *
+ * @param filename	Absolute path to the video to get the framerate from
+ * @return double value of the framerate
+ */
+double getFramerate(const char * filename);
