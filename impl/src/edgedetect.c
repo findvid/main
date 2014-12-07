@@ -68,7 +68,7 @@ double EdgeChangeRatio(AVFrame * p1, AVFrame * p2) {
 		return 0.0;
 }
 
-double EdgeContrast(AVFrame * p) {
+double EdgeContrastLienhart(AVFrame * p) {
 	double s = 0.0;
 	double w = 0.0;
 
@@ -82,6 +82,20 @@ double EdgeContrast(AVFrame * p) {
 	}
 
 	return 1 + ((s - w - 1)/(s + w + 1));
+}
+
+//Average edge strength ratio
+double EdgeContrast(AVFrame * p) {
+	int str = 0.0;
+	int amt = 0.0;
+
+	for (int x = 0; x < p->width; x++) {
+		for (int y = 0; y < p->height; y++) {
+			str += getPixelG8(p, x, y);
+			amt += (getPixelG8(p, x, y)?1:0);
+		}
+	}
+	return ((double)str/amt)/255;
 }
 
 //Normalized gaussian with µ = 0
