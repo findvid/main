@@ -11,7 +11,7 @@ PyObject *getFramerateWrapper(PyObject *self, PyObject *args) {
 
 	PyObject *fps;
 	fps = PyFloat_FromDouble(getFramerate(filename));
-	free(filename);
+	//free(filename);
 	return fps;
 }
 
