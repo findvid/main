@@ -199,3 +199,10 @@ void destroy_VideoIterator(VideoIterator * iter) {
 	avformat_close_input(&iter->fctx);
 	free(iter);
 }
+
+double getFramerate(const char * filename) {
+	VideoIterator * iter = get_VideoIterator(filename);
+	double res = (double)iter->cctx->framerate->num / iter->cctx->framerate->den;
+	destroy_VideoIterator(iter);
+	return res;
+}
