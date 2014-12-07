@@ -1,17 +1,134 @@
 import numpy as npy
 import random as rand
+import sys
 import Queue
 import pickle
 
 class KMeansTree:
 	isLeave = False
 	center = []
-	childs = []
+	# When leave this field is abused for the data
+	children = []
 
-	def __init__(self, isLeave, childs, center):
+	def __init__(self, isLeave, center, children):
 		self.isLeave = isLeave
-		self.childs = childs
 		self.center = center
+		self.children = children
+
+	"""
+	@param data		[(features, key),...] List of pairs of features and keys
+	@param k		Giving the max amount of leaves a node should have
+	@param maxiterations	limiting the iterations for the center finding
+	"""
+	def buildTree(self, data, k, maxiterations):
+		# Output to get a feeling how long it takes (a long time)
+		# 76 minutes for 1.000.000 entries with 1024 vectors
+		if len(data) > 1000:
+			print "len(data): ", len(data)
+		# If there are less elements in data than a node should have children...
+		if len(data) < k:
+			# Add all elements as leave nodes
+			for center,value in data:
+				self.children.append(KMeansTree(True, center, value))
+			return
+		# Get random centers as starting point
+		centers = calg(data,k)
+
+		centersFound = False
+		iterations = 0
+
+		# Improve the centers
+		while not centersFound and iterations < maxiterations:
+			iterations += 1
+			clusters = []
+
+			for _ in range(len(centers)):
+				clusters.append([])
+
+			# cluster the points around the closest centers
+			for position,value in data:
+				index = 0
+				mindist = sys.maxint
+				for i,center in enumerate(centers):
+					distance = dist(position, center)
+					if distance < mindist:
+						mindist = distance
+						index = i
+				clusters[index].append((position, value))
+
+			centersNew = []
+			# calculate new centers
+			for cluster in clusters:
+				# only if at least one point was added to the cluster it can be kept
+				# TODO: this is a problem as certain data could cause all points to be in one cluster
+				# like a data set of many equal entries
+				# it would cause an not stopped recursion
+				if not cluster == []:
+					center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
+					centersNew.append(center)
+
+			# Check if the centers changed
+			if npy.array_equal(centers, centersNew):
+				centersFound = True
+
+			centers = centersNew
+		for center,cluster in zip(centers,clusters):
+			# Create a child for each cluster
+			child = KMeansTree(False, center, [])
+			# Fill it with values
+			child.buildTree(cluster, k, maxiterations)
+			# Add chlid to children
+			self.children.append(child)
+
+	"""
+	@param query		Feature array for the request. Find NNs to this one
+	@param wantedNNs	Amount of NNs to be found
+	@param maxPointsToTouch	Limit of leaves that get touched. Higher value -> better results but slower calculation
+	"""
+	def search(self, query, wantedNNs = 1, maxPointsToTouch = 42):
+		# for the nodes that get checked later
+		nextNodes = Queue.PriorityQueue()
+		# for the results
+		results = Queue.PriorityQueue()
+
+		# search from root
+		self.traverse(nextNodes, results, query)
+		# while there are nextNodes and the max amount of points or the number of NNs is not reached
+		while (not nextNodes.empty()) and (results.qsize() < maxPointsToTouch or results.qsize() < wantedNNs):
+			# get the next clostest node
+			_,nextNode = nextNodes.get()
+			# and continue searching there
+			nextNode.traverse(nextNodes, results, query)
+		return results
+
+	"""
+	@param nextNodes	PrioQueue for 'checkout-later'-nodes
+	@param results		PrioQueue for the results
+	@param query		Feature array for the request. Find NNs to this one.
+	"""
+	def traverse(self, nextNodes, results, query):
+		if self.isLeave:
+			# put the leave to the results
+			results.put((dist(query, self.center),self.children))
+		else:
+			# find the closest child
+			closestChild = None
+			mindist = sys.maxint
+			for child in self.children:
+				distance = dist(child.center, query)
+				if distance < mindist:
+					# add the previously clostest child to the later to check nodes
+					# doing that all but the actual closest child should get added
+					if not closestChild == None:
+						nextNodes.put((mindist,closestChild))
+					mindist = distance
+					# set new closest child
+					closestChild = child
+				else:
+					# add the child to the later to check nodes
+					nextNodes.put((distance,child))
+			# go on searching in the closest child
+			closestChild.traverse(nextNodes, results, query)
 
 	def __str__(self):
 		return self.str2("")
@@ -19,27 +136,19 @@ class KMeansTree:
 	def str2(self,i):
 		retval = i
 		if self.isLeave:
-			retval += "Leave:["
+			retval += i + "     [" + str(self.children) + " - " + str(self.center) + "]"
 		else:
-			retval += "Node:["
-		retval += "Center:" + str(self.center) + "\n"
-		if self.isLeave:
-			for c in self.childs:
-				retval += i + "     " + str(c) + "\n"
-		else:
-			for c in self.childs:
+			retval += "Node:[" + str(self.center) + "\n"
+			for c in self.children:
 				retval += c.str2(i + "    ") + "\n"
-		retval += i + "]"
+			retval += i + "]"
 		return retval
 
-def dist(x, y):
-	if len(x) != len(y):
-		raise Exception("Can't calc distance for arrays of differnt length.");
-	result = 0;
-	for a,b in zip(x,y):
-		result += (a-b)**2
-	return result;
+# Calculate the euclidian distance between two arrays
+def dist(array1, array2):
+	return npy.linalg.norm(array1 - array2)
 
+# TODO: Crappy center selection algorithm. Should be replaced with something cooler.
 def calg(arr,k):
 	result = []
 	N = 0
@@ -54,140 +163,58 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-def buildTree(D,K,Imax,center):
-	if len(D) < K:
-		return KMeansTree(True, D, center)
-	P = calg(D,K)
-
-	conv = False
-	iterations = 0
-	while not conv and iterations < Imax:
-		C = []
-		for i,_ in enumerate(P):
-			C.append([])
-		for x,n in D:
-			dis = 10**99
-			index = 0;
-			for i,p in enumerate(P):
-				d = dist(p,x)
-				if d < dis:
-					dis = d
-					index = i
-			C[index].append((x,n))
-		P_new = []
-		for i,c in enumerate(C):
-			# This if isn't quite correct...
-			# It's just to prevent empty clusters causing an exception
-			# TODO: Think about a better way
-			if c == []:
-				P_new.append(P[i])
-				continue
-			c = [i[0] for i in c]
-			c = npy.transpose(c)
-			tmp = []
-			for cc in c:
-				tmp.append(int(npy.mean(cc)))
-			P_new.append(tmp)
-		conv = True
-		for p1,p2 in zip(P,P_new):
-			if p1 != p2:
-				conv = False
-		P = P_new
-		iterations += 1
-	childs = []
-	for i,c in enumerate(C):
-		childs.append(buildTree(c, K, Imax, P[i]))
-	return KMeansTree(False, childs, center)
-
-def traverseKMeansTree(tree, PQ, R, count, query):
-	if tree.isLeave:
-		for c,n in tree.childs:
-			R.put((dist(c,query),(c,n)))
-		count += len(tree.childs)
-	else:
-		dis = 10**99
-		index = 0
-		for i,c in enumerate(tree.childs):
-			d = dist(query,c.center)
-			if d < dis:
-				dis = d
-				index = i
-		for i,c in enumerate(tree.childs):
-			if (i != index):
-				PQ.put((dist(c.center,query),c))
-		count = traverseKMeansTree(tree.childs[index], PQ, R, count, query)
-	return count
-
-def searchKMeansTree(tree, query, L, K):
-	count = 0
-	PQ = Queue.PriorityQueue()
-	R = Queue.PriorityQueue()
-	traverseKMeansTree(tree, PQ, R, count, query)
-	while (not PQ.empty()) and count < L:
-		_,N = PQ.get()
-		count = traverseKMeansTree(N, PQ, R, count, query)
-	return R
-
-#data = [
-#	([1,2,3],'Eins'),
-#	([4,5,3],'Zwei'),
-#	([123,423,123],'Drei'),
-#	([23,423,22],'Vier'),
-#	([23,23,124],'Fuenf'),
-#	([123,23,125],'Sechs'),
-#	([123,423,26],'Sieben')
-#	]
-data = []
-
+#"""#
 print "Building test data..."
-for x in range(0,400):
-	for y in range(0,400):
-		data.append(([x,y],"Data-" + str(x) + "-" + str(y)))
+data = []
+for i in range(0, 10000):
+	data.append((npy.random.randint(0, 1000000, 1024), "Data-" + str(i)))
 
-#print data
+print "Building tree..."
+tree = KMeansTree(False, [], [])
+tree.buildTree(data, 8, 10)
 
-k = 16
-i_max = 10
+"""
+print "Saving data..."
+pickle.dump(data, open("data.p", "wb"))
 
-#print data
-#print dist([0,0,0],[3,3,3])
-#print calg(data,2)
+print "Saving tree..."
+pickle.dump(tree, open("tree.p", "wb"))
+#" ""
 
-#print "Hang on. Building a tree..."
-#tree = buildTree(data,k,i_max,0)
-#pickle.dump(tree, open("testtree.p", "wb"))
 
 print "Loading tree..."
-tree = pickle.load(open("testtree.p", "rb"))
+data = pickle.load(open("data.p", "rb"))
+print "Loading data..."
+tree = pickle.load(open("tree.p", "rb"))
+#"""
+query = npy.random.randint(0, 1000000, 1024)
 
-#print tree
-print "Test search:"
-R = searchKMeansTree(tree, [10,30], 6, 3);
-print R.get();
-print R.get();
-print R.get();
+#print "Tree: ", str(tree)
+nns = tree.search(query, 5, 1000)
+
+print "Q: ", query
+for i in range(0, 5):
+	nn = nns.get()
+	print "NN #", i, ": ", nn
 
 raw_input("\nPress key to start sanity check\n")
 
-print "\nSanity check: 100 times linear search vs. 100 times KMeans search"
-print "\n100 times searchKMeansTree:"
+print "1 Tree search (5 NNs, 1000 Touches):"
+nns = tree.search(query, 5, 1000)
+print nns.get()
+print nns.get()
+print nns.get()
+print nns.get()
+print nns.get()
 
-for i in range(1,100):
-	R = searchKMeansTree(tree, [80,30], 6, 3);
-print R.get();
-print R.get();
-print R.get();
+print "\n1 Linear search:"
 
-print "\n100 times searchLinear:"
+closest = None
+mindist = sys.maxint
+for point,name in data:
+	distance = dist(point, query)
+	if distance < mindist:
+		mindist = distance
+		closest = (distance, name)
 
-index = 0
-for i in range(1,100):
-	dis = 10**99
-	q = [80,30]
-	for i,(a,n) in enumerate(data):
-		d = dist(q,a)
-		if d < dis:
-			dis = d
-			index = i
-
-print data[index]
+print closest
