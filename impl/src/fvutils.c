@@ -202,7 +202,9 @@ void destroy_VideoIterator(VideoIterator * iter) {
 
 double getFramerate(const char * filename) {
 	VideoIterator * iter = get_VideoIterator(filename);
-	double res = (double)iter->cctx->framerate->num / iter->cctx->framerate->den;
+	//framerate is not a member of struct AVCodecContext ???!!! Similar to SwsContext not appearing to have dstw or dsth...
+	//double res = (double)iter->cctx->framerate.num / iter->cctx->framerate.den;
+	double res = (double)iter->cctx->time_base.den / iter->cctx->time_base.num;
 	destroy_VideoIterator(iter);
 	return res;
 }
