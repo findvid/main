@@ -30,18 +30,16 @@ VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
 SHOTBOUNDS = "{0}main/impl/shotbounds".format(CONFIG["abspath"])
 THUMBNAILER = "{0}main/impl/thumbnails".format(CONFIG["abspath"])
 
-#TODO: Refactor to join paths beforehand -> videofile is always an absolute path
-# OR : consistently use different paths depending on value of 'uploaded'
-def index_video(videofile, uploaded=False):
+#Index the given videofile (abs. path), create thumbnails in the 
+def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	#Get PyMongo client
 	client = MongoClient()
 	db = client["findvid"]
 	videos = db["videos"]
 	
-	videopath = os.path.join('/video/videosearch/findvid/videos/', videofile)
 
 	#Get Hash
-	fileHash = str(hashFile(videopath, 65536))
+	fileHash = str(hashFile(videofile, 65536))
 
 	#Check if this exact video exists already
 	video = videos.find_one({'_id': fileHash})
@@ -49,12 +47,13 @@ def index_video(videofile, uploaded=False):
 		return False
 
 	#Use C-Lib to get cuts in the video
-	cuts = fv.getCuts(videopath)
+	cuts = fv.getCuts(videofile)
 
+	#Heuristic approach: Suitable keyframe between 2 cuts
 	keyframes = [(cuts[i-1] + cuts[i])/2 for i in range(1, len(cuts))]
 
 	#extract features from videofile given the keyframes array, use the middle keyframe as videothumb and save to default folder
-	features = fv.getFeatures(videopath, keyframes[len(keyframes)/2], keyframes)
+	features = fv.getFeatures(videofile, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
 	prev = 0
 	scenes = [] # scenes collection
@@ -84,11 +83,12 @@ def index_video(videofile, uploaded=False):
 	# TODO sequence counter
 	video["_id"] = fileHash
 	video["filename"] = videofile
-	# TODO: get FPS; extra function or wrap another tuple around FPS and feature-tuple list
-	video["fps"] = 25
+	fps = fv.getFramerate(videofile)
+	video["fps"] = fps
 	video["framecount"] = cuts[-1:][0] # last entry
 	video["scenes"] = scenes
 	video["upload"] = uploaded
+	video["searchable"] = searchable
 	videos.insert(video)
 
 	return True
