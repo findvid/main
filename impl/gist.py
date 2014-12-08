@@ -7,9 +7,10 @@ import argparse
 import os
 import sys
 import math
+import cmath
 
-IMGWIDTH = 32
-IMGHEIGHT = 32
+IMGWIDTH = 64
+IMGHEIGHT = 64
 
 RASTERSIZE = 4
 
@@ -25,26 +26,40 @@ def successMessage(msg):
 def warningMessage(msg):
 	print '\033[93m' + msg + '\033[0m'
 
-def fourier(image, N):
-	# F(x,y) = N-1 sum(i=0)( N-1 sum(j=0) (f(i,j)*e^-i*2*pi*( (x*i/N) + (y*j/N) )))
-	# N = image of size NxN
-	# f(i,j) = image in the spatial domain 
-	# exp-term = basis function corresponding to each Point F(k,l) in the Fourier space
-	# let's go...
-
-	fourier = np.zeros((N, N))
+def fourierTransform(image, N):
+	F = np.zeros((N, N), dtype=np.complex64)
+	P = np.zeros((N, N), dtype=np.complex64)
 
 	# For each pixel in the NxN image
-	for x in range(0, N-1):
-		for y in range(0, N-1):
-			# Calculate fourier value
-			for i in range(0, N-1):
-				for j in range(0, N-1):
-					fourier[x][y] += image[i][j] * math.exp( ((x*i)/N) + ((y*j)/N) )
+	for k in range(0, N):
+		for b in range(0, N):
+			Psum = complex(0)
+			for a in range(0, N):
+				Psum += (float(image[a][b]) * cmath.exp(-2j*cmath.pi * ((float(k*a)) / N)))
+			
+			P[k][b] = 1.0/N * Psum
 
-	return fourier
+	for k in range(0, N):
+		for l in range(0, N):
+			Fsum = complex(0)
+			for b in range(0, N):
+				Fsum += (P[k][b] * cmath.exp(-2j*cmath.pi * ((float(l*b)) / N)))
+			
+			F[k][l] = 1.0/N * Fsum
+
+	return F
 
 
+def logarithmicTransform(image):
+	c = 255.0 / math.log(1 + math.fabs(np.amax(image)))
+
+	logImage = np.zeros((image.shape[0], image.shape[1 ]))
+
+	for x in range(0, logImage.shape[0]):
+		for y in range(0, logImage.shape[1]):
+			logImage[x][y] = c * math.log(1 + math.fabs(image[x][y]))
+
+	return logImage
 
 if __name__ == "__main__":
 
@@ -89,14 +104,23 @@ if __name__ == "__main__":
 	# create zero-filled raster
 	imgRaster = np.zeros((RASTERSIZE, RASTERSIZE, xRaster, yRaster))
 
-	x = 0
-	for line in imgRaster:
-		y = 0
-		for field in line:
+	for x in range(0, imgRaster.shape[0]-1):
+		for y in range(0, imgRaster.shape[1]-1):
 			imgRaster[x][y] = np.copy(imgResized[(x+0)*xRaster:(x+1)*xRaster, (y+0)*yRaster:(y+1)*yRaster])
-			y+=1
-		x+=1
 
-	cv2.imwrite(filename + '_fourier.' + extension, fourier(imgResized, 32))
+	#for x in range(0, imgResized.shape[0]-1):
+	#	for y in range(0, imgResized.shape[1]-1):
+	#		imgResized[x][y] = (-1)**(x+y)
+
+	fourier = fourierTransform(imgResized, IMGWIDTH)
+
+	magnitude = np.zeros((IMGWIDTH, IMGWIDTH), dtype=np.float32)
+
+	for k in range(0, magnitude.shape[0]):
+		for l in range(0, magnitude.shape[1]):
+			magnitude[k][l] = math.sqrt(fourier[k][l].real**2 + fourier[k][l].imag**2) 
+
+	cv2.imwrite(filename + '_fourier' + extension, magnitude)
+	cv2.imwrite(filename + '_fourierlog' + extension, logarithmicTransform(magnitude))
 
 	##### Orientation Histogram #####
