@@ -3,6 +3,7 @@ import random as rand
 import sys
 import Queue
 import pickle
+from pymongo import MongoClient
 
 class KMeansTree:
 	isLeave = False
@@ -163,7 +164,76 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-#"""#
+# TODO For now set the type of feature here!
+usedFeature = 'edges'
+
+"""
+Build a tree from a given database containing videodata
+
+@param db	The database
+
+@return		kmeans tree to search on
+"""
+def buildTreeFromDatabase(db):
+	print "Reading data from database"
+	videos = db["videos"]
+
+	vids = videos.find({'_id':{'$not':{'$eq':'config'}}})
+
+	data = []
+	for vid in vids:
+		scenes = vid['scenes']
+		vidHash = vid['_id']
+		for scene in scenes:
+			# TODO better replaced with enumerate
+			sceneId = scene['_id']
+			feature = npy.array(scene[usedFeature])
+			data.append((feature,(vidHash,int(sceneId))))
+
+	print "Building Tree"
+	tree = KMeansTree(False, [], [])
+	tree.buildTree(data, 32, 15)
+	return tree
+
+"""
+Search for a scene from a database
+
+@param db		Database containing the query
+@param tree		kmeans tree to search on
+@param vidHash		id of the video of the query scene
+@param sceneId		id of the query scene
+@param wantedNNs	amount of NNs you want
+@param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
+
+@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough
+"""
+def searchForScene(db, tree, vidHash, sceneId, wantedNNs, maxTouches):
+	videos = db["videos"]
+	vid = videos.find_one({'_id':vidHash})
+	scene = vid['scenes'][sceneId]
+	feature = npy.array(scene[usedFeature])
+	return tree.search(feature, wantedNNs, maxTouches)
+
+# Example code
+"""
+client = MongoClient()
+db = client["findvid"]
+videos = db["videos"]
+
+vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
+
+tree = buildTreeFromDatabase(db)
+
+results = searchForScene(db, tree, vid['_id'], 0, 10, 10)
+
+print results.get()
+print results.get()
+print results.get()
+print results.get()
+print results.get()
+"""
+
+"""#
 print "Building test data..."
 data = []
 for i in range(0, 10000):
@@ -173,7 +243,7 @@ print "Building tree..."
 tree = KMeansTree(False, [], [])
 tree.buildTree(data, 8, 10)
 
-"""
+#" ""
 print "Saving data..."
 pickle.dump(data, open("data.p", "wb"))
 
@@ -186,7 +256,7 @@ print "Loading tree..."
 data = pickle.load(open("data.p", "rb"))
 print "Loading data..."
 tree = pickle.load(open("tree.p", "rb"))
-#"""
+#" ""
 query = npy.random.randint(0, 1000000, 1024)
 
 #print "Tree: ", str(tree)
@@ -218,3 +288,4 @@ for point,name in data:
 		closest = (distance, name)
 
 print closest
+"""
