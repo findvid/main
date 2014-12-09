@@ -53,7 +53,10 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	keyframes = [(cuts[i-1] + cuts[i])/2 for i in range(1, len(cuts))]
 
 	#extract features from videofile given the keyframes array, use the middle keyframe as videothumb and save to default folder
-	features = fv.getFeatures(videofile, keyframes[len(keyframes)/2], keyframes, thumbpath)
+	if (thumbpath == None):
+		features = fv.getFeatures(videofile, keyframes[len(keyframes)/2], keyframes)
+	else:
+		features = fv.getFeatures(videofile, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
 	prev = 0
 	scenes = [] # scenes collection
@@ -63,16 +66,15 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 		scene["startframe"] = prev
 		scene["endframe"] = c
 		# save features
-		scene["colorhist"] = []
+		scene["tinyimg"] = []
 		for v in features[i][0]:
-			scene["colorhist"].append(v)
+			scene["tinyimg"].append(v)
 		scene["edges"] = []
 		for v in features[i][1]:
 			scene["edges"].append(v)
-		# TinyIMG
-		# scene["tinyimg"]
-		# for v in features[i][2]:
-		# 	scene["tinyimg"].append(v)
+		scene["colorhist"]
+		for v in features[i][2]:
+			scene["colorhist"].append(v)
 		# GIST
 		# scene["gist"]
 		# for v in features[i][2]:
