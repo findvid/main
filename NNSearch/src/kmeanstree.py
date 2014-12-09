@@ -28,9 +28,9 @@ class KMeansTree:
 			print "len(data): ", len(data)
 		# If there are less elements in data than a node should have children...
 		if len(data) < k:
-			# Add all elements as leave nodes
-			for center,value in data:
-				self.children.append(KMeansTree(True, center, value))
+			# Add all elements and become a leave node
+			self.children = data
+			self.isLeave = True
 			return
 		# Get random centers as starting point
 		centers = calg(data,k)
@@ -110,7 +110,8 @@ class KMeansTree:
 	def traverse(self, nextNodes, results, query):
 		if self.isLeave:
 			# put the leave to the results
-			results.put((dist(query, self.center),self.children))
+			for center,value in self.children:
+				results.put((dist(query, center),value))
 		else:
 			# find the closest child
 			closestChild = None
@@ -231,7 +232,7 @@ print results.get()
 print results.get()
 print results.get()
 print results.get()
-"""
+#"""
 
 """#
 print "Building test data..."
