@@ -66,15 +66,18 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 		scene["startframe"] = prev
 		scene["endframe"] = c
 		# save features
-		scene["tinyimg"] = []
-		for v in features[i][0]:
-			scene["tinyimg"].append(v)
-		scene["edges"] = []
-		for v in features[i][1]:
-			scene["edges"].append(v)
-		scene["colorhist"]
-		for v in features[i][2]:
-			scene["colorhist"].append(v)
+		scene["tinyimg"] = features[i][0]
+		#scene["tinyimg"] = []
+		#for v in features[i][0]:
+		#	scene["tinyimg"].append(v)
+		scene["edges"] = features[i][1]
+		#scene["edges"] = []
+		#for v in features[i][1]:
+		#	scene["edges"].append(v)
+		scene["colorhist"] = features[i][2]
+		#scene["colorhist"]
+		#for v in features[i][2]:
+		#	scene["colorhist"].append(v)
 		# GIST
 		# scene["gist"]
 		# for v in features[i][2]:
