@@ -195,6 +195,7 @@ def buildTreeFromDatabase(db):
 	data = []
 	for vid in vids:
 		if vid['upload']:
+			#print vid['filename']
 			scenes = vid['scenes']
 			vidHash = vid['_id']
 			for scene in scenes:
@@ -286,11 +287,18 @@ videos = db["videos"]
 
 vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
-tree = loadOrBuildAndSaveTree(db, "tree.p")
+usedFeature = 'edges'
+tree = loadOrBuildAndSaveTree(db, "treeEdges.p")
 
-addVideoDynamic(db, vid["_id"])
+usedFeature = 'colorhist'
+tree = loadOrBuildAndSaveTree(db, "treeColorhist.p")
+
+usedFeature = 'tinyimg'
+tree = loadOrBuildAndSaveTree(db, "treeTinyimg.p")
 
 results = searchForScene(db, tree, vid['_id'], 0, 1000, 1000)
+
+addVideoDynamic(db, vid["_id"])
 
 print results.get()
 print results.get()
