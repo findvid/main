@@ -3,6 +3,7 @@ import random as rand
 import sys
 import Queue
 import pickle
+import os.path
 from pymongo import MongoClient
 
 class KMeansTree:
@@ -28,9 +29,9 @@ class KMeansTree:
 			print "len(data): ", len(data)
 		# If there are less elements in data than a node should have children...
 		if len(data) < k:
-			# Add all elements as leave nodes
-			for center,value in data:
-				self.children.append(KMeansTree(True, center, value))
+			# Add all elements and become a leave node
+			self.children = data
+			self.isLeave = True
 			return
 		# Get random centers as starting point
 		centers = calg(data,k)
@@ -64,9 +65,19 @@ class KMeansTree:
 				# TODO: this is a problem as certain data could cause all points to be in one cluster
 				# like a data set of many equal entries
 				# it would cause an not stopped recursion
+				# Kind of fixed. See the Todo below
 				if not cluster == []:
 					center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
 					centersNew.append(center)
+
+			# TODO Quick fix for now. If all points fall into one center they just become a child node
+			# Might be problematic if there are many of them as that could slow down searches.
+			# So they should be splitted in this case.
+			if len(centersNew) == 1:
+				print "Waring building a child node with", len(data), "entries"
+				self.children = data
+				self.isLeave = True
+				return
 
 			# Check if the centers changed
 			if npy.array_equal(centers, centersNew):
@@ -110,7 +121,8 @@ class KMeansTree:
 	def traverse(self, nextNodes, results, query):
 		if self.isLeave:
 			# put the leave to the results
-			results.put((dist(query, self.center),self.children))
+			for center,value in self.children:
+				results.put((dist(query, center),value))
 		else:
 			# find the closest child
 			closestChild = None
@@ -182,17 +194,36 @@ def buildTreeFromDatabase(db):
 
 	data = []
 	for vid in vids:
-		scenes = vid['scenes']
-		vidHash = vid['_id']
-		for scene in scenes:
-			# TODO better replaced with enumerate
-			sceneId = scene['_id']
-			feature = npy.array(scene[usedFeature])
-			data.append((feature,(vidHash,int(sceneId))))
+		if vid['upload']:
+			scenes = vid['scenes']
+			vidHash = vid['_id']
+			for scene in scenes:
+				# TODO better replaced with enumerate
+				sceneId = scene['_id']
+				feature = npy.array(scene[usedFeature])
+				data.append((feature,(vidHash,int(sceneId))))
 
 	print "Building Tree"
 	tree = KMeansTree(False, [], [])
 	tree.buildTree(data, 32, 15)
+	return tree
+
+"""
+Loads a tree from a file if the file exists, else it
+builds the tree from a given database containing videodata
+
+@param db	The database
+@param filename	filename of the tree
+
+@return		kmeans tree to search on
+"""
+def loadOrBuildAndSaveTree(db, filename):
+	if os.path.isfile(filename):
+		print "Loading Tree from file"
+		return pickle.load(open(filename, "rb"))
+	tree = buildTreeFromDatabase(db)
+	print "Saving Tree"
+	pickle.dump(tree, open(filename, "wb"))
 	return tree
 
 """
@@ -212,7 +243,40 @@ def searchForScene(db, tree, vidHash, sceneId, wantedNNs, maxTouches):
 	vid = videos.find_one({'_id':vidHash})
 	scene = vid['scenes'][sceneId]
 	feature = npy.array(scene[usedFeature])
-	return tree.search(feature, wantedNNs, maxTouches)
+	results = tree.search(feature, wantedNNs, maxTouches)
+	# TODO Make this nice
+	# Add the newlyUploaded scenes to the results
+	searchRest(feature, results)
+	return results
+
+newlyUploadedScenes = []
+
+"""
+Add a video after the tree is build
+
+@param db	the database the video is in
+@param vidHash	hash of the video
+"""
+def addVideoDynamic(db, vidHash):
+	videos = db["videos"]
+	vid = videos.find_one({'_id':vidHash})
+	if vid['upload']:
+		scenes = vid['scenes']
+		for scene in scenes:
+			# TODO better replaced with enumerate
+			sceneId = scene['_id']
+			feature = npy.array(scene[usedFeature])
+			newlyUploadedScenes.append((feature,(vidHash,int(sceneId))))
+
+"""
+Searching the linear part
+
+@param query	query feature
+@param results	PrioiryQueue for the results
+"""
+def searchRest(query, results):
+	for feature,scene in newlyUploadedScenes:
+		results.put((dist(query,feature),scene))
 
 # Example code
 """
@@ -222,16 +286,18 @@ videos = db["videos"]
 
 vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
-tree = buildTreeFromDatabase(db)
+tree = loadOrBuildAndSaveTree(db, "tree.p")
 
-results = searchForScene(db, tree, vid['_id'], 0, 10, 10)
+addVideoDynamic(db, vid["_id"])
+
+results = searchForScene(db, tree, vid['_id'], 0, 1000, 1000)
 
 print results.get()
 print results.get()
 print results.get()
 print results.get()
 print results.get()
-"""
+#"""
 
 """#
 print "Building test data..."
