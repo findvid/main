@@ -73,7 +73,7 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	# TODO sequence counter
 	video["_id"] = fileHash
 	video["filename"] = videofile
-	fps = fv.getFramerate(videofile)
+	fps = fv.getFramerate(vidpath)
 	video["fps"] = fps
 	video["framecount"] = cuts[-1:][0] # last entry
 	video["scenes"] = scenes
