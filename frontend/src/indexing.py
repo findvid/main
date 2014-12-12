@@ -45,7 +45,7 @@ def index_video(videofile, searchable=True, uploaded=False, thumbpath = None):
 	#Check if this exact video exists already
 	video = videos.find_one({'_id': fileHash})
 	if (video):
-		return False
+		return None
 
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
@@ -96,7 +96,7 @@ def index_video(videofile, searchable=True, uploaded=False, thumbpath = None):
 	video["scenes"] = scenes
 	feature_collection.insert(video)
 
-	return True
+	return fileHash
 
 if __name__ == "__main__":
 	if len(argv) < 2:
