@@ -10,7 +10,9 @@ PyObject *getFramerateWrapper(PyObject *self, PyObject *args) {
 	}
 
 	PyObject *fps;
-	fps = PyFloat_FromDouble(getFramerate(filename));
+	double res = getFramerate(filename);
+	printf("FRAMERATE = %f\n", res);
+	fps = PyFloat_FromDouble(res);
 	//free(filename);
 	return fps;
 }

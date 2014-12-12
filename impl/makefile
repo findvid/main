@@ -4,7 +4,7 @@ PYFLAGSLIB = -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-fu
 LIBSFFMPEG=$(shell pkg-config --libs libavcodec) $(shell pkg-config --libs libavformat) $(shell pkg-config --libs libswscale) $(shell pkg-config --libs libavutil) -lm
 
 BUILDFILES= obj/largelist.o obj/fvutils.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o obj/feature_extraction.o
-FEATURES = obj/fvutils.o obj/feature_extraction.o obj/histograms.o obj/largelist.o
+FEATURES = obj/fvutils.o obj/feature_extraction.o obj/histograms.o obj/largelist.o obj/edgedetect.o
 UTILS = obj/largelist.o obj/fvutils.o
 
 obj/%.o: src/%.c
@@ -61,6 +61,9 @@ shotbounds_test: unittests/shotbounds_test.cc obj/shotbounds.o obj/histograms.o 
 
 listtests: obj/largelist.o unittests/largelist_test.cc
 	g++ $(CFLAGS) $^ -o test -lgtest -lpthread
+
+fvtests: obj/fvutils.o unittests/fvtest.cc 
+	g++ $(CFLAGS) $^ -o test -lgtest -lpthread $(LIBSFFMPEG)
 
 clean:
 	rm -f ./test
