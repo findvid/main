@@ -63,6 +63,9 @@ shotbounds_test: unittests/shotbounds_test.cc obj/shotbounds.o obj/histograms.o 
 listtests: obj/largelist.o unittests/largelist_test.cc
 	g++ $(CFLAGS) $^ -o test -lgtest -lpthread
 
+fvtests: obj/fvutils.o unittests/fvtest.cc 
+	g++ $(CFLAGS) $^ -o test -lgtest -lpthread $(LIBSFFMPEG)
+
 clean:
 	rm -f ./test
 	rm -rf obj/

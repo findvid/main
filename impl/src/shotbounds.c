@@ -217,5 +217,6 @@ int main(int argc, char **argv) {
 	printf("\n");
 	free(cuts);
 	return 0;
+<<<<<<< HEAD
 }
 // */
