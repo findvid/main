@@ -177,7 +177,7 @@ def calg(arr,k):
 	return result
 
 # TODO For now set the type of feature here!
-usedFeature = 'edges'
+usedFeature = 'tinyimg'
 
 """
 Build a tree from a given database containing videodata
@@ -188,20 +188,21 @@ Build a tree from a given database containing videodata
 """
 def buildTreeFromDatabase(db):
 	print "Reading data from database"
-	videos = db["videos"]
+	videos = db['features']
 
-	vids = videos.find({'_id':{'$not':{'$eq':'config'}}})
+	vids = videos.find()
 
 	data = []
 	for vid in vids:
-		if vid['upload']:
+		if vid['searchable']:
+			#print vid['filename']
 			scenes = vid['scenes']
 			vidHash = vid['_id']
 			for scene in scenes:
 				# TODO better replaced with enumerate
 				sceneId = scene['_id']
 				feature = npy.array(scene[usedFeature])
-				data.append((feature,(vidHash,int(sceneId))))
+				data.append((feature,(vidHash,sceneId)))
 
 	print "Building Tree"
 	tree = KMeansTree(False, [], [])
@@ -236,10 +237,10 @@ Search for a scene from a database
 @param wantedNNs	amount of NNs you want
 @param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
 
-@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough
+@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
 """
 def searchForScene(db, tree, vidHash, sceneId, wantedNNs, maxTouches):
-	videos = db["videos"]
+	videos = db['features']
 	vid = videos.find_one({'_id':vidHash})
 	scene = vid['scenes'][sceneId]
 	feature = npy.array(scene[usedFeature])
@@ -258,15 +259,15 @@ Add a video after the tree is build
 @param vidHash	hash of the video
 """
 def addVideoDynamic(db, vidHash):
-	videos = db["videos"]
+	videos = db['features']
 	vid = videos.find_one({'_id':vidHash})
-	if vid['upload']:
+	if vid['searchable']:
 		scenes = vid['scenes']
 		for scene in scenes:
 			# TODO better replaced with enumerate
 			sceneId = scene['_id']
 			feature = npy.array(scene[usedFeature])
-			newlyUploadedScenes.append((feature,(vidHash,int(sceneId))))
+			newlyUploadedScenes.append((feature,(vidHash,sceneId)))
 
 """
 Searching the linear part
@@ -286,11 +287,18 @@ videos = db["videos"]
 
 vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
-tree = loadOrBuildAndSaveTree(db, "tree.p")
+usedFeature = 'edges'
+tree = loadOrBuildAndSaveTree(db, "treeEdges.p")
+
+usedFeature = 'colorhist'
+tree = loadOrBuildAndSaveTree(db, "treeColorhist.p")
+
+usedFeature = 'tinyimg'
+tree = loadOrBuildAndSaveTree(db, "treeTinyimg.p")
 
 addVideoDynamic(db, vid["_id"])
 
-results = searchForScene(db, tree, vid['_id'], 0, 1000, 1000)
+results = searchForScene(db, tree, vid['_id'], 0, 100, 1000)
 
 print results.get()
 print results.get()
