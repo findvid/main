@@ -56,7 +56,7 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 
 	#extract features from videofile given the keyframes array, use the middle keyframe as videothumb and save to default folder
 	if (thumbpath == None):
-		thumbpath = os.path.join(CONFIG["abspath"], CONFIG["thumbpath"])
+		thumbpath = os.path.join(CONFIG["abspath"], CONFIG["thumbnailpath"])
 	
 	features = fv.getFeatures(vidpath, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
