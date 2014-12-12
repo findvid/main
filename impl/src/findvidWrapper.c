@@ -11,7 +11,6 @@ PyObject *getFramerateWrapper(PyObject *self, PyObject *args) {
 
 	PyObject *fps;
 	double res = getFramerate(filename);
-	printf("FRAMERATE = %f\n", res);
 	fps = PyFloat_FromDouble(res);
 	//free(filename);
 	return fps;
@@ -82,7 +81,6 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	}
 
 	FeatureTuple * results = getFeatures(filename, path, vidThumb, scenes,(int)size);
-	printf("Got features\n");
 	if (size > results->feature_count) {
 		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
 		size = (Py_ssize_t)results->feature_count;
@@ -92,19 +90,16 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	PyObject * item;
 	//For each scene, build a tuple of all feature vectors
 	for (int i = 0; i < results->feature_count; i++) {
-		printf("Iteration for tuple#%d\n", i);
 		//Build a list for each feature vector at index i
 		PyObject ** f = (PyObject **)malloc(sizeof(PyObject *) * FEATURE_AMNT);
 
 		for (int fc = 0; fc < FEATURE_AMNT; fc++) {
-			printf("fc: %d\n", fc);
 			f[fc] = PyList_New((Py_ssize_t)results->feature_length[fc]);
 			for(int j = 0; j < results->feature_length[fc]; j++) {
 				#if PYVERSION == 3
 				item = PyLong_FromLong((long)results->feature_list[fc][i][j]);
 				#endif
 				#if PYVERSION == 2
-				printf("t: %d, s: %d, v: %d\n", fc, i, j);
 				item = PyInt_FromLong((long)results->feature_list[fc][i][j]);
 				#endif
 				PyList_SetItem(f[fc], j, item);
