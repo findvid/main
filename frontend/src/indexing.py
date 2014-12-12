@@ -31,7 +31,7 @@ VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
 #THUMBNAILER = "{0}main/impl/thumbnails".format(CONFIG["abspath"])
 
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
-def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
+def index_video(videofile, searchable=True, uploaded=False, thumbpath = None):
 	#Get PyMongo client
 	client = MongoClient()
 	db = client["findvid"]
