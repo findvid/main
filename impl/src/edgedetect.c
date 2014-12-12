@@ -771,8 +771,9 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	int w_y = c_y;
 
 	int dx, dy;
-	double dist, w;
-	
+	double dist, w, woff; //W_off  := weight to be distributed to a diagonal quadrant
+	double wc = 1.0;
+
 	//double maxdist = fmin(width, height);
 	double maxdist = sqrt(width * width + height * height);
 	//Currently assume that width and height are the same
@@ -784,81 +785,9 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	//Calculate distance from each pixel in the center quadrant
 	for (int x = 0; x < width; x++) {
 		for (int y = 0; y < height; y++) {
-			//distance to NW center
-			dx = nw_x - x;
-			dy = nw_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			//dist = fmax(fabs(nw_x - x),fabs(nw_y - y));
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->nw, w, x, y, width);
-
-			//distance to N center
-			dx = n_x - x;
-			dy = n_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			//dist = fabs(n_y - y);
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->n, w, x, y, width);
-
-			// NE
-			dx = ne_x - x;
-			dy = ne_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			//dist = fmax(fabs(ne_x - x),fabs(ne_y - y));
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->ne, w, x, y, width);
-
-			// E
-			dx = e_x - x;
-			dy = e_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			//dist = fabs(e_x - x);
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->e, w, x, y, width);
-
-			//SE
-			dx = se_x - x;
-			dy = se_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			//dist = fmax(fabs(se_x - x),fabs(se_y - y));
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->se, w, x, y, width);
-
-			//S
-			dx = s_x - x;
-			dy = s_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->s, w, x, y, width);
-
-			//SW
-			dx = sw_x - x;
-			dy = sw_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->sw, w, x, y, width);
-
-			//W
-			dx = w_x - x;
-			dy = w_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			w = (0.5/3) * (1.0 - dist/maxdist);
-			if (!w) w = 0; //Negative value means dist was too far away
-			setMatrixVar(res->w, w, x, y, width);
-
-			//Center
-			dx = c_x - x;
-			dy = c_y - y;
-			dist = sqrt(dx * dx + dy * dy);
-			w = 1.0 - (0.5 * dist / maxdist);
-			setMatrixVar(res->c, w, x, y, width);
+			//Gradients from center
+			dx = x - c_x;
+			dy = y - c_y;
 		}
 	}
 
