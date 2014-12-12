@@ -177,7 +177,7 @@ def calg(arr,k):
 	return result
 
 # TODO For now set the type of feature here!
-usedFeature = 'tinyimg'
+usedFeature = 'colorhist'
 
 """
 Build a tree from a given database containing videodata
