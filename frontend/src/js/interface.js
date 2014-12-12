@@ -51,11 +51,12 @@ $(function() {
 			type: 'GET',
 			
 			beforeSend: function() {
-				$('#content').html('<div class="loading"></div>');
+				$('#content').html('<div class="loading">Please wait...</div>');
 			},
 
 			success: function(data) {
 				$('#content').html($(data).find('#content').html());
+				$('')
 			}
 		});
 	}
@@ -79,10 +80,10 @@ $(function() {
 		var $video = $('video'),
 			vidid = $video.data('vidid'),
 			second = $video[0].currentTime;
+	
+		$('.videoplayer-wrap .videoplayer .overlay .button.close').click();
 		
-		window.location.href = '/searchScene/?vidid=' + vidid + '&second=' + second;
-
-		//loadContent('/searchScene/', {'vidid':vidid, 'second':currentTime})
+		loadContent('/searchScene/', {'vidid':vidid, 'second':second})
 	});
 
 	$('.menu .searchnavi .icon.closeicon').on('click', function() {
@@ -137,14 +138,16 @@ $(function() {
 		}
 	});
 
-	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta').on('click', function() {
+	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta, .similarscene .thumbnail').on('click', function() {
+		console.log('HEYHO!');
 		var $this = $(this).parent(),
-
+			
 			vidid = $this.data('vidid'),
 			videourl = $this.data('url'),
 			format = $this.data('extension'),
 			time = $this.data('time'),
 
+	
 			scenecount = $this.find('.meta .label.scenecount').html(),
 
 			title = $this.find('.meta .label.title').html(),
