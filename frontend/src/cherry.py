@@ -53,14 +53,14 @@ def renderTemplate(filename, config):
 # config - A dictionary of all placeholders with their values
 def renderMainTemplate(config):
 	# Get the uploads
-	#uploads = getUploads()
+	uploads = getUploads()
 
 	# Expand config with uploads
-	#config.update({
-		#'videocount': uploads['videocount'],
-		#'scenecount': uploads['scenecount'],
-		#'uploads': uploads['uploads']
-	#})
+	config.update({
+		'videocount': uploads['videocount'],
+		'scenecount': uploads['scenecount'],
+		'uploads': uploads['uploads']
+	})
 
 	# Render the main template
 	return renderTemplate('template.html', config)
@@ -225,18 +225,12 @@ class Root(object):
 		video = VIDEOS.find_one({'_id': str(vidid)})
 		fps = int(video['fps'])
 		second = float(second)
-		# TODO: fps
-		frame = int(25*second)
-
-		print 'Frame:' + str(frame)
+		frame = int(fps*second)
 
 		sceneid = 0
 		for scene in video['scenes']:
-			print 'Startframe: ' + str(scene['startframe'])
-			print 'Endframe: ' + str(scene['endframe'])
 			if (int(scene['startframe']) <= frame) and (int(scene['endframe']) > frame):
 				sceneid = scene['_id']
-				print "YAAAAY!"
 				break
 
 		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
@@ -246,7 +240,7 @@ class Root(object):
 		else:
 			scenes = []
 			i = 0
-			while not similarScenes.empty() and i < 5:
+			while not similarScenes.empty() and i < 100:
 				similarScene = similarScenes.get()	
 				print similarScene
 
@@ -327,9 +321,12 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		if not idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR):
+		vidid = idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR):
+		if vidid not None:
 			# TODO: error messages
 			print "Error: File already exists"
+		else:
+			tree.addVideoDynamic(DB, vidid)
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
