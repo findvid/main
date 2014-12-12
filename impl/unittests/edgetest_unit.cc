@@ -198,8 +198,9 @@ TEST(EdgeFeatures, Weights) {
 							getMatrixVar(weights->w, x, y, 640)  +
 							getMatrixVar(weights->c, x, y, 640)
 							);
-			EXPECT_GT(1.05, var);
-			EXPECT_LT(0.95, var);
+			//EXPECT_EQ(1.0, var); //GTest doesn't like this and will fail this anyway due to rounding errors
+			EXPECT_GT(1.0001, var);
+			EXPECT_LT(0.9999, var);
 
 		}
 

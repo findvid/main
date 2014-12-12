@@ -753,41 +753,74 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	//Define middle points of the surrounding quadrants
 	int c_x = width / 2;
 	int c_y = height / 2;
-	int nw_x = c_x - width;
-	int nw_y = c_y - height;
-	int n_x = c_x;
-	int n_y = c_y - height;
-	int ne_x = c_x + width;
-	int ne_y = c_y - height;
-	int e_x = c_x + width;
-	int e_y = c_y;
-	int se_x = c_x + width;
-	int se_y = c_y + height;
-	int s_x = c_x;
-	int s_y = c_y + height;
-	int sw_x = c_x - width;
-	int sw_y = c_y + height;
-	int w_x = c_x - width;
-	int w_y = c_y;
 
 	int dx, dy;
-	double dist, w, woff; //W_off  := weight to be distributed to a diagonal quadrant
-	double wc = 1.0;
+	double wx, wy, wc, wax, way, wd; //Weight of gradients dx and dy, weight of center, weight of adjacent quadrant on x-axis and y-axis, diagonal quadrant's weight
 
-	//double maxdist = fmin(width, height);
-	double maxdist = sqrt(width * width + height * height);
-	//Currently assume that width and height are the same
-
-	//To use different width and height, height and dy have to be multiplied
-	//by the ratio of (width/height) so that height = width and dy is as long as it would be in that case
-	//thus artificially expanding distances in y-direction to reduce to the case of width == height, which is considered here
-
-	//Calculate distance from each pixel in the center quadrant
+	//Calculate distance(s) of each pixel in the center quadrant
 	for (int x = 0; x < width; x++) {
 		for (int y = 0; y < height; y++) {
-			//Gradients from center
+			// Gradients from center
 			dx = x - c_x;
 			dy = y - c_y;
+			
+			//Weight of gradients
+			wx = fabs((double)dx / width);
+			wy = fabs((double)dy / height);
+			
+			wc = (1.0 - wx) * (1.0 - wy);
+			wax = wx * (1 - wy);
+			way = (1 - wx) * wy;
+			wd = wx * wy;
+	
+			double * P_ax = NULL; //Pointer to array of x-adjacent quadrant
+			double * P_ay = NULL; //Pointer to array of y-adjacent quadrant
+			double * P_d = NULL; //Pointer to array of diagonal quadrant
+
+			//Determine which are the correspondending quadrants according to directions of dx and dy
+			if (dx < 0) { //Western quadrants
+				//x-adjacent is WEST
+				P_ax = res->w;
+				if (dy < 0) {
+					//diagonal is NW
+					P_d = res->nw;
+					//y-adjacent is NORTH
+					P_ay = res->n;
+				} else if (dy > 0) {
+					//diagonal is SW
+					P_d = res->sw;
+					//y-adjacent is SOUTH
+					P_ay = res->s;
+				}
+			} else if (dx > 0) {
+				//x-adjacent is EAST
+				P_ax = res->e;
+				if (dy < 0) {
+					//diagonal is NE
+					P_d = res->ne;
+					//y-adjacent is NORTH
+					P_ay = res->n;
+				} else if (dy > 0) {
+					//diagonal is SE
+					P_d = res->se;
+					//y-adjacent is SOUTH
+					P_ay = res->s;
+				}			
+			} else { //in case of (dx == 0), specifically check for y-adjacent quadrant
+				if (dy < 0) {
+					//y-adjacent is NORTH
+					P_ay = res->n;
+				} else if (dy > 0) {
+					//y-adjacent is SOUTH
+					P_ay = res->s;
+				}
+			}
+		
+			setMatrixVar(res->c, wc, x, y, width);
+			//These will have remained NULL depending on dx or dy being 0; therefore, only set the value if a quadrant has been selected
+			if (P_ax) setMatrixVar(P_ax, wax, x, y, width);
+			if (P_ay) setMatrixVar(P_ay, way, x, y, width);
+			if (P_d)  setMatrixVar(P_d, wd, x, y, width);
 		}
 	}
 
@@ -801,6 +834,8 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 	uint32_t q_width = frm->width / QUADRANTS_WIDTH;
 	uint32_t q_height = frm->height / QUADRANTS_HEIGHT;
 
+	double weightused;
+
 	for (int qx = 0; qx < QUADRANTS_WIDTH; qx++) {
 		for (int qy = 0; qy < QUADRANTS_HEIGHT; qy++) {
 			// Get beginning of the quadrant
@@ -809,43 +844,73 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 			//data[qx + qy * QUADRANTS_WIDTH] = 0;
 			for (int x = 0; x < q_width; x++) {
 				for (int y = 0; y < q_height; y++) {
-					//Strict separation, can and should be improved by bilinear interpolation
-					//data[qx + qy * QUADRANTS_WIDTH] += (getPixelG8(profile, x+ox, y+oy)?1:0);
+					char touched = 0; //Bitmask telling which quadrants have been touched, clockwise starting from NW
+					double w_c = 0.0, w_nw = 0.0, w_n = 0.0, w_ne = 0.0, w_e = 0.0, w_se = 0.0, w_s = 0.0, w_sw = 0.0, w_w = 0.0; //To avoid too much conversion, get the weights to be used beforehand and normalize them before convolving with the image using weightused
+					weightused = (w_c = getMatrixVar(weights->c, x, y, q_width)); //center weight is always used
+					//This should usually add up to 1, only in border quadrants it won't because their weight is not added to this variable
+
+					
 					if (qx > 0) {
 						//Add to west
-						values[(qx-1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						//values[(qx-1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						weightused += (w_w = getMatrixVar(weights->w, x, y, q_width));
+						touched |= 1<<7;
+
 						if (qy > 0) {
-							//add to north west
-							values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+							//Add to Northwest
+							//values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+							weightused += (w_nw = getMatrixVar(weights->nw, x, y, q_width));
+							touched |= 1;
+						} else if (qy < (QUADRANTS_HEIGHT - 1)) {
+							//values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->sw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+							weightused += (w_sw = getMatrixVar(weights->sw, x, y, q_width));
+							touched |= 1<<6;
 						}
-						if (qy < (QUADRANTS_HEIGHT - 1)) {
-							//Add to south west
-							values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+					}
+					
+					if (qx < (QUADRANTS_WIDTH - 1)) {
+						//Add to east
+						//values[(qx+1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->e, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						weightused += (w_e = getMatrixVar(weights->e, x, y, q_width));
+						touched |= 1<<3;
+
+						if (qy > 0) {
+							//Add to Northeast
+							//values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->ne, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+							weightused += (w_ne = getMatrixVar(weights->ne, x, y, q_width));
+							touched |= 1<<2;
+						} else if (qy < (QUADRANTS_HEIGHT - 1)) {
+							//values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->se, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+							weightused += (w_se = getMatrixVar(weights->se, x, y, q_width));
+							touched |= 1<<4;
 						}
 					}
 
 					if (qy > 0) {
 						//Add to north
-						values[qx + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						//values[qx + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->n, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						weightused += (w_n = getMatrixVar(weights->n, x, y, q_width)); 
+						touched |= 1<<1;
 					}
 
 					if (qy < (QUADRANTS_HEIGHT - 1)) {
 						//Add to south
-						values[qx + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						//values[qx + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->s, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
+						weightused += (w_s = getMatrixVar(weights->s, x, y, q_width));
+						touched |= 1<<5;
 					}
 
-					if (qx < (QUADRANTS_WIDTH - 1)) {
-						//Add to east
-						values[(qx+1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						if (qy > 0) {
-							//add to north east
-							values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						}
-						if (qy < (QUADRANTS_HEIGHT - 1)) {
-							//Add to south east
-							values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						}
-					}
+					int pix = getPixelG8(frm, x+ox, y+oy);
+					//Normalize values by dividing by weightused
+										  values[ qx    +  qy    * QUADRANTS_WIDTH] = (pix * (w_c  / weightused)); //Center
+					if (touched & (1)   ) values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_nw / weightused)); //NW
+					if (touched & (1<<1)) values[(qx  ) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_n  / weightused)); //N
+					if (touched & (1<<2)) values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_ne / weightused)); // NE
+					if (touched & (1<<3)) values[(qx+1) + (qy  ) * QUADRANTS_WIDTH] = (pix * (w_e  / weightused)); //E
+					if (touched & (1<<4)) values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_se / weightused)); //SE
+					if (touched & (1<<5)) values[(qx  ) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_s  / weightused)); //S
+					if (touched & (1<<6)) values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_sw / weightused)); //SW
+					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] = (pix * (w_w  / weightused)); //W
 				}
 			}
 		}
