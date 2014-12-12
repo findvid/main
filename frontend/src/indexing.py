@@ -83,7 +83,7 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 
 	#Now write to features collection
 	video = {}
-	video = ["_id"]
+	video["_id"] = fileHash
 	scenes = [] # scenes collection
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
