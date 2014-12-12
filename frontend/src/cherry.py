@@ -239,7 +239,7 @@ class Root(object):
 				print "YAAAAY!"
 				break
 
-		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=int(sceneid), wantedNNs=100, maxTouches=100)
+		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
 
 		if not similarScenes:
 			content = 'No Scenes found, for your search query.'

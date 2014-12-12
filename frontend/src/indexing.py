@@ -36,8 +36,7 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	client = MongoClient()
 	db = client["findvid"]
 	videos = db["videos"]
-	features = db["features"]
-
+	feature_collection = db["features"]
 	vidpath = os.path.join(VIDEOPATH, videofile);
 
 	#Get Hash
@@ -61,10 +60,10 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	features = fv.getFeatures(vidpath, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
 	prev = 0
-	scenes = [] # scenes collection
+	scenes = [] # scenes
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
-		scene["_id"] = str(i)
+		scene["_id"] = i
 		scene["startframe"] = prev
 		scene["endframe"] = c
 		scenes.append(scene)
@@ -78,16 +77,16 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 	video["framecount"] = cuts[-1:][0] # last entry
 	video["scenes"] = scenes
 	video["upload"] = uploaded
-	video["searchable"] = searchable
 	videos.insert(video)
 
 	#Now write to features collection
 	video = {}
 	video["_id"] = fileHash
-	scenes = [] # scenes collection
+	video["searchable"] = searchable
+	scenes = [] # scenes
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
-		scene["_id"] = str(i)
+		scene["_id"] = i
 		# save features
 		scene["tinyimg"] = features[i][0]
 		scene["edges"] = features[i][1]
@@ -95,7 +94,7 @@ def index_video(videofile, searchable=False, uploaded=True, thumbpath = None):
 		#scene["gist"] = features[i][3]
 		scenes.append(scene)
 	video["scenes"] = scenes
-	features.insert(video)
+	feature_collection.insert(video)
 
 	return True
 
