@@ -321,8 +321,8 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		vidid = idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR):
-		if vidid not None:
+		vidid = idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		if not vidid == None:
 			# TODO: error messages
 			print "Error: File already exists"
 		else:
