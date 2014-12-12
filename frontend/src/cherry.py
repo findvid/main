@@ -7,6 +7,8 @@ import re
 # Indexer
 import indexing as idx
 
+import kmeanstree as tree
+
 # Directory of this file
 ROOTDIR = os.path.abspath('.')
 
@@ -28,6 +30,11 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
+# Searchtree array
+TREE = []
+
+# Filename of saved tree
+STORETREE = os.path.join(CONFIG['abspath'], 'seachtree.db')
 
 # Renders a template.
 # filename - The filename of the template in HTMLDIR
@@ -46,14 +53,14 @@ def renderTemplate(filename, config):
 # config - A dictionary of all placeholders with their values
 def renderMainTemplate(config):
 	# Get the uploads
-	uploads = getUploads()
+	#uploads = getUploads()
 
 	# Expand config with uploads
-	config.update({
-		'videocount': uploads['videocount'],
-		'scenecount': uploads['scenecount'],
-		'uploads': uploads['uploads']
-	})
+	#config.update({
+		#'videocount': uploads['videocount'],
+		#'scenecount': uploads['scenecount'],
+		#'uploads': uploads['uploads']
+	#})
 
 	# Render the main template
 	return renderTemplate('template.html', config)
@@ -71,11 +78,18 @@ def formatTime(frame, fps):
 
 # Returns the configuration for a given video
 def configVideo(video):
-	fps = int(video['fps'])
 	filename = str(video['filename'])
+	splittedFilename = filename.split('/')
+	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
+
+	videopath = os.path.join('/videos/', filename)
+
+	fps = int(video['fps'])
 	vidid = str(video['_id'])
 
 	return {
+		'url': videopath,
+		'extension': os.path.splitext(filename)[1][1:],
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 		'videoid': vidid,
 		'filename': filename,
@@ -83,7 +97,10 @@ def configVideo(video):
 	}
 
 # Returns the configuration for a given scene
-def configScene(scene, filename, fps):
+def configScene(scene, filename, fps, vidid):
+	splittedFilename = filename.split('/')
+	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
+
 	videopath = os.path.join('/videos/', filename)
 
 	return {
@@ -91,6 +108,7 @@ def configScene(scene, filename, fps):
 		'extension': os.path.splitext(filename)[1][1:],
 		'time': str(scene['startframe'] / fps),
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+str(scene['_id'])+'.jpeg'),
+		'videoid': vidid,
 		'filename': filename,
 		'scenecount': str(int(scene['_id'])),
 		'starttime': formatTime(int(scene['startframe']), fps),
@@ -122,7 +140,7 @@ def getUploads():
 		videocount += 1
 
 		fps = int(upload['fps'])
-		filename = str(upload['filename'])
+		filename = os.path.basename(str(upload['filename']))
 		scenes = len(upload['scenes'])
 		
 		scenecount += scenes
@@ -196,27 +214,56 @@ class Root(object):
 
 	# Returns a list of scenes, found by similarscene search
 	# vidid - ID of the source video
-	# frame - Framenumber of the source scene in the source video
+	# second - Second of the source scene in the source video
 	@cherrypy.expose
-	def searchScene(self, vidid = None, frame = None):
+	def searchScene(self, vidid = None, second = None):
 		# If one of the parameters are unspecified, redirect to startpage
-		if not vidid or not frame:
+		if not vidid or not second:
 			raise cherrypy.HTTPRedirect('/')
-		
-		######## similar scene search is not yet implemented ########
 
-		videoFromDb = VIDEOS.find_one({'_id': str(vidid)})
+		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
+		video = VIDEOS.find_one({'_id': str(vidid)})
+		fps = int(video['fps'])
+		second = float(second)
+		# TODO: fps
+		frame = int(25*second)
 
-		if not videoFromDb:
-			content = 'No Videos found, for your search query.'
+		print 'Frame:' + str(frame)
+
+		sceneid = 0
+		for scene in video['scenes']:
+			print 'Startframe: ' + str(scene['startframe'])
+			print 'Endframe: ' + str(scene['endframe'])
+			if (int(scene['startframe']) <= frame) and (int(scene['endframe']) > frame):
+				sceneid = scene['_id']
+				print "YAAAAY!"
+				break
+
+		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=int(sceneid), wantedNNs=100, maxTouches=100)
+
+		if not similarScenes:
+			content = 'No Scenes found, for your search query.'
 		else:
 			scenes = []
-			
-			filename = videoFromDb['filename']
-			fps = videoFromDb['fps']
+			i = 0
+			while not similarScenes.empty() and i < 5:
+				similarScene = similarScenes.get()	
+				print similarScene
 
-			for scene in videoFromDb['scenes']:
-				scenes.append(renderTemplate('similarscene.html', configScene(scene, filename, fps)))
+				similarVidid = similarScene[1][0]
+				similarSceneid = similarScene[1][1]
+
+				similarVideo = VIDEOS.find_one({'_id': str(similarVidid)})
+				filename = similarVideo['filename']
+				fps = similarVideo['fps']
+
+				# Sorry, couldn't resist to try it out. I just changed this line :-)
+				# - Johannes
+				#scene = VIDEOS.find_one({'_id': str(similarVidid), scenes: { '_id': str(similarSceneid)}})
+				scene = VIDEOS.find_one({'_id': str(similarVidid)})['scenes'][similarSceneid]
+
+				scenes.append(renderTemplate('similarscene.html', configScene(scene, filename, fps, similarVidid)))
+				i+=1
 
 			content = ""
 			for scene in scenes:
@@ -250,7 +297,7 @@ class Root(object):
 		fps = videoFromDb['fps']
 
 		for scene in videoFromDb['scenes']:
-			scenes.append(renderTemplate('scene.html', configScene(scene, filename, fps)))
+			scenes.append(renderTemplate('scene.html', configScene(scene, filename, fps, vidid)))
 
 		# Wrap the videos in "scene-wrap" div
 		content = '<div class="scene-wrap">'
@@ -310,6 +357,11 @@ if __name__ == '__main__':
 			'tools.staticdir.dir': VIDEODIR
 		}
 	}
+
+	# Build Searchtree
+	
+	# TODO: Exception Handling
+	TREE = tree.loadOrBuildAndSaveTree(DB, STORETREE)
 
 	cherrypy.tree.mount(Root(), '/', conf)
 

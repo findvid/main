@@ -76,7 +76,13 @@ $(function() {
 	});
 
 	$('.button.searchscene').on('click', function() {
-		loadContent('/searchScene/', {'vidid':'0', 'frame':'0'})
+		var $video = $('video'),
+			vidid = $video.data('vidid'),
+			second = $video[0].currentTime;
+		
+		window.location.href = '/searchScene/?vidid=' + vidid + '&second=' + second;
+
+		//loadContent('/searchScene/', {'vidid':vidid, 'second':currentTime})
 	});
 
 	$('.menu .searchnavi .icon.closeicon').on('click', function() {
@@ -134,6 +140,7 @@ $(function() {
 	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta').on('click', function() {
 		var $this = $(this).parent(),
 
+			vidid = $this.data('vidid'),
 			videourl = $this.data('url'),
 			format = $this.data('extension'),
 			time = $this.data('time'),
@@ -152,6 +159,7 @@ $(function() {
 		}
 
 		$overlayLabel.html(title);
+		$videoplayer.attr('data-vidid', vidid);
 		$videoplayer.attr('poster', poster);
 
 		$videoplayer.find('source').attr('src', videourl).attr('type', 'video/' + format);
