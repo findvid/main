@@ -154,9 +154,12 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	// Get Sws context to downscale the frames
 	struct SwsContext * convert_rgb24 = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 	
+
 	// SWS Context to convert the downscaled frame grayscales
 	struct SwsContext * convert_g8 = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
-
+	//Interpolated mask of weights to distribute edges
+	InterpolationWeights * edgeWeights = getLinearInterpolationWeights(DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	
 	// SWS Context to convert the downscaled frame to a tiny image
 	struct SwsContext * convert_tiny = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, TINY_IMAGE_WIDTH, TINY_IMAGE_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 
@@ -222,14 +225,13 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	int gotFrame = 0;
 	int currentFrame = 0;
 	int currentScene = 0;
-	int writtenFrames = 0;
+	//int writtenFrames = 0;
 	int hadVidThumb = 0;
 	readFrame(iter, frame, &gotFrame);
 	while (gotFrame) {
 		if (currentFrame == vidThumb) {
 			//Just save a thumbnail for the video
 			hadVidThumb = 1;
-			//Encode frame into buffer
 			sprintf(thumbnailFilename, "%s/video.jpeg", folder);
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 		}
@@ -250,23 +252,30 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 				return NULL;
 			}
 
+			AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+
 			// Convert to a smaller frame for faster processing     
 			sws_scale(convert_rgb24, (const uint8_t* const*)frame->data, frame->linesize, 0, iter->cctx->height, pFrameRGB24->data, pFrameRGB24->linesize);
 
 			pFrameRGB24->width = DESTINATION_WIDTH;
 			pFrameRGB24->height = DESTINATION_HEIGHT;
 			
+			
+
 			//Get features from different components for this frame
 			//Do some M.A.G.I.C.
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
 			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
-			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+			edgeFeatures(pFrameG8, &(res->feature_list[1][currentScene]), edgeWeights);
 			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
 			dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
 			currentScene++;
 			
+			avpicture_free((AVPicture *)pFrameG8);
+			av_frame_free(&pFrameG8);
+
 			avpicture_free((AVPicture *)pFrameRGB24);
 			av_frame_free(&pFrameRGB24);
 		}
@@ -285,6 +294,8 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	avcodec_free_context(&trgtCtx);
 	sws_freeContext(convert_rgb24);
 	sws_freeContext(convert_g8);
+	free(edgeWeights->c);
+	free(edgeWeights);
 	sws_freeContext(convert_tiny);
 	return res;
 }

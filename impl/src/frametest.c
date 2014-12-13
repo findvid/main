@@ -27,12 +27,18 @@ int main(int argc, char **argv) {
 	
 	int frames = 0;
 
+	uint32_t * features;
+	InterpolationWeights * weights = getLinearInterpolationWeights(DSTW, DSTH);
+
 	readFrame(iter, frame, &gotFrame);
-	while (gotFrame && frames < 500) { 
+	while (gotFrame && frames < 1) { 
 	
+		
+
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
 		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH);
+		edgeFeatures(g, &features, weights);
 		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
 		SaveFrameG8(g, g->width, g->height, frames);
 		frames++;
@@ -41,6 +47,11 @@ int main(int argc, char **argv) {
 		av_frame_free(&g);
 		readFrame(iter, frame, &gotFrame);
 	}
+
+	for (int i = 0; i < FEATURE_LENGTH; i++) {
+		printf("%d\n", features[i]);
+	}
+	free(features);
 
 	av_frame_free(&frame);
 	sws_freeContext(rgb2g_ctx);
