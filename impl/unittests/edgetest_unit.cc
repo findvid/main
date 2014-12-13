@@ -182,6 +182,39 @@ TEST_F(EdgeTest, SobelMagCheck) {
 	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
 }
 
+
+TEST(EdgeFeatures, Weights) {
+	//uint32_t * feats;
+	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);
+	for(int x = 0; x < 640; x++)
+		for (int y = 0; y < 400;y++) {
+			double var = (	getMatrixVar(weights->nw, x, y, 640) +
+							getMatrixVar(weights->n, x, y, 640)  +
+							getMatrixVar(weights->ne, x, y, 640)  +
+							getMatrixVar(weights->e, x, y, 640)  +
+							getMatrixVar(weights->se, x, y, 640)  +
+							getMatrixVar(weights->s, x, y, 640)  +
+							getMatrixVar(weights->sw, x, y, 640)  +
+							getMatrixVar(weights->w, x, y, 640)  +
+							getMatrixVar(weights->c, x, y, 640)
+							);
+			//EXPECT_EQ(1.0, var); //GTest doesn't like this and will fail this anyway due to rounding errors
+			EXPECT_GT(1.0001, var);
+			EXPECT_LT(0.9999, var);
+
+		}
+
+
+
+	free(weights->c);
+	free(weights);
+	//edgeFeatures(this->box, &feats, weights);
+	//for (int i = 0; i < FEATURE_LENGTH; i++)
+	//	printf("%d\n", feats[i]);
+	//free(feats);
+}
+
+
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();
