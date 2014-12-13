@@ -168,7 +168,7 @@ AVFrame * EdgeTest::testFrameHBox(int width, int height) {
 }
 
 TEST_F(EdgeTest, SimpleEdge1) {
-	EXPECT_EQ(255, getImagePixel(320, 50));
+	EXPECT_LT(9, getImagePixel(320, 50));
 	EXPECT_EQ(0, getImagePixel(100, 100));
 }
 
@@ -184,7 +184,6 @@ TEST_F(EdgeTest, SobelMagCheck) {
 
 
 TEST(EdgeFeatures, Weights) {
-	//uint32_t * feats;
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);
 	for(int x = 0; x < 640; x++)
 		for (int y = 0; y < 400;y++) {
@@ -208,12 +207,18 @@ TEST(EdgeFeatures, Weights) {
 
 	free(weights->c);
 	free(weights);
-	//edgeFeatures(this->box, &feats, weights);
-	//for (int i = 0; i < FEATURE_LENGTH; i++)
-	//	printf("%d\n", feats[i]);
-	//free(feats);
 }
 
+TEST_F(EdgeTest, FeatureSmokeTest) {
+	uint32_t * feats;
+	InterpolationWeights * weights = getLinearInterpolationWeights(80,80);	
+	edgeFeatures(this->box, &feats, weights);
+	for (int i = 0; i < FEATURE_LENGTH; i++)
+		printf("%d\n", feats[i]);
+	free(feats);
+	free(weights->c);
+	free(weights);
+}
 
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);

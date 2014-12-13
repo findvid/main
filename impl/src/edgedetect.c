@@ -900,17 +900,17 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 						touched |= 1<<5;
 					}
 
-					int pix = getPixelG8(frm, x+ox, y+oy);
+					double pix = (double)getPixelG8(frm, x+ox, y+oy);
 					//Normalize values by dividing by weightused
-										  values[ qx    +  qy    * QUADRANTS_WIDTH] = (pix * (w_c  / weightused)); //Center
-					if (touched & (1)   ) values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_nw / weightused)); //NW
-					if (touched & (1<<1)) values[(qx  ) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_n  / weightused)); //N
-					if (touched & (1<<2)) values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] = (pix * (w_ne / weightused)); // NE
-					if (touched & (1<<3)) values[(qx+1) + (qy  ) * QUADRANTS_WIDTH] = (pix * (w_e  / weightused)); //E
-					if (touched & (1<<4)) values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_se / weightused)); //SE
-					if (touched & (1<<5)) values[(qx  ) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_s  / weightused)); //S
-					if (touched & (1<<6)) values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] = (pix * (w_sw / weightused)); //SW
-					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] = (pix * (w_w  / weightused)); //W
+										  values[ qx    +  qy    * QUADRANTS_WIDTH] += (pix * (w_c  / weightused)); //Center
+					if (touched & (1)   ) values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += (pix * (w_nw / weightused)); //NW
+					if (touched & (1<<1)) values[(qx  ) + (qy-1) * QUADRANTS_WIDTH] += (pix * (w_n  / weightused)); //N
+					if (touched & (1<<2)) values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] += (pix * (w_ne / weightused)); // NE
+					if (touched & (1<<3)) values[(qx+1) + (qy  ) * QUADRANTS_WIDTH] += (pix * (w_e  / weightused)); //E
+					if (touched & (1<<4)) values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] += (pix * (w_se / weightused)); //SE
+					if (touched & (1<<5)) values[(qx  ) + (qy+1) * QUADRANTS_WIDTH] += (pix * (w_s  / weightused)); //S
+					if (touched & (1<<6)) values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += (pix * (w_sw / weightused)); //SW
+					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] += (pix * (w_w  / weightused)); //W
 				}
 			}
 		}
