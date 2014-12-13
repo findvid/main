@@ -22,6 +22,7 @@ feature_test: $(FEATURES) unittests/feature_test.cc
 
 pylib: $(BUILDFILES) src/findvidWrapper.c
 	gcc $(CFLAGS) $(PYFLAGS) $(PYFLAGSLIB) -I/usr/include/python2.7 -D PYVERSION=2 $^ -o FindVid.so $(LIBSFFMPEG)
+	mv FindVid.so ../frontend/src/
 
 #Use this target to compile against Python 3.4; 
 pylib2: $(BUILDFILES) src/findvidWrapper.c
