@@ -734,13 +734,18 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	//for (int i = 0; i < fb_len; i++) printf("FEEDBACK[%d] = %f\n", i, feedback->diff[i]);
 }
 
+//Retrieves TOTAL image size in dimensions, parameters are then divided by amount of quadrants
+//Thus, the parameters should be dividable by the set amount of quadrants in each respective dimension
+//otherwise, some pixels at the right and lower border will be lost to the feature
 InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
+	width /= QUADRANTS_WIDTH;
+	height /= QUADRANTS_HEIGHT;
 	InterpolationWeights * res = malloc(sizeof(InterpolationWeights));
 	res->width = width;
 	res->height = height;
 
 //Allocate all the data in one bulk and assign pointers to the correct offsets in the bulk
-	res->c = malloc(sizeof(double) * width * height * 9);
+	res->c = calloc(sizeof(double) * width * height, 9);
 	res->nw = &res->c[width * height];
 	res->n = &res->nw[width * height];
 	res->ne = &res->n[width * height];
@@ -821,6 +826,7 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 			if (P_ax) setMatrixVar(P_ax, wax, x, y, width);
 			if (P_ay) setMatrixVar(P_ay, way, x, y, width);
 			if (P_d)  setMatrixVar(P_d, wd, x, y, width);
+
 		}
 	}
 
