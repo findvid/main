@@ -205,6 +205,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(cutsIt);
 
 
+	list_destroy(list_cuts_edges);
 	list_destroy(list_cuts_colors);
 	list_destroy(list_hist_diff);
 
