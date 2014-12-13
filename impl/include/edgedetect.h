@@ -73,8 +73,11 @@ double cmpProfiles(AVFrame * p1, AVFrame * p2);
 
 void linearScale(AVFrame * pic);
 
+//Old version that draws full edge pixels only
+AVFrame * getEdgeProfile_full(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+
+//Use sobel magnitude as edge strength
 AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
-AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
