@@ -56,9 +56,13 @@ histograms_test: unittests/histograms_test.cc obj/histograms.o
 	g++ -c $(CFLAGS) unittests/histograms_test.cc -o obj/histograms_test.o
 	g++ $(CFLAGS) obj/histograms_test.o obj/histograms.o -o histograms_test -lgtest -lpthread $(LIBSFFMPEG)
 
-shotbounds_test: unittests/shotbounds_test.cc obj/shotbounds.o obj/histograms.o obj/edgedetect.o obj/largelist.o
+shotbounds: $(BUILDFILES)
+	gcc $(CFLAGS) $(BUILDFILES) -o shotbounds $(LIBSFFMPEG)
+	
+
+shotbounds_test: unittests/shotbounds_test.cc $(BUILDFILES)
 	g++ -c $(CFLAGS) unittests/shotbounds_test.cc -o obj/shotbounds_test.o
-	g++ $(CFLAGS) obj/shotbounds_test.o obj/histograms.o obj/shotbounds.o obj/edgedetect.o obj/largelist.o -o shotbounds_test -lgtest -lpthread $(LIBSFFMPEG)
+	g++ $(CFLAGS) obj/shotbounds_test.o $(BUILDFILES) -o shotbounds_test -lgtest -lpthread $(LIBSFFMPEG)
 
 listtests: obj/largelist.o unittests/largelist_test.cc
 	g++ $(CFLAGS) $^ -o test -lgtest -lpthread
