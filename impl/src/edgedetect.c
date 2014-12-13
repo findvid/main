@@ -306,7 +306,7 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 /*	BENCHMARK
 	Takes about 60ms for each frame at 400x300 pixels, scaled down from 1920x1080 pixels
 */
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
+AVFrame * getEdgeProfile_full(AVFrame * original, struct SwsContext * ctx, int width, int height) {
 	// Step 0: Get grayscale picture
 	AVFrame *gray = av_frame_alloc();
 	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
@@ -452,7 +452,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	return res;
 }
 
-AVFrame * getEdgeProfile2(AVFrame * original, struct SwsContext * ctx, int width, int height) {
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
 	// Step 0: Get grayscale picture
 	AVFrame *gray = av_frame_alloc();
 	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
@@ -631,14 +631,14 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	
 	AVFrame * lastFrame;
 	if (usefeedback) 
-		lastFrame = getEdgeProfile2(feedback->lastFrame, swsctx, width, height);
+		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height);
 	else
-		lastFrame = getEdgeProfile2(list_next(iter), swsctx, width, height);
+		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height);
 
 	AVFrame * thisFrame;
 	int pos = (usefeedback?feedback->diff_len:0);
 	while ((thisFrame = list_next(iter)) != NULL) {
-		thisFrame = getEdgeProfile2(thisFrame, swsctx, width, height);
+		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height);
 
 		differences[pos++] = EdgeContrast(lastFrame)/2;
 
