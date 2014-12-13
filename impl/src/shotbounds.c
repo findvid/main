@@ -9,6 +9,7 @@
 #include <libavutil/mem.h>
 
 #include "histograms.h"
+#include "edgedetect.h"
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
@@ -87,12 +88,18 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// Object needed to perform conversions from a source dimension to a destination dimension using certain filters
 	// Convert into a smaller frame for easier processing
 	struct SwsContext *convert_rgb24 = sws_getContext(vidIt->cctx->width, vidIt->cctx->height, vidIt->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
+	struct SwsContext *g8ctx = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 
 	// Feedback struct for detectCutsByColors()
 	ColorHistFeedback feedback_colors;
 	feedback_colors.last_hist = newHistHsv();
 	feedback_colors.last_diff = 0;
 	feedback_colors.last_derivation = 0;
+
+	ShotFeedback edge_feedback;
+	edge_feedback.lastFrame = NULL;
+	edge_feedback.diff_len = 0;
+	edge_feedback.diff = NULL;
 
 	// List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
 	// Each block of data should be the size of a mempage and contains pointers.
@@ -101,12 +108,12 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	// List for the histogram differences between the frames of the video 
 	LargeList * list_hist_diff = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
-
 	// List for the cuts found by the color histogram approach
 	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
+	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
-		frameCount++;
 
 		// Allocate a new frame, obviously
 		AVFrame* pFrameRGB24 = av_frame_alloc();
@@ -133,6 +140,10 @@ int processVideo(const char *filename, uint32_t **cuts) {
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
+					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+
+					if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
+					edge_feedback.lastFrame = list_pop(list_frames);
 
 					list_forall(list_frames, (void (*) (void *))avpicture_free);
 					list_forall(list_frames, av_free);
@@ -141,12 +152,14 @@ int processVideo(const char *filename, uint32_t **cuts) {
 					list_frames = list_init(sysconf(_SC_PAGESIZE)/sizeof(AVFrame *) - LLIST_DATA_OFFSET);
 	
 					// Set the next bulkStart
-					bulkStart = frameCount;
+					bulkStart = frameCount+1;
 		}
+		frameCount++;
 	}
 
 	// Process the remaining frames
 	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
+	detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 	list_forall(list_frames, (void (*) (void *))avpicture_free);
 	list_forall(list_frames, av_free);
@@ -155,11 +168,11 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(feedback_colors.last_hist);
 
 
-/* WIP: Fade/Disolve detection
+/*	int i;
+// WIP: Fade/Disolve detection
 	int hist_diff_size = list_hist_diff->size;
 	uint32_t *hist_diff = (uint32_t *)malloc(sizeof(uint32_t) * hist_diff_size);
 	ListIterator *listIt = list_iterate(list_hist_diff);
-	int i;
 	for (i = 0; i < hist_diff_size; i++) {
 		hist_diff[i] = (uint32_t)(intptr_t)list_next(listIt);
 	}
@@ -172,7 +185,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(listIt);
 	free(hist_diff);
 	free(hist_diff_conv);
-*/
+// */
 
 	// Copy the found cuts into an array
 	int cutCount = list_cuts_colors->size + 2;
@@ -192,6 +205,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	list_destroy(list_hist_diff);
 
 	sws_freeContext(convert_rgb24);
+	sws_freeContext(g8ctx);
 	destroy_VideoIterator(vidIt);
 
 	return cutCount;
@@ -218,3 +232,4 @@ int main(int argc, char **argv) {
 	free(cuts);
 	return 0;
 }
+// */
