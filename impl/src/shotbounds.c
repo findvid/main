@@ -210,7 +210,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	return cutCount;
 }
-
+/*
 int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
