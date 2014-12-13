@@ -12,6 +12,45 @@
 #define DESTINATION_WIDTH 320
 #define DESTINATION_HEIGHT 200
 
+#define TINY_IMAGE_WIDTH 16
+#define TINY_IMAGE_HEIGHT 16
+
+
+void tinyImageLength(uint32_t * l) {
+	// 3 because of the 3 values H, S, V
+	*l = TINY_IMAGE_WIDTH * TINY_IMAGE_HEIGHT * 3;
+}
+
+void tinyImageFeature(AVFrame * frame, uint32_t ** data, struct SwsContext * convert_tiny) {
+	// 3 because of the 3 values H, S, V
+	*data = (uint32_t *)calloc(TINY_IMAGE_WIDTH * TINY_IMAGE_HEIGHT * 3, sizeof(uint32_t));
+
+	AVFrame * frameTiny = av_frame_alloc();
+	if (!frameTiny) {
+		// TODO Errorhandleing / frees
+		return;
+	}
+	if (avpicture_alloc((AVPicture *)frameTiny, PIX_FMT_RGB24, TINY_IMAGE_WIDTH, TINY_IMAGE_HEIGHT) < 0) {
+		// TODO Errorhandleing / frees
+		return;
+	}
+
+	// Convert to tiny image     
+	sws_scale(convert_tiny, (const uint8_t* const*)frame->data, frame->linesize, 0, DESTINATION_HEIGHT, frameTiny->data, frameTiny->linesize);
+
+	// TODO Stuff
+	int i;
+	for (i = 0; i < TINY_IMAGE_WIDTH * TINY_IMAGE_HEIGHT; i++) {
+		HSV hsv;
+		rgbToHsv(&hsv, frameTiny->data[0][i*3], frameTiny->data[0][i*3+1], frameTiny->data[0][i*3+2]);
+		(*data)[i*3] = hsv.h;
+		(*data)[i*3+1] = hsv.s;
+		(*data)[i*3+2] = hsv.v;
+	}
+
+	avpicture_free((AVPicture *)frameTiny);
+	av_frame_free(&frameTiny);
+}
 
 void histogramLength(uint32_t * l) {
 	*l = 128;
@@ -99,9 +138,9 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	}
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
-	histogramLength(&res->feature_length[0]); 
+	tinyImageLength(&res->feature_length[0]); 
 	edgeFeatures_length(&res->feature_length[1]); 
-	dummyFeatureLength(&res->feature_length[2]); 
+	histogramLength(&res->feature_length[2]); 
 	dummyFeatureLength(&res->feature_length[3]); 
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
@@ -117,6 +156,9 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	
 	// SWS Context to convert the downscaled frame grayscales
 	struct SwsContext * convert_g8 = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+
+	// SWS Context to convert the downscaled frame to a tiny image
+	struct SwsContext * convert_tiny = sws_getContext(DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, TINY_IMAGE_WIDTH, TINY_IMAGE_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
 
 	//Get a target codec to write to JPEG files
 	AVCodecContext * trgtCtx = avcodec_alloc_context3(NULL);
@@ -218,9 +260,9 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 			//Do some M.A.G.I.C.
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
-			histogramFeature(pFrameRGB24, &(res->feature_list[0][currentScene]));
+			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
 			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-			dummyFeature(frame, &(res->feature_list[2][currentScene]));
+			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
 			dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
 			currentScene++;
@@ -242,6 +284,8 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
 	sws_freeContext(convert_rgb24);
+	sws_freeContext(convert_g8);
+	sws_freeContext(convert_tiny);
 	return res;
 }
 
@@ -256,11 +300,11 @@ void destroyFeatures(FeatureTuple * t) {
 	free(t->feature_length);
 	free(t);
 }
-/*
+//*
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
 	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
 
 	destroyFeatures(r);
-}*/
-
+}
+// */
