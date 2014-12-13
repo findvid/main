@@ -252,7 +252,6 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 				return NULL;
 			}
 
-			AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 			// Convert to a smaller frame for faster processing     
 			sws_scale(convert_rgb24, (const uint8_t* const*)frame->data, frame->linesize, 0, iter->cctx->height, pFrameRGB24->data, pFrameRGB24->linesize);
@@ -260,6 +259,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 			pFrameRGB24->width = DESTINATION_WIDTH;
 			pFrameRGB24->height = DESTINATION_HEIGHT;
 			
+			AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 			
 
 			//Get features from different components for this frame
