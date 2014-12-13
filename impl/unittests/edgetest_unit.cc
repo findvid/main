@@ -185,17 +185,17 @@ TEST_F(EdgeTest, SobelMagCheck) {
 
 TEST(EdgeFeatures, Weights) {
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);
-	for(int x = 0; x < 640; x++)
-		for (int y = 0; y < 400;y++) {
-			double var = (	getMatrixVar(weights->nw, x, y, 640) +
-							getMatrixVar(weights->n, x, y, 640)  +
-							getMatrixVar(weights->ne, x, y, 640)  +
-							getMatrixVar(weights->e, x, y, 640)  +
-							getMatrixVar(weights->se, x, y, 640)  +
-							getMatrixVar(weights->s, x, y, 640)  +
-							getMatrixVar(weights->sw, x, y, 640)  +
-							getMatrixVar(weights->w, x, y, 640)  +
-							getMatrixVar(weights->c, x, y, 640)
+	for(int x = 0; x < 80; x++)
+		for (int y = 0; y < 80;y++) {
+			double var = (	getMatrixVar(weights->nw, x, y, 80) +
+							getMatrixVar(weights->n, x, y, 80)  +
+							getMatrixVar(weights->ne, x, y, 80)  +
+							getMatrixVar(weights->e, x, y, 80)  +
+							getMatrixVar(weights->se, x, y, 80)  +
+							getMatrixVar(weights->s, x, y, 80)  +
+							getMatrixVar(weights->sw, x, y, 80)  +
+							getMatrixVar(weights->w, x, y, 80)  +
+							getMatrixVar(weights->c, x, y, 80)
 							);
 			//EXPECT_EQ(1.0, var); //GTest doesn't like this and will fail this anyway due to rounding errors
 			EXPECT_GT(1.0001, var);
@@ -211,7 +211,7 @@ TEST(EdgeFeatures, Weights) {
 
 TEST_F(EdgeTest, FeatureSmokeTest) {
 	uint32_t * feats;
-	InterpolationWeights * weights = getLinearInterpolationWeights(80,80);	
+	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);	
 	edgeFeatures(this->box, &feats, weights);
 	for (int i = 0; i < FEATURE_LENGTH; i++)
 		printf("%d\n", feats[i]);
