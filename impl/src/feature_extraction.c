@@ -310,7 +310,7 @@ void destroyFeatures(FeatureTuple * t) {
 	free(t->feature_length);
 	free(t);
 }
-//*
+/*
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
 	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
