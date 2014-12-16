@@ -43,7 +43,7 @@ typedef struct {
  * @return		On success pointer to a newly allocated FeatureTuple
  *			On failure NULL
  */
-FeatureTuple * getFeatures(const char * filename, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount);
+FeatureTuple * getFeatures(const char * filename, const char * hashstring, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount);
 
 /**
  * Frees a FeatureTuple
