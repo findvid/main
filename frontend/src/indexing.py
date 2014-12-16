@@ -67,7 +67,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	video["filename"] = videofile
 	video["uploadtime"] = time.time()
 
-	fps = fv.getFramerate(videofile)
+	fps = fv.getFramerate(vidpath)
 	video["fps"] = fps
 	
 	
