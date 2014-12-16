@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time
 from pymongo import MongoClient
 #from subprocess import Popen, PIPE
 import FindVid as fv
