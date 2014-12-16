@@ -127,7 +127,7 @@ int writeFrame(const char * filename, AVCodecContext * avctx, const AVFrame * fr
 	return 0;
 }
 
-FeatureTuple * getFeatures(const char * filename, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
+FeatureTuple * getFeatures(const char * filename, const char * hashstring, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
 	av_register_all();
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
@@ -146,7 +146,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
 
-	char * videoName = getVideoname(filename);
+	//char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
 
 	VideoIterator * iter = get_VideoIterator(filename);
@@ -202,7 +202,7 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 	//Create the folder for this video under a set path
 	char folder[256];
 
-	sprintf(folder, "%s/%s", expath, videoName);
+	sprintf(folder, "%s/%s", expath, hashstring);
 
 	if (mkdir(folder, 0777) < 0) {
 		// TODO EEXIST dosen't check if it's a folder
@@ -283,12 +283,11 @@ FeatureTuple * getFeatures(const char * filename, const char * expath, int vidTh
 		currentFrame++;
 		readFrame(iter, frame, &gotFrame);
 	}
-	if (currentScene < sceneCount) {
+	if (currentScene < sceneCount) { //Went all the way through without getting all the keyframes; artificially cut off the empty rest of res->features
 		res->feature_count -= (sceneCount - currentScene);
 	}
 	av_frame_free(&frame);
 	av_free(buffer);
-	free(videoName);
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
