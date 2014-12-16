@@ -26,17 +26,9 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 CONFIG = config() # abs, thumbnail, video
 VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
 
-# path to shotbounds program
-#SHOTBOUNDS = "{0}main/impl/shotbounds".format(CONFIG["abspath"])
-#THUMBNAILER = "{0}main/impl/thumbnails".format(CONFIG["abspath"])
-
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
-def index_video(videofile, searchable=True, uploaded=False, thumbpath = None):
-	#Get PyMongo client
-	client = MongoClient()
-	db = client["findvid"]
-	videos = db["videos"]
-	feature_collection = db["features"]
+def index_video(collection, videofile, searchable=True, uploaded=False, thumbpath = None):
+
 	vidpath = os.path.join(VIDEOPATH, videofile);
 
 	#Get Hash
@@ -57,44 +49,38 @@ def index_video(videofile, searchable=True, uploaded=False, thumbpath = None):
 	if (thumbpath == None):
 		thumbpath = os.path.join(CONFIG["abspath"], CONFIG["thumbnailpath"])
 	
-	features = fv.getFeatures(vidpath, keyframes[len(keyframes)/2], keyframes, thumbpath)
+	features = fv.getFeatures(vidpath, fileHash, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
-	prev = 0
-	scenes = [] # scenes
+	scenes = [] # features of scenes as list
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
-		scene["_id"] = i
-		scene["startframe"] = prev
-		scene["endframe"] = c
-		scenes.append(scene)
-		prev = c
-	video = {}
-	# TODO sequence counter
-	video["_id"] = fileHash
-	video["filename"] = videofile
-	fps = fv.getFramerate(vidpath)
-	video["fps"] = fps
-	video["framecount"] = cuts[-1:][0] # last entry
-	video["scenes"] = scenes
-	video["upload"] = uploaded
-	videos.insert(video)
-
-	#Now write to features collection
-	video = {}
-	video["_id"] = fileHash
-	video["searchable"] = searchable
-	scenes = [] # scenes
-	for i, c in enumerate(cuts[1:]):
-		scene = {} # scene document
-		scene["_id"] = i
-		# save features
+		scene["_id"] = str(i)
 		scene["tinyimg"] = features[i][0]
 		scene["edges"] = features[i][1]
 		scene["colorhist"] = features[i][2]
-		#scene["gist"] = features[i][3]
 		scenes.append(scene)
+	video = {}
+	
+	#General video information
+	video["_id"] = fileHash
+	video["filename"] = videofile
+	video["uploadtime"] = time.time()
+
+	fps = fv.getFramerate(videofile)
+	video["fps"] = fps
+	
+	
+	video["cuts"] = cuts
 	video["scenes"] = scenes
-	feature_collection.insert(video)
+
+	video["upload"] = uploaded
+	video["searchable"] = searchable
+
+	#The momentous step of inserting into the database
+	#This is done on a single document(Or is it?) and therefore atomic, according to the documentation
+	#therefore, user induced process abortion should not leave anything to be cleaned up
+	collection.insert(video)
+
 
 	return fileHash
 
@@ -102,5 +88,10 @@ if __name__ == "__main__":
 	if len(argv) < 2:
 		print "ERROR: file missing!"
 		exit(1)
+	#Get PyMongo client
+	client = MongoClient()
+	db = client["findvid"]
+	videos = db["videos"]
+	
 	videofile = argv[1]
-	index_video(videofile)
+	index_video(videos, videofile)
