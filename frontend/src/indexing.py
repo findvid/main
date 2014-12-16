@@ -55,7 +55,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	scenes = [] # features of scenes as list
 	for i, c in enumerate(cuts[1:]):
 		scene = {} # scene document
-		scene["_id"] = str(i)
+		scene["_id"] = i
 		scene["tinyimg"] = features[i][0]
 		scene["edges"] = features[i][1]
 		scene["colorhist"] = features[i][2]
