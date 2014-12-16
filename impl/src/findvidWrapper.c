@@ -32,6 +32,7 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 
 PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	const char * filename;
+	const char * hashstring;
 	char defaultpath[64] = "/video/videosearch/findvid/thumbnails";
 	const char * path = defaultpath;
 
@@ -39,7 +40,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 
 	PyObject * scenesArg;
 
-	if (!PyArg_ParseTuple(args, "siO|s", &filename, &vidThumb, &scenesArg, &path)) {
+	if (!PyArg_ParseTuple(args, "ssiO|s", &filename, &hashstring, &vidThumb, &scenesArg, &path)) {
 		//ParseTupel should raise Py_TypeError exception on it's own
 		//PyErr_SetString(PyExc_TypeError, "Argument mismatch");
 		return NULL;
@@ -66,7 +67,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 		}
 	}
 
-	FeatureTuple * results = getFeatures(filename, path, vidThumb, scenes,(int)size);
+	FeatureTuple * results = getFeatures(filename, hashstring, path, vidThumb, scenes,(int)size);
 	printf("Got features\n");
 	if (size > results->feature_count) {
 		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
