@@ -13,8 +13,8 @@
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
-//uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
-uint32_t MAX_MEMORY_USAGE = 2048 * 1024 * 1024; // For small testing systems...like a little useless black laptop
+uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
+//uint32_t MAX_MEMORY_USAGE = (uint32_t)(2048 * 1024 * 1024); // For small testing systems...like a little useless black laptop
 
 
 #define DESTINATION_WIDTH 320
@@ -215,10 +215,12 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	return cutCount;
 }
-
+/*
 int main(int argc, char **argv) {	
 	// Registers all available codecs
 	av_register_all();
+
+	printf("%u\n", MAX_MEMORY_USAGE);
 
 	if (argc < 2) {
 		printf("Missing parameter!\n");
