@@ -14,7 +14,7 @@
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
 //uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
-uint32_t MAX_MEMORY_USAGE = 512 * 1024 * 1024; // For small testing systems...like a little useless black laptop
+uint32_t MAX_MEMORY_USAGE = 2048 * 1024 * 1024; // For small testing systems...like a little useless black laptop
 
 
 #define DESTINATION_WIDTH 320
@@ -140,7 +140,9 @@ int processVideo(const char *filename, uint32_t **cuts) {
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
-					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+					
+					//Not useful yet
+					//detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 					if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
 					edge_feedback.lastFrame = list_pop(list_frames);
@@ -159,7 +161,9 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	// Process the remaining frames
 	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
-	detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	
+	//Not useful yet
+	//detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 	list_forall(list_frames, (void (*) (void *))avpicture_free);
 	list_forall(list_frames, av_free);
@@ -201,6 +205,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(cutsIt);
 
 
+	list_destroy(list_cuts_edges);
 	list_destroy(list_cuts_colors);
 	list_destroy(list_hist_diff);
 
