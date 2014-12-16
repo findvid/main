@@ -25,8 +25,8 @@
 #define HYSTERESIS_T2 10
 
 //
-#define QUADRANTS_WIDTH 8
-#define QUADRANTS_HEIGHT 5
+#define QUADRANTS_WIDTH 16
+#define QUADRANTS_HEIGHT 10
 #define FEATURE_LENGTH (QUADRANTS_WIDTH*QUADRANTS_HEIGHT)
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
