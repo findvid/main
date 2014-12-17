@@ -93,7 +93,7 @@ def configVideo(video):
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 		'videoid': vidid,
 		'filename': filename,
-		'length': formatTime(int(video['framecount']), fps)
+		'length': formatTime(int(video['cuts'][-1]), fps)
 	}
 
 # Returns the configuration for a given scene
@@ -189,7 +189,7 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		# Get all videos with substring: <name> 
-		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
+		videosFromDb = VIDEOS.find({"filename": { '$regex': name}}, {"scenes" : 0})
 
 		# If no videos where found, tell the user
 		if videosFromDb.count() == 0:
@@ -233,7 +233,7 @@ class Root(object):
 				sceneid = scene['_id']
 				break
 
-		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
+		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
 
 		if not similarScenes:
 			content = 'No Scenes found, for your search query.'
@@ -326,7 +326,7 @@ class Root(object):
 			# TODO: error messages
 			print "Error: File already exists"
 		else:
-			tree.addVideoDynamic(DB, vidid)
+			tree.addVideoDynamic(VIDEOS, vidid)
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
@@ -358,7 +358,7 @@ if __name__ == '__main__':
 	# Build Searchtree
 	
 	# TODO: Exception Handling
-	TREE = tree.loadOrBuildAndSaveTree(DB, STORETREE)
+	TREE = tree.loadOrBuildAndSaveTree(VIDEOS, STORETREE)
 
 	cherrypy.tree.mount(Root(), '/', conf)
 
