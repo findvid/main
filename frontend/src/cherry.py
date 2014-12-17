@@ -34,7 +34,7 @@ UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 TREE = []
 
 # Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], 'seachtree.db')
+STORETREE = os.path.join(CONFIG['abspath'], 'searchtree.db')
 
 # Renders a template.
 # filename - The filename of the template in HTMLDIR
@@ -79,9 +79,6 @@ def formatTime(frame, fps):
 # Returns the configuration for a given video
 def configVideo(video):
 	filename = str(video['filename'])
-	splittedFilename = filename.split('/')
-	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
-
 	videopath = os.path.join('/videos/', filename)
 
 	fps = int(video['fps'])
@@ -92,15 +89,12 @@ def configVideo(video):
 		'extension': os.path.splitext(filename)[1][1:],
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
 		'videoid': vidid,
-		'filename': filename,
+		'filename': os.path.splitext(os.path.basename(filename))[0],
 		'length': formatTime(int(video['framecount']), fps)
 	}
 
 # Returns the configuration for a given scene
 def configScene(scene, filename, fps, vidid):
-	splittedFilename = filename.split('/')
-	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
-
 	videopath = os.path.join('/videos/', filename)
 
 	return {
@@ -109,7 +103,7 @@ def configScene(scene, filename, fps, vidid):
 		'time': str(scene['startframe'] / fps),
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+str(scene['_id'])+'.jpeg'),
 		'videoid': vidid,
-		'filename': filename,
+		'filename': os.path.splitext(os.path.basename(filename))[0],
 		'scenecount': str(int(scene['_id'])),
 		'starttime': formatTime(int(scene['startframe']), fps),
 		'endtime': formatTime(int(scene['endframe']), fps)
@@ -126,7 +120,7 @@ def getUploads():
 					{ '$eq': 'config' } 
 				},
 			'upload': True
-		}
+		}#, {"scenes" : 0}
 	)
 
 	uploads = []
@@ -189,7 +183,7 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		# Get all videos with substring: <name> 
-		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })
+		videosFromDb = VIDEOS.find({"filename": { '$regex': name} })#, {"scenes" : 0})
 
 		# If no videos where found, tell the user
 		if videosFromDb.count() == 0:
@@ -228,21 +222,25 @@ class Root(object):
 		frame = int(fps*second)
 
 		sceneid = 0
-		for scene in video['scenes']:
-			if (int(scene['startframe']) <= frame) and (int(scene['endframe']) > frame):
-				sceneid = scene['_id']
+		
+		for i,scene in enumerate(video['cuts'][1:]):
+			if (scene <= frame) and ((video['cuts'][i+1]) > frame):
+				sceneid = i #scene['_id']
 				break
 
-		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
+		similarScenes = tree.searchForScene(db=DB, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
 
 		if not similarScenes:
-			content = 'No Scenes found, for your search query.'
+			content = 'No Scenes found for your search query.'
 		else:
 			scenes = []
 			i = 0
 			while not similarScenes.empty() and i < 100:
 				similarScene = similarScenes.get()	
 				print similarScene
+
+				if similarScene == None:
+					continue
 
 				similarVidid = similarScene[1][0]
 				similarSceneid = similarScene[1][1]
@@ -321,12 +319,14 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		vidid = idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
-		if not vidid == None:
+		vidid = idx.index_video(os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		if vidid == None:
 			# TODO: error messages
-			print "Error: File already exists"
+			print "Error: File already exists."
+			return "Error: File already exists."
 		else:
 			tree.addVideoDynamic(DB, vidid)
+			return "File successfully uploaded."
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
