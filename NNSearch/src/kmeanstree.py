@@ -6,6 +6,102 @@ import pickle
 import os.path
 from pymongo import MongoClient
 
+newlyUploadedScenes = []
+usedFeature = 'tinyimg'
+
+"""
+Loads a tree from a file if the file exists, else it
+builds the tree from a given a collection containing videodata
+
+@param videos	The collection
+@param filename	filename of the tree
+
+@return		kmeans tree to search on
+"""
+def loadOrBuildAndSaveTree(videos, filename):
+	if os.path.isfile(filename):
+		print "Loading Tree from file"
+		return pickle.load(open(filename, "rb"))
+	tree = buildTreeFromCollection(videos)
+	print "Saving Tree"
+	pickle.dump(tree, open(filename, "wb"))
+	return tree
+
+"""
+Build a tree from a given collection containing videodata
+
+@param videos	The collection containing the videos
+
+@return		kmeans tree to search on
+"""
+def buildTreeFromCollection(videos):
+	print "Reading data from database"
+
+	# Get all searchable videos. This also gets rid of the config entry
+	vids = videos.find({'searchable' : True})
+
+	data = []
+	for vid in vids:
+		scenes = vid['scenes']
+		vidHash = vid['_id']
+		for scene in scenes:
+			sceneId = scene['_id']
+			# TODO Add call to some smart flatening here
+			feature = npy.array(scene[usedFeature])
+			data.append((feature,(vidHash,sceneId)))
+
+	print "Building Tree"
+	tree = KMeansTree(False, [], [])
+	tree.buildTree(data, 32, 15)
+	return tree
+
+"""
+Search for a scene from a collection
+
+@param videos		Collection containing the query
+@param tree		kmeans tree to search on
+@param vidHash		id of the video of the query scene
+@param sceneId		id of the query scene
+@param wantedNNs	amount of NNs you want
+@param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
+
+@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
+"""
+def searchForScene(videos, tree, vidHash, sceneId, wantedNNs, maxTouches):
+	vid = videos.find_one({'_id':vidHash})
+	scene = vid['scenes'][sceneId]
+	feature = npy.array(scene[usedFeature])
+	results = tree.search(feature, wantedNNs, maxTouches)
+	# Add the newlyUploaded scenes to the results
+	searchRest(feature, results)
+	return results
+
+"""
+Add a video after the tree is build
+
+@param videos	the collection the video is in
+@param vidHash	hash of the video
+"""
+def addVideoDynamic(videos, vidHash):
+	# TODO set searchable flag
+	vid = videos.find_one({'_id':vidHash})
+	if vid['searchable']:
+		scenes = vid['scenes']
+		for scene in scenes:
+			sceneId = scene['_id']
+			feature = npy.array(scene[usedFeature])
+			newlyUploadedScenes.append((feature,(vidHash,sceneId)))
+
+"""
+Searching the linear part
+
+@param query	query feature
+@param results	PrioiryQueue for the results
+"""
+def searchRest(query, results):
+	for feature,scene in newlyUploadedScenes:
+		results.put((dist(query,feature),scene))
+
 class KMeansTree:
 	isLeave = False
 	center = []
@@ -176,109 +272,6 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-# TODO For now set the type of feature here!
-usedFeature = 'tinyimg'
-
-"""
-Build a tree from a given database containing videodata
-
-@param db	The database
-
-@return		kmeans tree to search on
-"""
-def buildTreeFromDatabase(db):
-	print "Reading data from database"
-	videos = db['features']
-
-	vids = videos.find()
-
-	data = []
-	for vid in vids:
-		if vid['searchable']:
-			#print vid['filename']
-			scenes = vid['scenes']
-			vidHash = vid['_id']
-			for scene in scenes:
-				# TODO better replaced with enumerate
-				sceneId = scene['_id']
-				feature = npy.array(scene[usedFeature])
-				data.append((feature,(vidHash,sceneId)))
-
-	print "Building Tree"
-	tree = KMeansTree(False, [], [])
-	tree.buildTree(data, 32, 15)
-	return tree
-
-"""
-Loads a tree from a file if the file exists, else it
-builds the tree from a given database containing videodata
-
-@param db	The database
-@param filename	filename of the tree
-
-@return		kmeans tree to search on
-"""
-def loadOrBuildAndSaveTree(db, filename):
-	if os.path.isfile(filename):
-		print "Loading Tree from file"
-		return pickle.load(open(filename, "rb"))
-	tree = buildTreeFromDatabase(db)
-	print "Saving Tree"
-	pickle.dump(tree, open(filename, "wb"))
-	return tree
-
-"""
-Search for a scene from a database
-
-@param db		Database containing the query
-@param tree		kmeans tree to search on
-@param vidHash		id of the video of the query scene
-@param sceneId		id of the query scene
-@param wantedNNs	amount of NNs you want
-@param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
-
-@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
-"""
-def searchForScene(db, tree, vidHash, sceneId, wantedNNs, maxTouches):
-	videos = db['features']
-	vid = videos.find_one({'_id':vidHash})
-	scene = vid['scenes'][sceneId]
-	feature = npy.array(scene[usedFeature])
-	results = tree.search(feature, wantedNNs, maxTouches)
-	# TODO Make this nice
-	# Add the newlyUploaded scenes to the results
-	searchRest(feature, results)
-	return results
-
-newlyUploadedScenes = []
-
-"""
-Add a video after the tree is build
-
-@param db	the database the video is in
-@param vidHash	hash of the video
-"""
-def addVideoDynamic(db, vidHash):
-	videos = db['features']
-	vid = videos.find_one({'_id':vidHash})
-	if vid['searchable']:
-		scenes = vid['scenes']
-		for scene in scenes:
-			# TODO better replaced with enumerate
-			sceneId = scene['_id']
-			feature = npy.array(scene[usedFeature])
-			newlyUploadedScenes.append((feature,(vidHash,sceneId)))
-
-"""
-Searching the linear part
-
-@param query	query feature
-@param results	PrioiryQueue for the results
-"""
-def searchRest(query, results):
-	for feature,scene in newlyUploadedScenes:
-		results.put((dist(query,feature),scene))
-
 # Example code
 """
 client = MongoClient()
@@ -288,17 +281,17 @@ videos = db["videos"]
 vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
 usedFeature = 'edges'
-tree = loadOrBuildAndSaveTree(db, "treeEdges.p")
+tree = loadOrBuildAndSaveTree(videos, "treeEdges.p")
 
 usedFeature = 'colorhist'
-tree = loadOrBuildAndSaveTree(db, "treeColorhist.p")
+tree = loadOrBuildAndSaveTree(videos, "treeColorhist.p")
 
 usedFeature = 'tinyimg'
-tree = loadOrBuildAndSaveTree(db, "treeTinyimg.p")
+tree = loadOrBuildAndSaveTree(videos, "treeTinyimg.p")
 
-addVideoDynamic(db, vid["_id"])
+addVideoDynamic(videos, vid["_id"])
 
-results = searchForScene(db, tree, vid['_id'], 0, 100, 1000)
+results = searchForScene(videos, tree, vid['_id'], 0, 100, 1000)
 
 print results.get()
 print results.get()
@@ -306,60 +299,3 @@ print results.get()
 print results.get()
 print results.get()
 #"""
-
-"""#
-print "Building test data..."
-data = []
-for i in range(0, 10000):
-	data.append((npy.random.randint(0, 1000000, 1024), "Data-" + str(i)))
-
-print "Building tree..."
-tree = KMeansTree(False, [], [])
-tree.buildTree(data, 8, 10)
-
-#" ""
-print "Saving data..."
-pickle.dump(data, open("data.p", "wb"))
-
-print "Saving tree..."
-pickle.dump(tree, open("tree.p", "wb"))
-#" ""
-
-
-print "Loading tree..."
-data = pickle.load(open("data.p", "rb"))
-print "Loading data..."
-tree = pickle.load(open("tree.p", "rb"))
-#" ""
-query = npy.random.randint(0, 1000000, 1024)
-
-#print "Tree: ", str(tree)
-nns = tree.search(query, 5, 1000)
-
-print "Q: ", query
-for i in range(0, 5):
-	nn = nns.get()
-	print "NN #", i, ": ", nn
-
-raw_input("\nPress key to start sanity check\n")
-
-print "1 Tree search (5 NNs, 1000 Touches):"
-nns = tree.search(query, 5, 1000)
-print nns.get()
-print nns.get()
-print nns.get()
-print nns.get()
-print nns.get()
-
-print "\n1 Linear search:"
-
-closest = None
-mindist = sys.maxint
-for point,name in data:
-	distance = dist(point, query)
-	if distance < mindist:
-		mindist = distance
-		closest = (distance, name)
-
-print closest
-"""
