@@ -260,6 +260,7 @@ a:visited {
 }
 .content .content-wrap .scene-wrap .scene .thumbnail {
   display: none;
+  height: 245px;
 }
 .content .content-wrap .scene-wrap .scene .thumbnail img {
   width: 427px;
@@ -432,5 +433,12 @@ a:visited {
   left: 0;
   right: 0;
   bottom: 0;
+  margin: auto;
+}
+.uploadprogress .button.abort {
+  position: absolute;
+  top: 115px;
+  left: 928px;
+  bottom: 0px;
   margin: auto;
 }

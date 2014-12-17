@@ -34,7 +34,7 @@ UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 TREE = []
 
 # Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], 'seachtree.db')
+STORETREE = os.path.join(CONFIG['abspath'], 'searchtree.db')
 
 # Renders a template.
 # filename - The filename of the template in HTMLDIR
@@ -79,9 +79,6 @@ def formatTime(frame, fps):
 # Returns the configuration for a given video
 def configVideo(video):
 	filename = str(video['filename'])
-	splittedFilename = filename.split('/')
-	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
-
 	videopath = os.path.join('/videos/', filename)
 
 	fps = int(video['fps'])
@@ -129,7 +126,7 @@ def getUploads():
 					{ '$eq': 'config' } 
 				},
 			'upload': True
-		}
+		}#, {"scenes" : 0}
 	)
 
 	uploads = []
@@ -231,15 +228,16 @@ class Root(object):
 		frame = int(fps*second)
 
 		sceneid = 0
-		for i,startframe in enumerate(video['cuts']):
-			if int(startframe) <= frame:
+		
+		for i,startframe in enumerate(video['cuts'][1:]):
+			if startframe <= frame:
 				sceneid = i
 				break
 
-		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
+		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
 
 		if not similarScenes:
-			content = 'No Scenes found, for your search query.'
+			content = 'No Scenes found for your search query.'
 		else:
 			scenes = []
 			i = 0
@@ -247,6 +245,9 @@ class Root(object):
 				similarScene = similarScenes.get()	
 				# TODO remove at some point
 				print similarScene
+
+				if similarScene == None:
+					continue
 
 				similarVidid = similarScene[1][0]
 				similarSceneid = similarScene[1][1]
@@ -314,12 +315,14 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		vidid = idx.index_video(os.path.join(UPLOADDIR, filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
-		if not vidid == None:
+		vidid = idx.index_video(os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		if vidid == None:
 			# TODO: error messages
-			print "Error: File already exists"
+			print "Error: File already exists."
+			return "Error: File already exists."
 		else:
 			tree.addVideoDynamic(VIDEOS, vidid)
+			return "File successfully uploaded."
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')
