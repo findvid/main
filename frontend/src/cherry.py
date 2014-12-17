@@ -97,7 +97,10 @@ def configVideo(video):
 	}
 
 # Returns the configuration for a given scene
-def configScene(scene, filename, fps, vidid):
+def configScene(video, sceneid):
+	filename = video['filename']
+	fps = video['fps']
+	cuts = video['cuts']
 	splittedFilename = filename.split('/')
 	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
 
@@ -106,13 +109,13 @@ def configScene(scene, filename, fps, vidid):
 	return {
 		'url': videopath,
 		'extension': os.path.splitext(filename)[1][1:],
-		'time': str(scene['startframe'] / fps),
-		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+str(scene['_id'])+'.jpeg'),
-		'videoid': vidid,
+		'time': str(cuts[sceneid] / fps),
+		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+str(cuts[sceneid])+'.jpeg'),
+		'videoid': video['_id'],
 		'filename': filename,
-		'scenecount': str(int(scene['_id'])),
-		'starttime': formatTime(int(scene['startframe']), fps),
-		'endtime': formatTime(int(scene['endframe']), fps)
+		'scenecount': str(sceneid),
+		'starttime': formatTime(int(cuts[sceneid]), fps),
+		'endtime': formatTime(int(cuts[sceneid+1]), fps)
 	}
 
 # Fetches all uploads from the database (upload = True)
@@ -222,15 +225,15 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
-		video = VIDEOS.find_one({'_id': str(vidid)})
+		video = VIDEOS.find_one({'_id': str(vidid)}, {'scenes' : 0})
 		fps = int(video['fps'])
 		second = float(second)
 		frame = int(fps*second)
 
 		sceneid = 0
-		for scene in video['scenes']:
-			if (int(scene['startframe']) <= frame) and (int(scene['endframe']) > frame):
-				sceneid = scene['_id']
+		for i,startframe in enumerate(video['cuts']):
+			if int(startframe) <= frame:
+				sceneid = i
 				break
 
 		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100)
@@ -240,23 +243,17 @@ class Root(object):
 		else:
 			scenes = []
 			i = 0
-			while not similarScenes.empty() and i < 100:
+			while (not similarScenes.empty()) and i < 100:
 				similarScene = similarScenes.get()	
+				# TODO remove at some point
 				print similarScene
 
 				similarVidid = similarScene[1][0]
 				similarSceneid = similarScene[1][1]
 
-				similarVideo = VIDEOS.find_one({'_id': str(similarVidid)})
-				filename = similarVideo['filename']
-				fps = similarVideo['fps']
+				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
-				# Sorry, couldn't resist to try it out. I just changed this line :-)
-				# - Johannes
-				#scene = VIDEOS.find_one({'_id': str(similarVidid), scenes: { '_id': str(similarSceneid)}})
-				scene = VIDEOS.find_one({'_id': str(similarVidid)})['scenes'][similarSceneid]
-
-				scenes.append(renderTemplate('similarscene.html', configScene(scene, filename, fps, similarVidid)))
+				scenes.append(renderTemplate('similarscene.html', configScene(similarVideo, similarSceneid)))
 				i+=1
 
 			content = ""
@@ -279,7 +276,7 @@ class Root(object):
 		if not vidid:
 			raise cherrypy.HTTPRedirect('/')
 
-		videoFromDb = VIDEOS.find_one({'_id': str(vidid)})
+		videoFromDb = VIDEOS.find_one({'_id': str(vidid)}, {"scenes" : 0})
 
 		# If there is no video with the given vidid, redirect to startpage
 		if not videoFromDb:
@@ -287,11 +284,9 @@ class Root(object):
 
 		scenes = []
 		
-		filename = videoFromDb['filename']
-		fps = videoFromDb['fps']
-
-		for scene in videoFromDb['scenes']:
-			scenes.append(renderTemplate('scene.html', configScene(scene, filename, fps, vidid)))
+		# There is one scene less than cuts
+		for sceneid in range(len(videoFromDb['cuts'])-1):
+			scenes.append(renderTemplate('scene.html', configScene(videoFromDb, sceneid)))
 
 		# Wrap the videos in "scene-wrap" div
 		content = '<div class="scene-wrap">'
@@ -300,8 +295,6 @@ class Root(object):
 
 		content += "</div>"
 
-		videoFromDb = VIDEOS.find_one({'_id': str(vidid)})
-		
 		content += renderTemplate('originvideo.html', configVideo(videoFromDb))
 
 		config = {
