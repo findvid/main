@@ -23,10 +23,12 @@ builds the tree from a given a collection containing videodata
 
 @param videos	The collection
 @param filename	filename of the tree
+@param k	Splittingfactor k
+@param imax	max iterations for the center finding
 
 @return		kmeans tree to search on
 """
-def loadOrBuildAndSaveTree(videos, filename):
+def loadOrBuildAndSaveTree(videos, filename, k=8, imax=100):
 	if os.path.isfile(filename):
 		print "Loading Tree from file"
 		return pickle.load(open(filename, "rb"))
@@ -39,10 +41,12 @@ def loadOrBuildAndSaveTree(videos, filename):
 Build a tree from a given collection containing videodata
 
 @param videos	The collection containing the videos
+@param k	Splittingfactor k
+@param imax	max iterations for the center finding
 
 @return		kmeans tree to search on
 """
-def buildTreeFromCollection(videos):
+def buildTreeFromCollection(videos, k=8, imax=100):
 	print "Reading data from database"
 
 	# Get all searchable videos. This also gets rid of the config entry
@@ -60,7 +64,7 @@ def buildTreeFromCollection(videos):
 
 	print "Building Tree"
 	tree = KMeansTree(False, [], [])
-	tree.buildTree(data, 8, 15)
+	tree.buildTree(data, k, imax)
 	return tree
 
 """
