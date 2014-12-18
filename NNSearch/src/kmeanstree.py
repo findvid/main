@@ -288,23 +288,24 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-# Example code
-#"""
-client = MongoClient()
-db = client["findvid"]
-videos = db["videos"]
+if __name__ == '__main__':
+	# Example code
+	#"""
+	client = MongoClient()
+	db = client["findvid"]
+	videos = db["videos"]
 
-vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
+	vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
-tree = loadOrBuildAndSaveTree(videos, "tree.p")
+	tree = loadOrBuildAndSaveTree(videos, "tree.p")
 
-addVideoDynamic(videos, vid["_id"])
+	addVideoDynamic(videos, vid["_id"])
 
-results = searchForScene(videos, tree, vid['_id'], 0, 100, 1000)
+	results = searchForScene(videos, tree, vid['_id'], 0, 100, 1000)
 
-print results.get()
-print results.get()
-print results.get()
-print results.get()
-print results.get()
-#"""
+	print results.get()
+	print results.get()
+	print results.get()
+	print results.get()
+	print results.get()
+	#"""
