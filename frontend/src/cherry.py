@@ -87,7 +87,8 @@ def configVideo(video):
 	return {
 		'url': videopath,
 		'extension': os.path.splitext(filename)[1][1:],
-		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
+		# TODO use the relative thumbnails path and confirm that this is the right way to do this
+		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene0.jpeg'),
 		'videoid': vidid,
 		'filename': filename,
 		'length': formatTime(int(video['cuts'][-1]), fps)
@@ -96,6 +97,7 @@ def configVideo(video):
 # Returns the configuration for a given scene
 def configScene(video, sceneid):
 	filename = video['filename']
+	vidid = video['_id']
 	fps = video['fps']
 	cuts = video['cuts']
 	splittedFilename = filename.split('/')
@@ -107,7 +109,8 @@ def configScene(video, sceneid):
 		'url': videopath,
 		'extension': os.path.splitext(filename)[1][1:],
 		'time': str(cuts[sceneid] / fps),
-		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene'+str(cuts[sceneid])+'.jpeg'),
+		# TODO use the relative thumbnails path and confirm that this is the right way to do this
+		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene'+str(sceneid)+'.jpeg'),
 		'videoid': video['_id'],
 		'filename': filename,
 		'scenecount': str(sceneid),
@@ -126,7 +129,7 @@ def getUploads():
 					{ '$eq': 'config' } 
 				},
 			'upload': True
-		}#, {"scenes" : 0}
+		}, {"scenes" : 0}
 	)
 
 	uploads = []
@@ -141,7 +144,7 @@ def getUploads():
 
 		fps = int(upload['fps'])
 		filename = os.path.basename(str(upload['filename']))
-		scenes = len(upload['scenes'])
+		scenes = len(upload['cuts'])
 		
 		scenecount += scenes
 
@@ -149,7 +152,8 @@ def getUploads():
 
 		uploadconfig = {
 			'progress': progress,
-			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(filename))[0], 'scene0.jpeg'),
+			# TODO use the relative thumbnails path and confirm that this is the right way to do this
+			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene0.jpeg'),
 			'videoid': vidid,
 			'scenecount': scenes,
 			'filename': filename,
@@ -229,9 +233,9 @@ class Root(object):
 
 		sceneid = 0
 		
-		for i,startframe in enumerate(video['cuts'][1:]):
-			if startframe <= frame:
-				sceneid = i
+		for i,endframe in enumerate(video['cuts']):
+			if frame < endframe:
+				sceneid = i-1
 				break
 
 		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
