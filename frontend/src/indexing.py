@@ -36,7 +36,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	fileHash = str(hashFile(vidpath, 65536))
 
 	#Check if this exact video exists already
-	video = videos.find_one({'_id': fileHash})
+	video = collection.find_one({'_id': fileHash})
 	if (video):
 		return None
 
