@@ -7,7 +7,15 @@ import os.path
 from pymongo import MongoClient
 
 newlyUploadedScenes = []
-usedFeature = 'tinyimg'
+
+def flattenFeatures(scene):
+	# Normalize featrues. Idea how to do it. Not sure if correct.
+	# For each feature f
+	# f_norm = (f - f_mean) / f_var
+	# f' = f_norm * sqrt(n_f1/n_f2)
+	# where n_fx is the amount of values of this feature
+	# use concated f's as result
+	return npy.array(scene['colorhist'])
 
 """
 Loads a tree from a file if the file exists, else it
@@ -47,12 +55,12 @@ def buildTreeFromCollection(videos):
 		for scene in scenes:
 			sceneId = scene['_id']
 			# TODO Add call to some smart flatening here
-			feature = npy.array(scene[usedFeature])
+			feature = flattenFeatures(scene)
 			data.append((feature,(vidHash,sceneId)))
 
 	print "Building Tree"
 	tree = KMeansTree(False, [], [])
-	tree.buildTree(data, 32, 15)
+	tree.buildTree(data, 8, 15)
 	return tree
 
 """
@@ -70,7 +78,7 @@ Search for a scene from a collection
 def searchForScene(videos, tree, vidHash, sceneId, wantedNNs, maxTouches):
 	vid = videos.find_one({'_id':vidHash})
 	scene = vid['scenes'][sceneId]
-	feature = npy.array(scene[usedFeature])
+	feature = flattenFeatures(scene)
 	results = tree.search(feature, wantedNNs, maxTouches)
 	# Add the newlyUploaded scenes to the results
 	searchRest(feature, results)
@@ -89,7 +97,7 @@ def addVideoDynamic(videos, vidHash):
 		scenes = vid['scenes']
 		for scene in scenes:
 			sceneId = scene['_id']
-			feature = npy.array(scene[usedFeature])
+			feature = flattenFeatures(scene)
 			newlyUploadedScenes.append((feature,(vidHash,sceneId)))
 
 """
@@ -117,14 +125,18 @@ class KMeansTree:
 	@param data		[(features, key),...] List of pairs of features and keys
 	@param k		Giving the max amount of leaves a node should have
 	@param maxiterations	limiting the iterations for the center finding
+	@param recdepth
 	"""
-	def buildTree(self, data, k, maxiterations):
+	def buildTree(self, data, k, maxiterations, recdepth = 0):
 		# Output to get a feeling how long it takes (a long time)
 		# 76 minutes for 1.000.000 entries with 1024 vectors
-		if len(data) > 1000:
-			print "len(data): ", len(data)
+		align = ""
+		for i in range(recdepth):
+			align += "  "
+		print align, recdepth, ": len(data): ", len(data)
+
 		# If there are less elements in data than a node should have children...
-		if len(data) < k:
+		if len(data) <= k:
 			# Add all elements and become a leave node
 			self.children = data
 			self.isLeave = True
@@ -184,7 +196,7 @@ class KMeansTree:
 			# Create a child for each cluster
 			child = KMeansTree(False, center, [])
 			# Fill it with values
-			child.buildTree(cluster, k, maxiterations)
+			child.buildTree(cluster, k, maxiterations, recdepth+1)
 			# Add chlid to children
 			self.children.append(child)
 
@@ -273,21 +285,14 @@ def calg(arr,k):
 	return result
 
 # Example code
-"""
+#"""
 client = MongoClient()
 db = client["findvid"]
 videos = db["videos"]
 
 vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
 
-usedFeature = 'edges'
-tree = loadOrBuildAndSaveTree(videos, "treeEdges.p")
-
-usedFeature = 'colorhist'
-tree = loadOrBuildAndSaveTree(videos, "treeColorhist.p")
-
-usedFeature = 'tinyimg'
-tree = loadOrBuildAndSaveTree(videos, "treeTinyimg.p")
+tree = loadOrBuildAndSaveTree(videos, "tree.p")
 
 addVideoDynamic(videos, vid["_id"])
 
