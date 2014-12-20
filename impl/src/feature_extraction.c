@@ -129,6 +129,14 @@ int writeFrame(const char * filename, AVCodecContext * avctx, const AVFrame * fr
 
 FeatureTuple * getFeatures(const char * filename, const char * hashstring, const char * expath, int vidThumb, uint32_t * sceneFrames, int sceneCount) {
 	av_register_all();
+	
+	VideoIterator * iter = get_VideoIterator(filename);
+	if (!iter) {
+		fprintf(stderr, "Failed to open video iterator");
+		return NULL;
+	}
+
+
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
 	res->feature_list = malloc(sizeof(uint32_t **) * FEATURE_AMNT);
@@ -149,7 +157,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	//char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
 
-	VideoIterator * iter = get_VideoIterator(filename);
 
 	// Get Sws context to downscale the frames
 	struct SwsContext * convert_rgb24 = sws_getContext(iter->cctx->width, iter->cctx->height, iter->cctx->pix_fmt, DESTINATION_WIDTH, DESTINATION_HEIGHT, PIX_FMT_RGB24, SWS_BICUBIC, NULL, NULL, NULL);
