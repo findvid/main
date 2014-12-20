@@ -48,7 +48,7 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	const char * filename;
 	const char * hashstring;
-	char defaultpath[64] = "/video/videosearch/findvid/thumbnails";
+	char defaultpath[64] = "/video2/videosearch/findvid/thumbnails";
 	const char * path = defaultpath;
 
 	int vidThumb = 0;
@@ -83,7 +83,13 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	}
 
 	FeatureTuple * results = getFeatures(filename, hashstring, path, vidThumb, scenes,(int)size);
-	printf("Got features\n");
+	if (!results) {
+			char err[128];
+			sprintf(err, "Video could not be opened!");
+			PyErr_SetString(PyExc_TypeError, err);
+			return NULL;
+	}
+
 	if (size > results->feature_count) {
 		fprintf(stderr, "Warning: Some keyframes could not be extracted!\n");
 		size = (Py_ssize_t)results->feature_count;
