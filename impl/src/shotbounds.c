@@ -113,7 +113,13 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
+	//To streamline concurring indexing processes, shotbounds should line up at the hard drive accesses in some manner
+	//as this will bottleneck the process of filling up the bulks in each process
+	//a semaphore would be an easy solution to this
+	
+
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
+		//SEMAPHORE DOWN
 
 		// Allocate a new frame, obviously
 		AVFrame* pFrameRGB24 = av_frame_alloc();
@@ -138,6 +144,8 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 		// If one bulk of frames is filled, let the frames be processed first and clear the list
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
+					//SEMAPHORE UP
+					
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 					
