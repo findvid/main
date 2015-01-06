@@ -2,12 +2,32 @@ import cherrypy
 import pymongo
 import shutil
 import os
+import argparse
 import re
 
 # Indexer
 import indexing as idx
 
 import kmeanstree as tree
+
+# instanciate and configure an argument parser
+PARSER = argparse.ArgumentParser(description='Starts a CherryPy Webserver, for the find.vid project.')
+PARSER.add_argument('database', metavar='DB',
+	help='The name of the MongoDB Database on localhost')
+PARSER.add_argument('collection', metavar='COLLECTION',
+	help='The name of the Collection in the Database')
+
+# parse input arguments
+ARGS = PARSER.parse_args()
+
+DBNAME = ARGS.database
+COLNAME = ARGS.collection
+
+if not DBNAME:
+	DBNAME = "findvid"
+
+if not COLNAME:
+	COLNAME = "videos"
 
 # Directory of this file
 ROOTDIR = os.path.abspath('.')
@@ -16,9 +36,9 @@ ROOTDIR = os.path.abspath('.')
 HTMLDIR = os.path.join(ROOTDIR, 'html')
 
 # Establish MongoDb Connection and get db and video collection
-MONGOCLIENT = pymongo.MongoClient()
-DB = MONGOCLIENT['findvid']
-VIDEOS = DB['videos']
+MONGOCLIENT = pymongo.MongoClient(port=8099)
+DB = MONGOCLIENT[DBNAME]
+VIDEOS = DB[COLNAME]
 
 # Get config from MongoDb
 CONFIG = VIDEOS.find_one({'_id': 'config'})
@@ -144,7 +164,7 @@ def getUploads():
 
 		fps = int(upload['fps'])
 		filename = os.path.basename(str(upload['filename']))
-		scenes = len(upload['cuts'])
+		scenes = len(upload['cuts']) - 1 # There are n scenes and n+1 cuts!
 		
 		scenecount += scenes
 
@@ -157,7 +177,7 @@ def getUploads():
 			'videoid': vidid,
 			'scenecount': scenes,
 			'filename': filename,
-			'length': formatTime(int(upload['framecount']), fps)
+			'length': formatTime(int(upload['cuts'][-1]), fps) # Last entry in cuts is also the framecount
 		}
 		
 		uploads.append(renderTemplate('upload.html', uploadconfig))
@@ -201,8 +221,15 @@ class Root(object):
 		else:
 			videos = []
 
+			limit = 100
+			counter = 1
 			for video in videosFromDb:			
 				videos.append(renderTemplate('video.html', configVideo(video)))
+				
+				if counter == limit:
+					break
+
+				counter+=1
 
 			content = ""
 			for video in videos:
@@ -319,7 +346,7 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		vidid = idx.index_video(os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
 		if vidid == None:
 			# TODO: error messages
 			print "Error: File already exists."
