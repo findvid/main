@@ -3,19 +3,26 @@ import random as rand
 import sys
 import Queue
 import pickle
+import math
 import os.path
 from pymongo import MongoClient
 
 newlyUploadedScenes = []
 
 def flattenFeatures(scene):
-	# Normalize featrues. Idea how to do it. Not sure if correct.
+	# Normalize features. Idea how to do it. Not sure if correct.
 	# For each feature f
 	# f_norm = (f - f_mean) / f_var
 	# f' = f_norm * sqrt(n_f1/n_f2)
 	# where n_fx is the amount of values of this feature
-	# use concated f's as result
-	return npy.array(scene['colorhist'])
+	# use concatenated f's as result
+	edges = npy.array(scene['edges'])
+	colorhist = npy.array(scene['colorhist'])
+	edges = ((edges - 2109) / 2088)
+	colorhist = ((colorhist - 500) / 2171) * math.sqrt(160/128)
+	
+	return npy.append(edges, colorhist)
+	#return npy.array(scene["edges"])
 
 """
 Loads a tree from a file if the file exists, else it
@@ -137,7 +144,7 @@ class KMeansTree:
 		align = ""
 		for i in range(recdepth):
 			align += "  "
-		print align, recdepth, ": len(data): ", len(data)
+		#print align, recdepth, ": len(data): ", len(data)
 
 		# If there are less elements in data than a node should have children...
 		if len(data) <= k:
