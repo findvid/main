@@ -9,17 +9,20 @@ import os
 
 def hashFile(filename, blocksize):
 	hash = hashlib.sha1()
-	with open(filename, 'rb') as f:
-		buffer = f.read(blocksize)
-		while len(buffer) > 0:
-			hash.update(buffer)
+	try:
+		with open(filename, 'rb') as f:
 			buffer = f.read(blocksize)
-	
-	return hash.hexdigest()
+			while len(buffer) > 0:
+				hash.update(buffer)
+				buffer = f.read(blocksize)
+	except IOError:
+		return None
+
+	return str(hash.hexdigest())
 
 # returns the configuration dictionary
 def config(db="findvid", collection="videos", config={"_id": "config"}):
-	client = MongoClient()
+	client = MongoClient(port=8099)
 	db = client[db]
 	videos = db[collection]
 	return videos.find(config).next()
@@ -33,7 +36,8 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	vidpath = os.path.join(VIDEOPATH, videofile);
 
 	#Get Hash
-	fileHash = str(hashFile(vidpath, 65536))
+	fileHash = hashFile(vidpath, 65536)
+	if (fileHash is None): return False
 
 	#Check if this exact video exists already
 	video = collection.find_one({'_id': fileHash})
@@ -90,7 +94,7 @@ if __name__ == "__main__":
 		print "ERROR: file missing!"
 		exit(1)
 	#Get PyMongo client
-	client = MongoClient()
+	client = MongoClient(port=8099)
 	db = client["findvid"]
 	videos = db["videos"]
 	
