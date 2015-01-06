@@ -300,6 +300,52 @@ class Root(object):
 
 		return renderMainTemplate(config)
 
+	# Returns a text-version of scenes, found by similarscene search
+	# vidid - ID of the source video
+	# frame - Framenumber of the source scene in the source video
+	@cherrypy.expose
+	def searchSceneList(self, vidid = None, frame = None):
+		# If one of the parameters are unspecified, redirect to startpage
+		if not vidid:
+			return 'ERROR! - No vidid.'
+
+		if not frame:
+			return 'ERROR! - No framenumber.'
+
+		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
+		video = VIDEOS.find_one({'_id': str(vidid)}, {'scenes' : 0})
+
+		sceneid = 0
+		for i,endframe in enumerate(video['cuts']):
+			if frame < endframe:
+				sceneid = i-1
+				break
+
+		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
+
+		result = ""
+
+		if not similarScenes:
+			return 'No Scenes found for your search query.'
+		else:
+			scenes = []
+			i = 0
+			while (not similarScenes.empty()) and i < 100:
+				similarScene = similarScenes.get()	
+
+				if similarScene == None:
+					continue
+
+				similarVidid = similarScene[1][0]
+				similarSceneid = similarScene[1][1]
+
+				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+
+				result += " " + similarVideo['filename'] + " " + str(similarVideo['cuts'][similarSceneid]) + " " + str( int(similarVideo['cuts'][similarSceneid+1])-1 ) + "\n" 
+				i+=1
+
+		return result
+
 	# Returns all scenes for the given video, plus the originvideo
 	# vidid - ID of the originvideo
 	@cherrypy.expose
