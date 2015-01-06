@@ -7,8 +7,8 @@
 #include "largelist.h"
 #include "edgedetect.h"
 
-#define DSTW 400
-#define DSTH 300
+#define DSTW 320
+#define DSTH 200
 
 int main(int argc, char **argv) {
 	av_register_all();
@@ -27,24 +27,31 @@ int main(int argc, char **argv) {
 	
 	int frames = 0;
 
+	int targetFrame = 0;
+	if (argc > 2) {
+		targetFrame = atoi(argv[2]);
+		printf("Target Frame = %d\n", targetFrame);
+	}
+
 	uint32_t * features;
 	InterpolationWeights * weights = getLinearInterpolationWeights(DSTW, DSTH);
 
 	readFrame(iter, frame, &gotFrame);
-	while (gotFrame && frames < 1) { 
+	while (gotFrame) { 
 	
-		
+		if (frames == targetFrame) {
 
-		frame->width = iter->cctx->width;
-		frame->height = iter->cctx->height;
-		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH);
-		edgeFeatures(g, &features, weights);
-		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
-		SaveFrameG8(g, g->width, g->height, frames);
-		frames++;
+			frame->width = iter->cctx->width;
+			frame->height = iter->cctx->height;
+			AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH);
+			edgeFeatures(g, &features, weights);
+			//SaveFrameG8(g, g->width, g->height, frames);
 	
-		avpicture_free((AVPicture *)g);
-		av_frame_free(&g);
+			avpicture_free((AVPicture *)g);
+			av_frame_free(&g);
+			break;
+		}
+		frames++;
 		readFrame(iter, frame, &gotFrame);
 	}
 
