@@ -110,7 +110,7 @@ def configVideo(video):
 		# TODO use the relative thumbnails path and confirm that this is the right way to do this
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene0.jpeg'),
 		'videoid': vidid,
-		'filename': filename,
+		'filename': os.path.basename(filename),
 		'length': formatTime(int(video['cuts'][-1]), fps)
 	}
 
@@ -120,10 +120,10 @@ def configScene(video, sceneid):
 	vidid = video['_id']
 	fps = video['fps']
 	cuts = video['cuts']
-	splittedFilename = filename.split('/')
-	filename = os.path.join(splittedFilename[-2] + '/', splittedFilename[-1])
 
 	videopath = os.path.join('/videos/', filename)
+
+	filename = os.path.basename(filename)
 
 	return {
 		'url': videopath,
@@ -132,7 +132,6 @@ def configScene(video, sceneid):
 		# TODO use the relative thumbnails path and confirm that this is the right way to do this
 		'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene'+str(sceneid)+'.jpeg'),
 		'videoid': video['_id'],
-		'filename': filename,
 		'scenecount': str(sceneid),
 		'starttime': formatTime(int(cuts[sceneid]), fps),
 		'endtime': formatTime(int(cuts[sceneid+1]), fps)
