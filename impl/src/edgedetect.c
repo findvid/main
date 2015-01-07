@@ -280,19 +280,22 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
  			double magvar = sqrt(dx * dx + dy * dy);
 			setPixelG8(mag, x, y, magvar);
 
-			double dirvar = atan2(dx, dy);
+			double dirvar = atan2(dy, dx);
 			
 			//Encode direction into a gray value: [-90|90] -> [0|4]
 			//-180 = 0
 			if (dirvar < 0) //]-90|0[ -> ]90|180]
-				dirvar = M_PI + dirvar;
+				dirvar = (2 * M_PI) + dirvar;
 			//No need for drastic precision, use multiples of 45 degrees
 			//if (dirvar < 0 || dirvar > (M_PI))
 			//	printf("invalid dirvar = %f\n", dirvar);
 
 			dirvar = round(dirvar / (M_PI / 4));
 		
-			dirvar *= (M_PI / 4);
+			if (!(dirvar >= 0.0 && dirvar <= 8.0)) {
+				printf("SOBEL FUCKED UP!\n");
+				exit(-1);
+			}
 
 			setPixelG8(dir, x, y, dirvar);
 		}
@@ -345,24 +348,28 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 			int ox = 0, oy = 0;
 			switch(getPixelG8(sobel.dir, x, y))  {
 				case 0: //0 degree
-				case 240: // or 180
-					ox = 0;
-					oy = 1;
-					break;
-				case 60: //45 degree
-					ox = 1;
-					oy = -1;
-					break;
-				case 120: //90 degree
+				case 4: // or 180
+				case 8:
 					ox = 1;
 					oy = 0;
 					break;
-				case 180: //135 degree
+				case 1: //45 degree
+				case 5:
 					ox = 1;
 					oy = 1;
 					break;
+				case 2: //90 degree
+				case 6:
+					ox = 0;
+					oy = 1;
+					break;
+				case 3: //135 degree
+				case 7:
+					ox = -1;
+					oy = 1;
+					break;
 				default:
-					printf("INVALID DIRCODE AT (%d, %d)\n", x, y);
+					printf("INVALID DIRCODE (%d) AT (%d, %d)\n", getPixelG8(sobel.dir, x, y), x, y);
 			}
 			if ((getPixelG8(sobel.mag, x, y) < getPixelG8(sobel.mag, x-ox, y-oy)) || (getPixelG8(sobel.mag, x,y) < getPixelG8(sobel.mag, x+ox, y+oy)))
 				setPixelG8(newmag, x, y, 0);
@@ -398,20 +405,24 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				int ox = 0, oy = 0;
 				switch(getPixelG8(sobel.dir, x, y))  {
 					case 0: //0 degree
-					case 240: // or 180
-						ox = 1;
-						oy = 1;
-						break;
-					case 60: //45 degree
-						ox = 1;
-						oy = 1;
-						break;
-					case 120: //90 degree
+					case 4: // or 180
+					case 8:
 						ox = 0;
 						oy = 1;
 						break;
-					case 180: //135 degree
+					case 1: //45 degree
+					case 5:
 						ox = -1;
+						oy = 1;
+						break;
+					case 2: //90 degree
+					case 6:
+						ox = 1;
+						oy = 0;
+						break;
+					case 3: //135 degree
+					case 7:
+						ox = 1;
 						oy = 1;
 						break;
 				}

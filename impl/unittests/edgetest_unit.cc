@@ -183,9 +183,9 @@ TEST_F(EdgeTest, SobelMagCheck) {
 }
 
 TEST_F(EdgeTest, SobelDirCheck) {
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 299), 2);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 300), 6);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 301), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 299), 2);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 300), 6);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 301), 0);
 }
 
 TEST(EdgeFeatures, Weights) {
