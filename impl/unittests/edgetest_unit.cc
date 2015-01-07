@@ -182,20 +182,25 @@ TEST_F(EdgeTest, SobelMagCheck) {
 	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
 }
 
+TEST_F(EdgeTest, SobelDirCheck) {
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 299), 2);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 300), 6);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 300, 301), 0);
+}
 
 TEST(EdgeFeatures, Weights) {
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);
-	for(int x = 0; x < 80; x++)
-		for (int y = 0; y < 80;y++) {
-			double var = (	getMatrixVar(weights->nw, x, y, 80) +
-							getMatrixVar(weights->n, x, y, 80)  +
-							getMatrixVar(weights->ne, x, y, 80)  +
-							getMatrixVar(weights->e, x, y, 80)  +
-							getMatrixVar(weights->se, x, y, 80)  +
-							getMatrixVar(weights->s, x, y, 80)  +
-							getMatrixVar(weights->sw, x, y, 80)  +
-							getMatrixVar(weights->w, x, y, 80)  +
-							getMatrixVar(weights->c, x, y, 80)
+	for(int x = 0; x < 40; x++)
+		for (int y = 0; y < 40;y++) {
+			double var = (	getMatrixVar(weights->nw, x, y, 40) +
+							getMatrixVar(weights->n, x, y, 40)  +
+							getMatrixVar(weights->ne, x, y, 40)  +
+							getMatrixVar(weights->e, x, y, 40)  +
+							getMatrixVar(weights->se, x, y, 40)  +
+							getMatrixVar(weights->s, x, y, 40)  +
+							getMatrixVar(weights->sw, x, y, 40)  +
+							getMatrixVar(weights->w, x, y, 40)  +
+							getMatrixVar(weights->c, x, y, 40)
 							);
 			//EXPECT_EQ(1.0, var); //GTest doesn't like this and will fail this anyway due to rounding errors
 			EXPECT_GT(1.0001, var);
