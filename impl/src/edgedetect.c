@@ -124,7 +124,9 @@ OperatorMask * getBellOperatorLinear(int width) {
 	return mask;
 }
 
-//Improve contrast by linear scaling
+//Improve contrast by linearly scaling the grayscale image to use the whole spectrum
+//Possible problem: when used upon the sobel magnitude output, this can cut some edges below the hysteresis threshold.
+//This should be neglible for natural images, but one can easily construct artificial images that clearly have edges not recognised by this
 void linearScale(AVFrame * pic) {
 	int min = 255, max = 0;
 
@@ -138,6 +140,7 @@ void linearScale(AVFrame * pic) {
 	}
 
 	if(min!=0 || max!= 255) {
+		
 		double scaling = 255.0 / (max - min);
 		for( int y = 0; y < pic->height; y++ ) {
 			for( int x = 0; x < pic->width; x++ ) {
@@ -291,11 +294,14 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 			//	printf("invalid dirvar = %f\n", dirvar);
 
 			dirvar = round(dirvar / (M_PI / 4));
-		
-			if (!(dirvar >= 0.0 && dirvar <= 8.0)) {
+
+			if (dirvar < 1) dirvar = 8;
+			if (magvar < HYSTERESIS_T2) dirvar = 0; //No edge here, therefore no direction. This is mainly for more detail in the feature extraction
+
+			/*if (!(dirvar >= 0.0 && dirvar <= 8.0)) {
 				printf("SOBEL FUCKED UP!\n");
 				exit(-1);
-			}
+			}*/
 
 			setPixelG8(dir, x, y, dirvar);
 		}
@@ -309,7 +315,7 @@ void getSobelOutput(AVFrame * gray, struct t_sobelOutput * out) {
 	Takes about 60ms for each frame at 400x300 pixels, scaled down from 1920x1080 pixels
 */
 
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height) {
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width, int height, struct t_sobelOutput * sobel) {
 	// Step 0: Get grayscale picture
 	AVFrame *gray = av_frame_alloc();
 	avpicture_alloc((AVPicture *)gray,PIX_FMT_GRAY8, width, height);
@@ -326,30 +332,37 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	//	SaveFrameG8(sgray, sgray->width, sgray->height, 40);
 
 	//Step 2: Get SobelOutput
-	struct t_sobelOutput sobel;
-	getSobelOutput(sgray, &sobel);
+	int clearsobel = 0;
+	if (!sobel) {
+		clearsobel = 1;
+		sobel = malloc(sizeof(struct t_sobelOutput));
+	}
+
+	getSobelOutput(sgray, sobel);
 	avpicture_free((AVPicture *)sgray);
 	av_frame_free(&sgray);
 	
 	//SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 3);
 
-	linearScale(sobel.mag);
+	linearScale(sobel->mag);
 	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 40);
 
 	AVFrame * newmag = av_frame_alloc();
-	avpicture_alloc((AVPicture *)newmag, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
-	newmag->width = sobel.mag->width;
-	newmag->height = sobel.mag->height;
+	avpicture_alloc((AVPicture *)newmag, PIX_FMT_GRAY8, sobel->mag->width, sobel->mag->height);
+	newmag->width = sobel->mag->width;
+	newmag->height = sobel->mag->height;
 
 	//Step 3: Non-maxmimum suppression
 	//Check for greater magnitudes orthogonal to the edge
-	for (int x = 0; x < sobel.mag->width; x++) {
-		for (int y = 0; y < sobel.mag->height; y++) {
+	for (int x = 0; x < sobel->mag->width; x++) {
+		for (int y = 0; y < sobel->mag->height; y++) {
 			int ox = 0, oy = 0;
-			switch(getPixelG8(sobel.dir, x, y))  {
-				case 0: //0 degree
-				case 4: // or 180
-				case 8:
+			switch(getPixelG8(sobel->dir, x, y))  {
+				case 0: // No direction
+					setPixelG8(newmag, x, y, 0);
+					continue;
+				case 4: // 180
+				case 8: //0|360
 					ox = 1;
 					oy = 0;
 					break;
@@ -369,43 +382,44 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 					oy = 1;
 					break;
 				default:
-					printf("INVALID DIRCODE (%d) AT (%d, %d)\n", getPixelG8(sobel.dir, x, y), x, y);
+					printf("INVALID DIRCODE (%d) AT (%d, %d)\n", getPixelG8(sobel->dir, x, y), x, y);
 			}
-			if ((getPixelG8(sobel.mag, x, y) < getPixelG8(sobel.mag, x-ox, y-oy)) || (getPixelG8(sobel.mag, x,y) < getPixelG8(sobel.mag, x+ox, y+oy)))
+			if ((getPixelG8(sobel->mag, x, y) < getPixelG8(sobel->mag, x-ox, y-oy)) || (getPixelG8(sobel->mag, x,y) < getPixelG8(sobel->mag, x+ox, y+oy)))
 				setPixelG8(newmag, x, y, 0);
 			else
-				setPixelG8(newmag, x, y, getPixelG8(sobel.mag, x, y));
+				setPixelG8(newmag, x, y, getPixelG8(sobel->mag, x, y));
 		}
 	}
 
-	avpicture_free((AVPicture *)sobel.mag);
-	av_frame_free(&sobel.mag);
+	avpicture_free((AVPicture *)sobel->mag);
+	av_frame_free(&sobel->mag);
 
-	sobel.mag = newmag;
+	sobel->mag = newmag;
 
 	//	SaveFrameG8(sobel.mag, sobel.mag->width, sobel.mag->height, 50);
 	//	SaveFrameG8(sobel.dir, sobel.dir->width, sobel.dir->height, 60);
 
 	//Step 4:Hysteresis thresholding
 	AVFrame * res = av_frame_alloc();
-	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, sobel.mag->width, sobel.mag->height);
-	res->width = sobel.mag->width;
-	res->height = sobel.mag->height;
+	avpicture_alloc((AVPicture *)res, PIX_FMT_GRAY8, sobel->mag->width, sobel->mag->height);
+	res->width = sobel->mag->width;
+	res->height = sobel->mag->height;
 	
 	//Appearantly it is possible that res "inherits" the data of a grayscale picture rather than being all black. Therefore, we have to do it ourselves. Again.
 	memset(res->data[0], 0, res->linesize[0] * res->height);
 
 	
 
-	for (int x = 0; x < sobel.mag->width; x++) {
-		for (int y = 0; y < sobel.mag->height; y++) {
-			if (getPixelG8(sobel.mag, x, y) > HYSTERESIS_T1) {
-				setPixelG8(res, x, y, getPixelG8(sobel.mag, x, y));
-				setPixelG8(sobel.mag, x, y, 0);
+	for (int x = 0; x < sobel->mag->width; x++) {
+		for (int y = 0; y < sobel->mag->height; y++) {
+			if (getPixelG8(sobel->mag, x, y) > HYSTERESIS_T1) {
+				setPixelG8(res, x, y, getPixelG8(sobel->mag, x, y));
+				setPixelG8(sobel->mag, x, y, 0);
 				int ox = 0, oy = 0;
-				switch(getPixelG8(sobel.dir, x, y))  {
-					case 0: //0 degree
-					case 4: // or 180
+				switch(getPixelG8(sobel->dir, x, y))  {
+					case 0: // No direction
+						continue;
+					case 4: // 180
 					case 8:
 						ox = 0;
 						oy = 1;
@@ -428,22 +442,22 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				}
 				//Follow edge in "+"-direction
 				int ox2 = ox, oy2 = oy;
-				while (getPixelG8(sobel.mag, x+ox2, y+oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x+ox2, y+oy2) > HYSTERESIS_T2) {
 //					printf("Follow(+) edge to (%d,%d)\n", (x+ox2), (y+oy2));
 					//Set this as edge pixel
-					setPixelG8(res, x+ox2, y+oy2, getPixelG8(sobel.mag, x+ox2, y+oy2));
-					setPixelG8(sobel.mag, x+ox2, y+oy2, 0);
+					setPixelG8(res, x+ox2, y+oy2, getPixelG8(sobel->mag, x+ox2, y+oy2));
+					setPixelG8(sobel->mag, x+ox2, y+oy2, 0);
 					ox2 += ox;
 					oy2 += oy;
 				}
 				//Repeat in "-"-direction
 				ox2 = ox;
 				oy2 = oy;
-				while (getPixelG8(sobel.mag, x-ox2, y-oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x-ox2, y-oy2) > HYSTERESIS_T2) {
 //					printf("Follow(-) edge to (%d,%d)\n", (x-ox2), (y-oy2));
 					//Set this as edge pixel
-					setPixelG8(res, x-ox2, y-oy2, getPixelG8(sobel.mag, x-ox2, y-oy2));
-					setPixelG8(sobel.mag, x-ox2, y-oy2, 0);
+					setPixelG8(res, x-ox2, y-oy2, getPixelG8(sobel->mag, x-ox2, y-oy2));
+					setPixelG8(sobel->mag, x-ox2, y-oy2, 0);
 					ox2 += ox;
 					oy2 += oy;
 				}
@@ -453,11 +467,15 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 			}
 		}
 	}
-	//Free the rest and return result
-	avpicture_free((AVPicture *)sobel.mag);
-	av_frame_free(&sobel.mag);
-	avpicture_free((AVPicture *)sobel.dir);
-	av_frame_free(&sobel.dir);
+	if (clearsobel) {
+		//Free the rest and return result
+		avpicture_free((AVPicture *)sobel->mag);
+		av_frame_free(&sobel->mag);
+		avpicture_free((AVPicture *)sobel->dir);
+		av_frame_free(&sobel->dir);
+		free(sobel);
+	}
+
 	return res;
 }
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height) {
@@ -496,14 +514,14 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	
 	AVFrame * lastFrame;
 	if (usefeedback) 
-		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height);
+		lastFrame = getEdgeProfile(feedback->lastFrame, swsctx, width, height, NULL);
 	else
-		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height);
+		lastFrame = getEdgeProfile(list_next(iter), swsctx, width, height, NULL);
 
 	AVFrame * thisFrame;
 	int pos = (usefeedback?feedback->diff_len:0);
 	while ((thisFrame = list_next(iter)) != NULL) {
-		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height);
+		thisFrame = getEdgeProfile(thisFrame, swsctx, width, height, NULL);
 
 		differences[pos++] = EdgeContrast(lastFrame)/2;
 

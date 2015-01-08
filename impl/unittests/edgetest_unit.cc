@@ -44,7 +44,7 @@ class EdgeTest : public testing::Test {
 			AVFrame * i = testFrame1(width, height);
 			i->width = width;
 			i->height = height;
-			this->img = getEdgeProfile(i, sws, width, height);
+			this->img = getEdgeProfile(i, sws, width, height, NULL);
 			//avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 			
@@ -60,10 +60,11 @@ class EdgeTest : public testing::Test {
 			ig->height = height;
 			getSobelOutput(ig, &this->sobel_box);
 
-			this->box = getEdgeProfile(i, sws, width, height);
+			this->box = getEdgeProfile(i, sws, width, height, NULL);
 			this->box->width = width;
 			this->box->height = height;
 			SaveFrameG8(this->box, width, height, 100);
+			SaveFrameG8(this->sobel_box.mag, width, height, 101);
 			//avpicture_free((AVPicture *)ig);
 			av_frame_free(&ig);
 			//avpicture_free((AVPicture *)i);
@@ -80,10 +81,11 @@ class EdgeTest : public testing::Test {
 			ig->height = height;
 			getSobelOutput(ig, &this->sobel_hbox);
 			SaveFrameRGB24(i, width, height, 20);
-			this->hbox = getEdgeProfile(i, sws, width, height);
+			this->hbox = getEdgeProfile(i, sws, width, height, NULL);
 			this->hbox->width = width;
 			this->hbox->height = height;
 			SaveFrameG8(this->hbox, width, height, 200);
+			SaveFrameG8(this->sobel_hbox.mag, width, height, 201);
 
 			avpicture_free((AVPicture *)ig);
 			av_frame_free(&ig);
@@ -173,19 +175,26 @@ TEST_F(EdgeTest, SimpleEdge1) {
 }
 
 TEST_F(EdgeTest, BoxCmp) {
-	EXPECT_GT(cmpProfiles(this->box, this->hbox), 0.5);
+	EXPECT_GT(cmpProfiles(this->box, this->hbox), 0.495);
 }
 
 TEST_F(EdgeTest, SobelMagCheck) {
 	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 420, 130), 0);
 	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 419, 130), 20);
 	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
+
+	//Magnitude must be 0 somewhere in between for both boxes
+	EXPECT_EQ(getPixelG8(this->sobel_box.mag, 200, 200), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 200, 200), 0);
 }
 
 TEST_F(EdgeTest, SobelDirCheck) {
 	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 299), 2);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 300), 6);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 301), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 300), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 301), 6);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 421, 130), 4);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 419, 130), 8);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 415, 130), 0);
 }
 
 TEST(EdgeFeatures, Weights) {

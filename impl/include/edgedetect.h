@@ -77,7 +77,7 @@ void linearScale(AVFrame * pic);
 AVFrame * getEdgeProfile_full(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 //Use sobel magnitude as edge strength
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height, struct t_sobelOutput * sobel);
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
