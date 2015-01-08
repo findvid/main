@@ -39,19 +39,16 @@ int main(int argc, char **argv) {
 	readFrame(iter, frame, &gotFrame);
 	while (gotFrame) { 
 	
-		if (frames == targetFrame) {
-
-			frame->width = iter->cctx->width;
-			frame->height = iter->cctx->height;
-			AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH);
-			edgeFeatures(g, &features, weights);
-			//SaveFrameG8(g, g->width, g->height, frames);
-	
-			avpicture_free((AVPicture *)g);
-			av_frame_free(&g);
-			break;
-		}
+		frame->width = iter->cctx->width;
+		frame->height = iter->cctx->height;
+		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH, NULL);
+		edgeFeatures(frame, &features, weights, rgb2g_ctx);
+		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
+		//SaveFrameG8(g, g->width, g->height, frames);
 		frames++;
+	
+		//avpicture_free((AVPicture *)g);
+		//av_frame_free(&g);
 		readFrame(iter, frame, &gotFrame);
 	}
 
