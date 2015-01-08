@@ -27,7 +27,7 @@
 //
 #define QUADRANTS_WIDTH 16
 #define QUADRANTS_HEIGHT 10
-#define FEATURE_LENGTH (QUADRANTS_WIDTH*QUADRANTS_HEIGHT)
+#define FEATURE_LENGTH ((QUADRANTS_WIDTH*QUADRANTS_HEIGHT) + 9)
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
@@ -77,11 +77,11 @@ void linearScale(AVFrame * pic);
 AVFrame * getEdgeProfile_full(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 //Use sobel magnitude as edge strength
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height, struct t_sobelOutput * sobel);
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 
 void edgeFeatures_length(uint32_t *);
-void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *);
+void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *, struct SwsContext *);
