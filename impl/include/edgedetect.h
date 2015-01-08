@@ -27,7 +27,7 @@
 //
 #define QUADRANTS_WIDTH 16
 #define QUADRANTS_HEIGHT 10
-#define FEATURE_LENGTH (QUADRANTS_WIDTH*QUADRANTS_HEIGHT)
+#define FEATURE_LENGTH ((QUADRANTS_WIDTH*QUADRANTS_HEIGHT) + 9)
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 

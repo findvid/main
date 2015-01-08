@@ -718,7 +718,7 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 }
 
 void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weights, struct SwsContext * ctx) {
-	double * values = calloc(sizeof(double), FEATURE_LENGTH);
+	double * values = calloc(sizeof(double), FEATURE_LENGTH - 9);
 
 	struct t_sobelOutput sobel;
 	AVFrame * edges = getEdgeProfile(frm, ctx, weights->width * QUADRANTS_WIDTH, weights->height * QUADRANTS_HEIGHT, &sobel);
@@ -728,7 +728,11 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 	av_frame_free(&sobel.mag);
 
 	//Fill FEATURE_LENGTH values with the pixels in the correspondending quadrants in profile
-	
+
+	//The last 9 values are bins for the directions
+	for (int i = (FEATURE_LENGTH - 9); i < FEATURE_LENGTH; i++)
+		data[i] = 0;
+
 	double weightused;
 
 	for (int qx = 0; qx < QUADRANTS_WIDTH; qx++) {
@@ -806,12 +810,15 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 					if (touched & (1<<5)) values[(qx  ) + (qy+1) * QUADRANTS_WIDTH] += (pix * (w_s  / weightused)); //S
 					if (touched & (1<<6)) values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += (pix * (w_sw / weightused)); //SW
 					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] += (pix * (w_w  / weightused)); //W
+
+					//Increment appropiate direction bin
+					data[(QUADRANTS_WIDTH * QUADRANTS_HEIGHT) + getPixelG8(sobel.dir, x+ox, y+oy)]++;
 				}
 			}
 		}
 	}
 
-	for (int i = 0; i < FEATURE_LENGTH; i++)
+	for (int i = 0; i < FEATURE_LENGTH - 9; i++)
 		data[i] = (uint32_t)values[i];
 
 	avpicture_free((AVPicture *)sobel.dir);
