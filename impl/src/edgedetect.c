@@ -333,7 +333,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 
 	//Step 2: Get SobelOutput
 	int clearsobel = 0;
-	if (!sobel) {
+	if (sobel == NULL) {
 		clearsobel = 1;
 		sobel = malloc(sizeof(struct t_sobelOutput));
 	}
@@ -391,8 +391,15 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 		}
 	}
 
-	avpicture_free((AVPicture *)sobel->mag);
-	av_frame_free(&sobel->mag);
+	//Dependin on wether the sobel output is needed elsewhere, save a reference to the old sobel output and set sobel->mag back to this
+	AVFrame * oldmag = NULL;
+
+	if (clearsobel) {
+		avpicture_free((AVPicture *)sobel->mag);
+		av_frame_free(&sobel->mag);
+	} else {
+		oldmag = sobel->mag;
+	}
 
 	sobel->mag = newmag;
 
@@ -469,11 +476,16 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 	}
 	if (clearsobel) {
 		//Free the rest and return result
-		avpicture_free((AVPicture *)sobel->mag);
-		av_frame_free(&sobel->mag);
 		avpicture_free((AVPicture *)sobel->dir);
 		av_frame_free(&sobel->dir);
+		avpicture_free((AVPicture *)sobel->mag);
+		av_frame_free(&sobel->mag);
 		free(sobel);
+	} else {
+		//current sobel->mag is the result of NMS which was "consumed" by the hysteresis; luckily, we stored a reference to the original sobel->mag
+		avpicture_free((AVPicture *)sobel->mag);
+		av_frame_free(&sobel->mag);
+		sobel->mag = oldmag;
 	}
 
 	return res;
@@ -541,7 +553,7 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	feedback->diff = newdiff;
 	//Not yet; we still need to know how long the old feedback, which is now in differences, was
 	//feedback->diff_len = fb_len;
-	saveGraph(2700000+startframe, differences, diff_len);
+	//saveGraph(2700000+startframe, differences, diff_len);
 	
 	//apply smoothing
 
@@ -593,7 +605,7 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 	free(differences);
 	differences = smoothed;
 
-	saveGraph(3700000+startframe, differences, diff_len);
+	//saveGraph(3700000+startframe, differences, diff_len);
 	
 	//Start searching through differences to mark cuts
 	double extr = 0;

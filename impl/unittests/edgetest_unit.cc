@@ -8,13 +8,18 @@ extern "C" {
 
 class EdgeTest : public testing::Test {
 	public:
+		struct SwsContext * sws;
+
 		AVFrame * img;
 		
+		AVFrame * box_o;
+		AVFrame * hbox_o;
+
 		AVFrame * box;
 		AVFrame * hbox;
 
-		t_sobelOutput sobel_box;
-		t_sobelOutput sobel_hbox;
+		struct t_sobelOutput * sobel_box;
+		struct t_sobelOutput * sobel_hbox;
 
 		AVFrame * testFrame1(int,int);
 		AVFrame * testFrameBox(int,int);
@@ -39,56 +44,32 @@ class EdgeTest : public testing::Test {
 	protected:
 		virtual void SetUp() {
 			int width = 640, height = 400;
-			struct SwsContext * sws = sws_getContext(width, height, PIX_FMT_RGB24, width, height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+			sws = sws_getContext(width, height, PIX_FMT_RGB24, width, height, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+			this->sobel_box = (struct t_sobelOutput *)malloc(sizeof(struct t_sobelOutput));
+			this->sobel_hbox = (struct t_sobelOutput *)malloc(sizeof(struct t_sobelOutput));
 
 			AVFrame * i = testFrame1(width, height);
 			i->width = width;
 			i->height = height;
 			this->img = getEdgeProfile(i, sws, width, height, NULL);
-			//avpicture_free((AVPicture *)i);
-			av_frame_free(&i);
 			
-			AVFrame * ig = av_frame_alloc();
-			avpicture_alloc((AVPicture *)ig, PIX_FMT_GRAY8, width, height);
-			i = testFrameBox(width, height);
-			i->width = width;
-			i->height = height;
-			SaveFrameRGB24(i, width, height, 10);
-
-			sws_scale(sws, (const uint8_t * const*)i->data, i->linesize, 0, height, ig->data, ig->linesize);
-			ig->width = width;
-			ig->height = height;
-			getSobelOutput(ig, &this->sobel_box);
-
-			this->box = getEdgeProfile(i, sws, width, height, NULL);
-			this->box->width = width;
-			this->box->height = height;
+			this->box_o = testFrameBox(width, height);
+			SaveFrameRGB24(this->box_o, width, height, 10);
+			this->box = getEdgeProfile(this->box_o, sws, width, height, this->sobel_box);
 			SaveFrameG8(this->box, width, height, 100);
-			SaveFrameG8(this->sobel_box.mag, width, height, 101);
-			//avpicture_free((AVPicture *)ig);
-			av_frame_free(&ig);
-			//avpicture_free((AVPicture *)i);
-			av_frame_free(&i);
+			SaveFrameG8(this->sobel_box->mag, width, height, 101);
+			SaveFrameG8(this->sobel_box->dir, width, height, 102);
 			
-			i = testFrameHBox(width, height);
-			i->width = width;
-			i->height = height;
-			
-			ig = av_frame_alloc();
-			avpicture_alloc((AVPicture *)ig, PIX_FMT_GRAY8, width, height);
-			sws_scale(sws, (const uint8_t * const *)i->data, i->linesize, 0, height, ig->data, ig->linesize);
-			ig->width = width;
-			ig->height = height;
-			getSobelOutput(ig, &this->sobel_hbox);
-			SaveFrameRGB24(i, width, height, 20);
-			this->hbox = getEdgeProfile(i, sws, width, height, NULL);
+
+			this->hbox_o = testFrameHBox(width, height);
+			SaveFrameRGB24(this->hbox_o, width, height, 20);
+			this->hbox = getEdgeProfile(this->hbox_o, sws, width, height, this->sobel_hbox);
 			this->hbox->width = width;
 			this->hbox->height = height;
 			SaveFrameG8(this->hbox, width, height, 200);
-			SaveFrameG8(this->sobel_hbox.mag, width, height, 201);
-
-			avpicture_free((AVPicture *)ig);
-			av_frame_free(&ig);
+			SaveFrameG8(this->sobel_hbox->mag, width, height, 201);
+			SaveFrameG8(this->sobel_hbox->dir, width, height, 202);
+			
 			avpicture_free((AVPicture *)i);
 			av_frame_free(&i);
 		}
@@ -135,6 +116,8 @@ AVFrame * EdgeTest::testFrameBox(int width, int height) {
 		}
 	}
 
+	img->width = width;
+	img->height = height;
 	return img;
 }
 
@@ -166,6 +149,9 @@ AVFrame * EdgeTest::testFrameHBox(int width, int height) {
 	for (xo = -100; xo <= 100; xo++) {
 		setPixel(img, xm+xo, ym+yo, 0xff0000);
 	}
+	
+	img->width = width;
+	img->height = height;
 	return img;
 }
 
@@ -179,22 +165,22 @@ TEST_F(EdgeTest, BoxCmp) {
 }
 
 TEST_F(EdgeTest, SobelMagCheck) {
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 420, 130), 0);
-	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 419, 130), 20);
-	EXPECT_GT(getPixelG8(this->sobel_hbox.mag, 421, 130), 20);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->mag, 420, 130), 0);
+	EXPECT_GT(getPixelG8(this->sobel_hbox->mag, 419, 130), 20);
+	EXPECT_GT(getPixelG8(this->sobel_hbox->mag, 421, 130), 20);
 
 	//Magnitude must be 0 somewhere in between for both boxes
-	EXPECT_EQ(getPixelG8(this->sobel_box.mag, 200, 200), 0);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.mag, 200, 200), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_box->mag, 200, 200), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->mag, 200, 200), 0);
 }
 
 TEST_F(EdgeTest, SobelDirCheck) {
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 299), 2);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 300), 0);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 300, 301), 6);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 421, 130), 4);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 419, 130), 8);
-	EXPECT_EQ(getPixelG8(this->sobel_hbox.dir, 415, 130), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 300, 299), 2);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 300, 300), 0);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 300, 301), 6);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 421, 130), 4);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 419, 130), 8);
+	EXPECT_EQ(getPixelG8(this->sobel_hbox->dir, 415, 130), 0);
 }
 
 TEST(EdgeFeatures, Weights) {
@@ -223,7 +209,23 @@ TEST(EdgeFeatures, Weights) {
 	free(weights);
 }
 
-TEST_F(EdgeTest, FeatureSmokeTest) {
+//The total amount of binned pixels add up perfectly, but there seem to be more "directed" pixels than seems reasonable, about 2 as many as one should expect from this image.
+//The distribution isn't exactly perfect, either; some directions seem to be preferred over others!
+TEST_F(EdgeTest, BoxFeatures) {
+	uint32_t * feats;
+	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);	
+	edgeFeatures(this->box, &feats, weights, this->sws);
+	//Test features
+
+	for (int i = 0; i < FEATURE_LENGTH; i++)
+		printf("%d\n", feats[i]);
+	
+	free(feats);
+	free(weights->c);
+	free(weights);
+}
+
+/*TEST_F(EdgeTest, FeatureSmokeTest) {
 	uint32_t * feats;
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);	
 	edgeFeatures(this->box, &feats, weights);
@@ -232,7 +234,7 @@ TEST_F(EdgeTest, FeatureSmokeTest) {
 	free(feats);
 	free(weights->c);
 	free(weights);
-}
+}*/
 
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
