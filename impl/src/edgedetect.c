@@ -621,6 +621,7 @@ void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t 
 //Thus, the parameters should be dividable by the set amount of quadrants in each respective dimension
 //otherwise, some pixels at the right and lower border will be lost to the feature
 InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
+	
 	width /= QUADRANTS_WIDTH;
 	height /= QUADRANTS_HEIGHT;
 	InterpolationWeights * res = malloc(sizeof(InterpolationWeights));
@@ -716,61 +717,66 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	return res;
 }
 
-void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weights) {
+void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weights, struct SwsContext * ctx) {
 	double * values = calloc(sizeof(double), FEATURE_LENGTH);
 
-	//Fill FEATURE_LENGTH values with the pixels in the correspondending quadrants in profile
-	uint32_t q_width = frm->width / QUADRANTS_WIDTH;
-	uint32_t q_height = frm->height / QUADRANTS_HEIGHT;
+	struct t_sobelOutput sobel;
+	AVFrame * edges = getEdgeProfile(frm, ctx, weights->width * QUADRANTS_WIDTH, weights->height * QUADRANTS_HEIGHT, &sobel);
 
+	//Immediately discard the sobel magnitude output
+	avpicture_free((AVPicture *)sobel.mag);
+	av_frame_free(&sobel.mag);
+
+	//Fill FEATURE_LENGTH values with the pixels in the correspondending quadrants in profile
+	
 	double weightused;
 
 	for (int qx = 0; qx < QUADRANTS_WIDTH; qx++) {
 		for (int qy = 0; qy < QUADRANTS_HEIGHT; qy++) {
 			// Get beginning of the quadrant
-			int ox = qx * q_width;
-			int oy = qy * q_height;
+			int ox = qx * weights->width;
+			int oy = qy * weights->height;
 			//data[qx + qy * QUADRANTS_WIDTH] = 0;
-			for (int x = 0; x < q_width; x++) {
-				for (int y = 0; y < q_height; y++) {
+			for (int x = 0; x < weights->width; x++) {
+				for (int y = 0; y < weights->height; y++) {
 					char touched = 0; //Bitmask telling which quadrants have been touched, clockwise starting from NW
 					double w_c = 0.0, w_nw = 0.0, w_n = 0.0, w_ne = 0.0, w_e = 0.0, w_se = 0.0, w_s = 0.0, w_sw = 0.0, w_w = 0.0; //To avoid too much conversion, get the weights to be used beforehand and normalize them before convolving with the image using weightused
-					weightused = (w_c = getMatrixVar(weights->c, x, y, q_width)); //center weight is always used
+					weightused = (w_c = getMatrixVar(weights->c, x, y, weights->width)); //center weight is always used
 					//This should usually add up to 1, only in border quadrants it won't because their weight is not added to this variable
 
 					
 					if (qx > 0) {
 						//Add to west
 						//values[(qx-1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->w, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						weightused += (w_w = getMatrixVar(weights->w, x, y, q_width));
+						weightused += (w_w = getMatrixVar(weights->w, x, y, weights->width));
 						touched |= 1<<7;
 
 						if (qy > 0) {
 							//Add to Northwest
-							//values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-							weightused += (w_nw = getMatrixVar(weights->nw, x, y, q_width));
+							//values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->nw, x, y, weights->width) * getPixelG8(frm, x+ox, y+oy);
+							weightused += (w_nw = getMatrixVar(weights->nw, x, y, weights->width));
 							touched |= 1;
 						} else if (qy < (QUADRANTS_HEIGHT - 1)) {
 							//values[(qx-1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->sw, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-							weightused += (w_sw = getMatrixVar(weights->sw, x, y, q_width));
+							weightused += (w_sw = getMatrixVar(weights->sw, x, y, weights->width));
 							touched |= 1<<6;
 						}
 					}
 					
 					if (qx < (QUADRANTS_WIDTH - 1)) {
 						//Add to east
-						//values[(qx+1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->e, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						weightused += (w_e = getMatrixVar(weights->e, x, y, q_width));
+						//values[(qx+1) + qy * QUADRANTS_WIDTH] += getMatrixVar(weights->e, x, y, weights->width) * getPixelG8(frm, x+ox, y+oy);
+						weightused += (w_e = getMatrixVar(weights->e, x, y, weights->width));
 						touched |= 1<<3;
 
 						if (qy > 0) {
 							//Add to Northeast
 							//values[(qx+1) + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->ne, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-							weightused += (w_ne = getMatrixVar(weights->ne, x, y, q_width));
+							weightused += (w_ne = getMatrixVar(weights->ne, x, y, weights->width));
 							touched |= 1<<2;
 						} else if (qy < (QUADRANTS_HEIGHT - 1)) {
 							//values[(qx+1) + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->se, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-							weightused += (w_se = getMatrixVar(weights->se, x, y, q_width));
+							weightused += (w_se = getMatrixVar(weights->se, x, y, weights->width));
 							touched |= 1<<4;
 						}
 					}
@@ -778,18 +784,18 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 					if (qy > 0) {
 						//Add to north
 						//values[qx + (qy-1) * QUADRANTS_WIDTH] += getMatrixVar(weights->n, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						weightused += (w_n = getMatrixVar(weights->n, x, y, q_width)); 
+						weightused += (w_n = getMatrixVar(weights->n, x, y, weights->width)); 
 						touched |= 1<<1;
 					}
 
 					if (qy < (QUADRANTS_HEIGHT - 1)) {
 						//Add to south
 						//values[qx + (qy+1) * QUADRANTS_WIDTH] += getMatrixVar(weights->s, x, y, q_width) * getPixelG8(frm, x+ox, y+oy);
-						weightused += (w_s = getMatrixVar(weights->s, x, y, q_width));
+						weightused += (w_s = getMatrixVar(weights->s, x, y, weights->width));
 						touched |= 1<<5;
 					}
 
-					double pix = (double)getPixelG8(frm, x+ox, y+oy);
+					double pix = (double)getPixelG8(edges, x+ox, y+oy);
 					//Normalize values by dividing by weightused
 										  values[ qx    +  qy    * QUADRANTS_WIDTH] += (pix * (w_c  / weightused)); //Center
 					if (touched & (1)   ) values[(qx-1) + (qy-1) * QUADRANTS_WIDTH] += (pix * (w_nw / weightused)); //NW
@@ -808,14 +814,19 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 	for (int i = 0; i < FEATURE_LENGTH; i++)
 		data[i] = (uint32_t)values[i];
 
+	avpicture_free((AVPicture *)sobel.dir);
+	av_frame_free(&sobel.dir);
+	
+	avpicture_free((AVPicture *)edges);
+	av_frame_free(&edges);
 }
 
 void edgeFeatures_length(uint32_t * l) {
 	*l = FEATURE_LENGTH;
 }
 
-void edgeFeatures(AVFrame * frm, uint32_t ** data, InterpolationWeights * w) {
+void edgeFeatures(AVFrame * frm, uint32_t ** data, InterpolationWeights * w, struct SwsContext * ctx) {
 	*data = (uint32_t *)malloc(sizeof(uint32_t) * FEATURE_LENGTH);
-	getEdgeFeatures(frm, *data, w);
+	getEdgeFeatures(frm, *data, w, ctx);
 
 }

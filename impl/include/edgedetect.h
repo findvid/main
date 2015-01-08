@@ -84,4 +84,4 @@ void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 
 void edgeFeatures_length(uint32_t *);
-void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *);
+void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *, struct SwsContext *);
