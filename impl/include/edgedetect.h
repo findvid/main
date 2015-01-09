@@ -17,9 +17,9 @@
 	} while(0)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
-#define MAX_FEEDBACK_LENGTH 25
+//#define MAX_FEEDBACK_LENGTH 25
 
-#define OPERATOR_DIRECTIONS 6
+//#define OPERATOR_DIRECTIONS 6
 
 #define HYSTERESIS_T1 20
 #define HYSTERESIS_T2 10
@@ -27,7 +27,8 @@
 //
 #define QUADRANTS_WIDTH 16
 #define QUADRANTS_HEIGHT 10
-#define FEATURE_LENGTH ((QUADRANTS_WIDTH*QUADRANTS_HEIGHT) + 9)
+#define FEATURES_EDGES_MAGNITUDES (QUADRANTS_WIDTH*QUADRANTS_HEIGHT)
+#define FEATURES_EDGES_DIRECTIONS 9
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
@@ -81,7 +82,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int wid
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
+//void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 
-void edgeFeatures_length(uint32_t *);
-void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *, struct SwsContext *);
+void edgeFeatures_length(uint32_t *, uint32_t *);
+void edgeFeatures(AVFrame *, uint32_t **, uint32_t **, InterpolationWeights *, struct SwsContext *);

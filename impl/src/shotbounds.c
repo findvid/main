@@ -111,7 +111,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// List for the cuts found by the color histogram approach
 	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
-	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+	//LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
 
@@ -205,7 +205,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(cutsIt);
 
 
-	list_destroy(list_cuts_edges);
+	//list_destroy(list_cuts_edges);
 	list_destroy(list_cuts_colors);
 	list_destroy(list_hist_diff);
 
