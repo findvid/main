@@ -266,7 +266,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			pFrameRGB24->width = DESTINATION_WIDTH;
 			pFrameRGB24->height = DESTINATION_HEIGHT;
 			
-			AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+			//AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 			
 
 			//Get features from different components for this frame
@@ -274,7 +274,8 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
 			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
-			edgeFeatures(pFrameG8, &(res->feature_list[1][currentScene]), edgeWeights);
+			//edgeFeatures will get the edge profile itself. Care must be taken to pass a proper conversion context!
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), edgeWeights, convert_g8);
 			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
 			dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
