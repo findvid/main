@@ -147,9 +147,9 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
 	tinyImageLength(&res->feature_length[0]); 
-	edgeFeatures_length(&res->feature_length[1]); 
-	histogramLength(&res->feature_length[2]); 
-	dummyFeatureLength(&res->feature_length[3]); 
+	edgeFeatures_length(&res->feature_length[1], &res->feature_length[2]); 
+	histogramLength(&res->feature_length[3]); 
+	//dummyFeatureLength(&res->feature_length[3]); 
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
@@ -275,14 +275,14 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			//...
 			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
 			//edgeFeatures will get the edge profile itself. Care must be taken to pass a proper conversion context!
-			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), edgeWeights, convert_g8);
-			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
-			dummyFeature(frame, &(res->feature_list[3][currentScene]));
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), &(res->feature_list[2][currentScene]), edgeWeights, convert_g8);
+			histogramFeature(pFrameRGB24, &(res->feature_list[3][currentScene]));
+			//dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
 			currentScene++;
 			
-			avpicture_free((AVPicture *)pFrameG8);
-			av_frame_free(&pFrameG8);
+			//avpicture_free((AVPicture *)pFrameG8);
+			//av_frame_free(&pFrameG8);
 
 			avpicture_free((AVPicture *)pFrameRGB24);
 			av_frame_free(&pFrameRGB24);
