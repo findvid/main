@@ -111,7 +111,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// List for the cuts found by the color histogram approach
 	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
-	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+	//LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
 
@@ -140,7 +140,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
-					detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+					//detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 					if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
 					edge_feedback.lastFrame = list_pop(list_frames);
@@ -159,7 +159,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 	// Process the remaining frames
 	detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
-	detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
+	//detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
 	list_forall(list_frames, (void (*) (void *))avpicture_free);
 	list_forall(list_frames, av_free);
