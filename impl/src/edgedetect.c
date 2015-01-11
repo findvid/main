@@ -449,7 +449,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				}
 				//Follow edge in "+"-direction
 				int ox2 = ox, oy2 = oy;
-				while (getPixelG8(sobel->mag, x+ox2, y+oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x+ox2, y+oy2) > HYSTERESIS_T2) { // && inImage(x+ox2, y+oy2, width, height)) {
 //					printf("Follow(+) edge to (%d,%d)\n", (x+ox2), (y+oy2));
 					//Set this as edge pixel
 					setPixelG8(res, x+ox2, y+oy2, getPixelG8(sobel->mag, x+ox2, y+oy2));
@@ -460,7 +460,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				//Repeat in "-"-direction
 				ox2 = ox;
 				oy2 = oy;
-				while (getPixelG8(sobel->mag, x-ox2, y-oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x-ox2, y-oy2) > HYSTERESIS_T2) { // && inImage(x+ox2, y+oy2, width, height)) {
 //					printf("Follow(-) edge to (%d,%d)\n", (x-ox2), (y-oy2));
 					//Set this as edge pixel
 					setPixelG8(res, x-ox2, y-oy2, getPixelG8(sobel->mag, x-ox2, y-oy2));
@@ -655,11 +655,11 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	res->sw = &res->s[width * height];
 	res->w = &res->sw[width * height];
 
-	//Define middle points of the surrounding quadrants
-	int c_x = width / 2;
-	int c_y = height / 2;
+	//Define middle point of center quadrant
+	double c_x = (width-1) / 2.0;
+	double c_y = (height-1) / 2.0;
 
-	int dx, dy;
+	double dx, dy;
 	double wx, wy, wc, wax, way, wd; //Weight of gradients dx and dy, weight of center, weight of adjacent quadrant on x-axis and y-axis, diagonal quadrant's weight
 
 	//Calculate distance(s) of each pixel in the center quadrant
@@ -825,7 +825,10 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data1, uint32_t * data2, Interpol
 					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] += (pix * (w_w  / weightused)); //W
 
 					//Increment appropiate direction bin
-					data2[getPixelG8(sobel.dir, x+ox, y+oy)]++;
+					if (pix >= HYSTERESIS_T2) //Only if the respective edge pixel is set
+						data2[getPixelG8(sobel.dir, x+ox, y+oy)]++;
+					else
+						data2[0]++;
 				}
 			}
 		}
