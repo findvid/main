@@ -273,7 +273,7 @@ TEST(FeaturesTest, SmallEdge) {
 
 	edgeFeatures(img, &feat_str, &feat_dir, weights, sws);
 
-	EXPECT_EQ(feat_str[0], 4745); //Actual result is 5000; either 1 pixel is counted too much, or the normalization via weightused is wrong
+	EXPECT_EQ(feat_str[0], 4745); //Actual result was 5000, tweaked center of weight calculation to be doubles in order to be able to be symmetrically between the values (Ex.: 10x10 Quadrant, Center at Pixel (5,5) -> 5 pixels left of center, 1 pixel is the center, 4 pixels right of the center. Now: Center= (4.5, 4.5) -> all pixels in the quadrant are syemmtrically mirrored at the center
 
 	//EXPECT_GE(feat_dir[0], 16000-320);
 	EXPECT_GE(feat_dir[0], 16000-640); //The above line is strictly correct, because every side can mark up to 80 pixels with a direction (40 on each side of the color change)
