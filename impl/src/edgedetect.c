@@ -449,7 +449,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				}
 				//Follow edge in "+"-direction
 				int ox2 = ox, oy2 = oy;
-				while (getPixelG8(sobel->mag, x+ox2, y+oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x+ox2, y+oy2) > HYSTERESIS_T2) { // && inImage(x+ox2, y+oy2, width, height)) {
 //					printf("Follow(+) edge to (%d,%d)\n", (x+ox2), (y+oy2));
 					//Set this as edge pixel
 					setPixelG8(res, x+ox2, y+oy2, getPixelG8(sobel->mag, x+ox2, y+oy2));
@@ -460,7 +460,7 @@ AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * ctx, int width,
 				//Repeat in "-"-direction
 				ox2 = ox;
 				oy2 = oy;
-				while (getPixelG8(sobel->mag, x-ox2, y-oy2) > HYSTERESIS_T2) {
+				while (getPixelG8(sobel->mag, x-ox2, y-oy2) > HYSTERESIS_T2) { // && inImage(x+ox2, y+oy2, width, height)) {
 //					printf("Follow(-) edge to (%d,%d)\n", (x-ox2), (y-oy2));
 					//Set this as edge pixel
 					setPixelG8(res, x-ox2, y-oy2, getPixelG8(sobel->mag, x-ox2, y-oy2));
@@ -825,7 +825,10 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data1, uint32_t * data2, Interpol
 					if (touched & (1<<7)) values[(qx-1) + (qy  ) * QUADRANTS_WIDTH] += (pix * (w_w  / weightused)); //W
 
 					//Increment appropiate direction bin
-					data2[getPixelG8(sobel.dir, x+ox, y+oy)]++;
+					if (pix >= HYSTERESIS_T2) //Only if the respective edge pixel is set
+						data2[getPixelG8(sobel.dir, x+ox, y+oy)]++;
+					else
+						data2[0]++;
 				}
 			}
 		}
