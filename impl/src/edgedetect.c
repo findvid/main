@@ -655,11 +655,11 @@ InterpolationWeights * getLinearInterpolationWeights(int width, int height) {
 	res->sw = &res->s[width * height];
 	res->w = &res->sw[width * height];
 
-	//Define middle points of the surrounding quadrants
-	int c_x = width / 2;
-	int c_y = height / 2;
+	//Define middle point of center quadrant
+	double c_x = (width-1) / 2.0;
+	double c_y = (height-1) / 2.0;
 
-	int dx, dy;
+	double dx, dy;
 	double wx, wy, wc, wax, way, wd; //Weight of gradients dx and dy, weight of center, weight of adjacent quadrant on x-axis and y-axis, diagonal quadrant's weight
 
 	//Calculate distance(s) of each pixel in the center quadrant

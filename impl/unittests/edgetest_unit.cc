@@ -273,6 +273,8 @@ TEST(FeaturesTest, SmallEdge) {
 
 	edgeFeatures(img, &feat_str, &feat_dir, weights, sws);
 
+	EXPECT_EQ(feat_str[0], 4745); //Actual result is 5000; either 1 pixel is counted too much, or the normalization via weightused is wrong
+
 	//EXPECT_GE(feat_dir[0], 16000-320);
 	EXPECT_GE(feat_dir[0], 16000-640); //The above line is strictly correct, because every side can mark up to 80 pixels with a direction (40 on each side of the color change)
 	//The broad guassian smoothing distributes the sobel directions, however, allowing a potential edge to mark much more directions
