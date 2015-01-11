@@ -8,6 +8,8 @@
 #include "fvutils.h"
 #include "largelist.h"
 
+//#define inImage(x, y, w, h) ((x) >= 0 && (x) < (w) && (y) >= 0 && y < (h))
+
 #define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<((p)->height)) && ((x)<((p)->width)))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
 //#define getPixelG8(p,x,y) (uint8_t)((p)->data[0][(x < 0?0:(x >= (p)->width?(p)->width:x)) + (y < 0?0:(y >= (p)->height?(p)->height:y)) * (p)->linesize[0]])
 //#define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)

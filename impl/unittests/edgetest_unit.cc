@@ -21,6 +21,7 @@ class EdgeTest : public testing::Test {
 		struct t_sobelOutput * sobel_box;
 		struct t_sobelOutput * sobel_hbox;
 
+
 		AVFrame * testFrame1(int,int);
 		AVFrame * testFrameBox(int,int);
 		AVFrame * testFrameHBox(int, int);
@@ -155,6 +156,29 @@ AVFrame * EdgeTest::testFrameHBox(int width, int height) {
 	return img;
 }
 
+AVFrame * smalledge() {
+	AVFrame *img = av_frame_alloc();
+	avpicture_alloc((AVPicture *)img, PIX_FMT_RGB24, 160, 100);
+	int numBytes = avpicture_get_size(PIX_FMT_RGB24, 160, 100);
+
+	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+
+	avpicture_fill((AVPicture *)img, buffer, PIX_FMT_RGB24, 160, 100);
+
+	for ( int xt = 0; xt < 160; xt++) {
+		for ( int yt = 0; yt < 100; yt++) {
+			if(xt < 40 && yt < 40) {
+				setPixel(img, xt, yt, 0xff0000);
+			} else
+				setPixel(img, xt, yt, 0x000000);
+		}
+	}
+
+	img->width = 160;
+	img->height = 100;
+	return img;
+}
+
 TEST_F(EdgeTest, SimpleEdge1) {
 	EXPECT_LT(9, getImagePixel(320, 50));
 	EXPECT_EQ(0, getImagePixel(100, 100));
@@ -213,14 +237,60 @@ TEST(EdgeFeatures, Weights) {
 //The distribution isn't exactly perfect, either; some directions seem to be preferred over others!
 TEST_F(EdgeTest, BoxFeatures) {
 	uint32_t * feats;
+	uint32_t * feats2;
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);	
-	edgeFeatures(this->box, &feats, weights, this->sws);
+	edgeFeatures(this->box, &feats, &feats2, weights, this->sws);
 	//Test features
 
-	for (int i = 0; i < FEATURE_LENGTH; i++)
+	for (int i = 0; i < FEATURES_EDGES_MAGNITUDES; i++)
 		printf("%d\n", feats[i]);
+	for (int i = 0; i < FEATURES_EDGES_DIRECTIONS; i++)
+		printf("%d\n", feats2[i]);
 	
 	free(feats);
+	free(feats2);
+	free(weights->c);
+	free(weights);
+}
+
+TEST(FeaturesTest, SmallEdge) {
+	struct SwsContext * sws = sws_getContext(160, 100, PIX_FMT_RGB24, 160, 100, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	AVFrame * img = smalledge();
+	SaveFrameRGB24(img,160,100,300);
+	struct t_sobelOutput sobel;
+	AVFrame * ig = getEdgeProfile(img, sws, 160, 100, &sobel);
+	SaveFrameG8(ig, 160, 100, 301);
+	SaveFrameG8(sobel.dir, 160, 100, 302);
+	avpicture_free((AVPicture *)sobel.mag);
+	av_frame_free(&sobel.mag);
+	avpicture_free((AVPicture *)sobel.dir);
+	av_frame_free(&sobel.dir);
+	avpicture_free((AVPicture *)ig);
+	av_frame_free(&ig);
+	uint32_t * feat_str;
+	uint32_t * feat_dir;
+	InterpolationWeights * weights = getLinearInterpolationWeights(160,100);	
+
+	edgeFeatures(img, &feat_str, &feat_dir, weights, sws);
+
+	EXPECT_EQ(feat_str[0], 4745); //Actual result was 5000, tweaked center of weight calculation to be doubles in order to be able to be symmetrically between the values (Ex.: 10x10 Quadrant, Center at Pixel (5,5) -> 5 pixels left of center, 1 pixel is the center, 4 pixels right of the center. Now: Center= (4.5, 4.5) -> all pixels in the quadrant are syemmtrically mirrored at the center
+
+	//EXPECT_GE(feat_dir[0], 16000-320);
+	EXPECT_GE(feat_dir[0], 16000-640); //The above line is strictly correct, because every side can mark up to 80 pixels with a direction (40 on each side of the color change)
+	//The broad guassian smoothing distributes the sobel directions, however, allowing a potential edge to mark much more directions
+
+	EXPECT_EQ(feat_dir[2], 38);
+	EXPECT_EQ(feat_dir[4], 76);
+	EXPECT_EQ(feat_dir[6], 76);
+	EXPECT_EQ(feat_dir[8], 38);
+
+	int sum = feat_dir[0] + feat_dir[1] + feat_dir[2] + feat_dir[3] + feat_dir[4] + feat_dir[5] + feat_dir[6] + feat_dir[7] + feat_dir[8];
+
+	EXPECT_EQ(sum, 16000);
+
+	avpicture_free((AVPicture *)img);
+	av_frame_free(&img);
+	sws_freeContext(sws);
 	free(weights->c);
 	free(weights);
 }
