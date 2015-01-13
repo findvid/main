@@ -147,8 +147,8 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 	res->feature_length = malloc(sizeof(uint32_t) * FEATURE_AMNT);
 	tinyImageLength(&res->feature_length[0]); 
-	edgeFeatures_length(&res->feature_length[1], &res->feature_length[2]); 
-	histogramLength(&res->feature_length[3]); 
+	edgeFeatures_length(&res->feature_length[1]); 
+	histogramLength(&res->feature_length[2]); 
 	//dummyFeatureLength(&res->feature_length[3]); 
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
@@ -212,7 +212,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	sprintf(folder, "%s/%s", expath, hashstring);
 
 	if (mkdir(folder, 0777) < 0) {
-		// TODO EEXIST dosen't check if it's a folder
+		// TODO EEXIST doesn't check if it's a folder
 		if (errno != EEXIST) {
 			printf("Cannot create folder to save to!(%s)\nERROR = %d\n", folder, errno);
 			free(res);
@@ -275,8 +275,8 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			//...
 			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
 			//edgeFeatures will get the edge profile itself. Care must be taken to pass a proper conversion context!
-			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), &(res->feature_list[2][currentScene]), edgeWeights, convert_g8);
-			histogramFeature(pFrameRGB24, &(res->feature_list[3][currentScene]));
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), edgeWeights, convert_g8);
+			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
 			//dummyFeature(frame, &(res->feature_list[3][currentScene]));
 
 			currentScene++;
