@@ -21,6 +21,7 @@ class EdgeTest : public testing::Test {
 		struct t_sobelOutput * sobel_box;
 		struct t_sobelOutput * sobel_hbox;
 
+
 		AVFrame * testFrame1(int,int);
 		AVFrame * testFrameBox(int,int);
 		AVFrame * testFrameHBox(int, int);
@@ -155,6 +156,29 @@ AVFrame * EdgeTest::testFrameHBox(int width, int height) {
 	return img;
 }
 
+AVFrame * smalledge() {
+	AVFrame *img = av_frame_alloc();
+	avpicture_alloc((AVPicture *)img, PIX_FMT_RGB24, 160, 100);
+	int numBytes = avpicture_get_size(PIX_FMT_RGB24, 160, 100);
+
+	uint8_t *buffer = (uint8_t *)av_malloc(numBytes * sizeof(uint8_t));
+
+	avpicture_fill((AVPicture *)img, buffer, PIX_FMT_RGB24, 160, 100);
+
+	for ( int xt = 0; xt < 160; xt++) {
+		for ( int yt = 0; yt < 100; yt++) {
+			if(xt < 40 && yt < 40) {
+				setPixel(img, xt, yt, 0xff0000);
+			} else
+				setPixel(img, xt, yt, 0x000000);
+		}
+	}
+
+	img->width = 160;
+	img->height = 100;
+	return img;
+}
+
 TEST_F(EdgeTest, SimpleEdge1) {
 	EXPECT_LT(9, getImagePixel(320, 50));
 	EXPECT_EQ(0, getImagePixel(100, 100));
@@ -217,10 +241,52 @@ TEST_F(EdgeTest, BoxFeatures) {
 	edgeFeatures(this->box, &feats, weights, this->sws);
 	//Test features
 
-	for (int i = 0; i < FEATURE_LENGTH; i++)
+	for (int i = 0; i < FEATURES_EDGES; i++)
 		printf("%d\n", feats[i]);
 	
 	free(feats);
+	free(weights->c);
+	free(weights);
+}
+
+TEST(FeaturesTest, SmallEdge) {
+	struct SwsContext * sws = sws_getContext(160, 100, PIX_FMT_RGB24, 160, 100, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
+	AVFrame * img = smalledge();
+	SaveFrameRGB24(img,160,100,300);
+
+	struct t_sobelOutput sobel;
+	AVFrame * ig = getEdgeProfile(img, sws, 160, 100, &sobel);
+	SaveFrameG8(ig, 160, 100, 301);
+	SaveFrameG8(sobel.dir, 160, 100, 302);
+	avpicture_free((AVPicture *)sobel.mag);
+	av_frame_free(&sobel.mag);
+	avpicture_free((AVPicture *)sobel.dir);
+	av_frame_free(&sobel.dir);
+	avpicture_free((AVPicture *)ig);
+	av_frame_free(&ig);
+	
+	uint32_t * feats;
+	InterpolationWeights * weights = getLinearInterpolationWeights(160,100);	
+
+	EXPECT_EQ(getPixelG8(img, 159, 20), getPixelG8(img, 160, 20));
+
+	edgeFeatures(img, &feats, weights, sws);
+
+
+	//Test the first quadrants bins
+	EXPECT_EQ(feats[0], 4820);
+	EXPECT_EQ(feats[1], 205);
+	EXPECT_EQ(feats[2], 4820);
+	EXPECT_EQ(feats[3], 0);
+	EXPECT_EQ(feats[4], 0);
+	EXPECT_EQ(feats[5], 0);
+	EXPECT_EQ(feats[6], 0);
+	EXPECT_EQ(feats[7], 0);
+
+
+	avpicture_free((AVPicture *)img);
+	av_frame_free(&img);
+	sws_freeContext(sws);
 	free(weights->c);
 	free(weights);
 }
@@ -235,6 +301,7 @@ TEST_F(EdgeTest, BoxFeatures) {
 	free(weights->c);
 	free(weights);
 }*/
+
 
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);

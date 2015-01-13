@@ -7,8 +7,8 @@
 #include "largelist.h"
 #include "edgedetect.h"
 
-#define DSTW 400
-#define DSTH 300
+#define DSTW 800
+#define DSTH 600
 
 int main(int argc, char **argv) {
 	av_register_all();
@@ -28,7 +28,6 @@ int main(int argc, char **argv) {
 	int frames = 0;
 
 	uint32_t * features;
-	uint32_t * features_dir;
 	InterpolationWeights * weights = getLinearInterpolationWeights(DSTW, DSTH);
 
 	readFrame(iter, frame, &gotFrame);
@@ -38,25 +37,21 @@ int main(int argc, char **argv) {
 
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
-		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH, NULL);
-		edgeFeatures(frame, &features, &features_dir, weights, rgb2g_ctx);
-		//AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, iter->cctx->width, iter->cctx->height);
-		//SaveFrameG8(g, g->width, g->height, frames);
+		edgeFeatures(frame, &features, weights, rgb2g_ctx);
+		
+		AVFrame * g = getEdgeProfile(frame, rgb2g_ctx, DSTW, DSTH, NULL);
+		SaveFrameG8(g, g->width, g->height, frames);
+		avpicture_free((AVPicture *)g);
+		av_frame_free(&g);
+		
 		frames++;
-	
-		//avpicture_free((AVPicture *)g);
-		//av_frame_free(&g);
 		readFrame(iter, frame, &gotFrame);
 	}
 
 	printf("Edge strength distribution:\n");
-	for (int i = 0; i < FEATURES_EDGES_MAGNITUDES; i++)
+	for (int i = 0; i < FEATURES_EDGES; i++)
 		printf("%d\n", features[i]);
 
-	printf("Direction bins:\n");
-
-	for (int i = 0; i < FEATURES_EDGES_DIRECTIONS; i++)
-		printf("%d\n", features_dir[i]);
 
 	free(features);
 
