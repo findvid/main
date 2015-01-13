@@ -237,18 +237,14 @@ TEST(EdgeFeatures, Weights) {
 //The distribution isn't exactly perfect, either; some directions seem to be preferred over others!
 TEST_F(EdgeTest, BoxFeatures) {
 	uint32_t * feats;
-	uint32_t * feats2;
 	InterpolationWeights * weights = getLinearInterpolationWeights(640,400);	
-	edgeFeatures(this->box, &feats, &feats2, weights, this->sws);
+	edgeFeatures(this->box, &feats, weights, this->sws);
 	//Test features
 
-	for (int i = 0; i < FEATURES_EDGES_MAGNITUDES; i++)
+	for (int i = 0; i < FEATURES_EDGES; i++)
 		printf("%d\n", feats[i]);
-	for (int i = 0; i < FEATURES_EDGES_DIRECTIONS; i++)
-		printf("%d\n", feats2[i]);
 	
 	free(feats);
-	free(feats2);
 	free(weights->c);
 	free(weights);
 }
@@ -257,6 +253,7 @@ TEST(FeaturesTest, SmallEdge) {
 	struct SwsContext * sws = sws_getContext(160, 100, PIX_FMT_RGB24, 160, 100, PIX_FMT_GRAY8, SWS_BICUBIC, NULL, NULL, NULL);
 	AVFrame * img = smalledge();
 	SaveFrameRGB24(img,160,100,300);
+
 	struct t_sobelOutput sobel;
 	AVFrame * ig = getEdgeProfile(img, sws, 160, 100, &sobel);
 	SaveFrameG8(ig, 160, 100, 301);
@@ -267,26 +264,25 @@ TEST(FeaturesTest, SmallEdge) {
 	av_frame_free(&sobel.dir);
 	avpicture_free((AVPicture *)ig);
 	av_frame_free(&ig);
-	uint32_t * feat_str;
-	uint32_t * feat_dir;
+	
+	uint32_t * feats;
 	InterpolationWeights * weights = getLinearInterpolationWeights(160,100);	
 
-	edgeFeatures(img, &feat_str, &feat_dir, weights, sws);
+	EXPECT_EQ(getPixelG8(img, 159, 20), getPixelG8(img, 160, 20));
 
-	EXPECT_EQ(feat_str[0], 4745); //Actual result was 5000, tweaked center of weight calculation to be doubles in order to be able to be symmetrically between the values (Ex.: 10x10 Quadrant, Center at Pixel (5,5) -> 5 pixels left of center, 1 pixel is the center, 4 pixels right of the center. Now: Center= (4.5, 4.5) -> all pixels in the quadrant are syemmtrically mirrored at the center
+	edgeFeatures(img, &feats, weights, sws);
 
-	//EXPECT_GE(feat_dir[0], 16000-320);
-	EXPECT_GE(feat_dir[0], 16000-640); //The above line is strictly correct, because every side can mark up to 80 pixels with a direction (40 on each side of the color change)
-	//The broad guassian smoothing distributes the sobel directions, however, allowing a potential edge to mark much more directions
 
-	EXPECT_EQ(feat_dir[2], 38);
-	EXPECT_EQ(feat_dir[4], 76);
-	EXPECT_EQ(feat_dir[6], 76);
-	EXPECT_EQ(feat_dir[8], 38);
+	//Test the first quadrants bins
+	EXPECT_EQ(feats[0], 4820);
+	EXPECT_EQ(feats[1], 205);
+	EXPECT_EQ(feats[2], 4820);
+	EXPECT_EQ(feats[3], 0);
+	EXPECT_EQ(feats[4], 0);
+	EXPECT_EQ(feats[5], 0);
+	EXPECT_EQ(feats[6], 0);
+	EXPECT_EQ(feats[7], 0);
 
-	int sum = feat_dir[0] + feat_dir[1] + feat_dir[2] + feat_dir[3] + feat_dir[4] + feat_dir[5] + feat_dir[6] + feat_dir[7] + feat_dir[8];
-
-	EXPECT_EQ(sum, 16000);
 
 	avpicture_free((AVPicture *)img);
 	av_frame_free(&img);
@@ -305,6 +301,7 @@ TEST(FeaturesTest, SmallEdge) {
 	free(weights->c);
 	free(weights);
 }*/
+
 
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
