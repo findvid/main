@@ -135,7 +135,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		fprintf(stderr, "Failed to open video iterator");
 		return NULL;
 	}
-	printf("...");
 
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
@@ -153,7 +152,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
-	printf("edge features = %d\n", res->feature_length[1]);
 
 	//char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
@@ -236,7 +234,11 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
 
-	printf("Start iterating\n");
+	if (av_seek_frame(iter->fctx, iter->videoStream, sceneFrames[currentScene], AVSEEK_FLAG_BACKWARD) < 0) {
+		return NULL;
+	}
+	printf("FRAME = %d, START_TIME = %ld\n", currentFrame, iter->fctx->streams[iter->videoStream]->start_time);
+
 	readFrame(iter, frame, &gotFrame);
 	while (gotFrame) {
 		if (currentFrame == vidThumb) {
