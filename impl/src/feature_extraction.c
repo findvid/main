@@ -135,7 +135,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		fprintf(stderr, "Failed to open video iterator");
 		return NULL;
 	}
-
+	printf("...");
 
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
@@ -153,6 +153,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
+	printf("edge features = %d\n", res->feature_length[1]);
 
 	//char * videoName = getVideoname(filename);
 	char thumbnailFilename[256]; //Pre alloc some space for full filenames to sprintf to
@@ -234,6 +235,8 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	int currentScene = 0;
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
+
+	printf("Start iterating\n");
 	readFrame(iter, frame, &gotFrame);
 	while (gotFrame) {
 		if (currentFrame == vidThumb) {
@@ -321,7 +324,7 @@ void destroyFeatures(FeatureTuple * t) {
 /*
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
-	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
+	FeatureTuple * r = getFeatures(argv[1], "0xFUCKU", argv[2], 50, d, 5);
 
 	destroyFeatures(r);
 }
