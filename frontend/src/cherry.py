@@ -56,6 +56,8 @@ TREE = []
 # Filename of saved tree
 STORETREE = os.path.join(CONFIG['abspath'], 'searchtree.db')
 
+FILTER = True
+
 # Renders a template.
 # filename - The filename of the template in HTMLDIR
 # config - A dictionary of all placeholders with their values
@@ -134,6 +136,7 @@ def configScene(video, sceneid):
 		'videoid': video['_id'],
 		'scenecount': str(sceneid),
 		'starttime': formatTime(int(cuts[sceneid]), fps),
+		'filename': filename,
 		'endtime': formatTime(int(cuts[sceneid+1]), fps)
 	}
 
@@ -141,24 +144,14 @@ def configScene(video, sceneid):
 # Returns a dictionary with {scenecount, videocount, uploads} 
 def getUploads():
 	# Fetch all entries in video-collection where upload = True, except config
-	uploadsFromDb = VIDEOS.find(
-		{
-			'_id': 
-				{ '$not': 
-					{ '$eq': 'config' } 
-				},
-			'upload': True
-		}, {"scenes" : 0}
-	)
+	uploadsFromDb = VIDEOS.find({'upload': True}, {"scenes" : 0})
 
-	uploads = []
+	uploads = ""
 
 	videocount = 0
 	scenecount = 0
 
 	for upload in uploadsFromDb:
-		progress = "100%" # TODO
-
 		videocount += 1
 
 		fps = int(upload['fps'])
@@ -170,22 +163,17 @@ def getUploads():
 		vidid = str(upload['_id'])
 
 		uploadconfig = {
-			'progress': progress,
 			# TODO use the relative thumbnails path and confirm that this is the right way to do this
-			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene0.jpeg'),
+			'thumbnail': os.path.join('/thumbnails/', os.path.basename(vidid), 'scene0.jpeg'),
 			'videoid': vidid,
 			'scenecount': scenes,
 			'filename': filename,
 			'length': formatTime(int(upload['cuts'][-1]), fps) # Last entry in cuts is also the framecount
 		}
 		
-		uploads.append(renderTemplate('upload.html', uploadconfig))
+		uploads += renderTemplate('upload.html', uploadconfig)
 
-	uploadsContent = ""
-	for upload in uploads:
-		uploadsContent += upload
-
-	return {'scenecount': scenecount, 'videocount': videocount, 'uploads': uploadsContent}
+	return {'scenecount': scenecount, 'videocount': videocount, 'uploads': uploads}
 
 # Root of the whole CherryPy Server
 class Root(object):
@@ -220,20 +208,17 @@ class Root(object):
 		else:
 			videos = []
 
+			content = ""
 			limit = 100
 			counter = 1
 			for video in videosFromDb:			
-				videos.append(renderTemplate('video.html', configVideo(video)))
+				content += renderTemplate('video.html', configVideo(video))
 				
 				if counter == limit:
 					break
 
 				counter+=1
-
-			content = ""
-			for video in videos:
-				content += video
-
+			
 		config = {
 			'title': 'Search',
 			'searchterm': name,
@@ -266,6 +251,7 @@ class Root(object):
 
 		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
 
+		content = ""
 		if not similarScenes:
 			content = 'No Scenes found for your search query.'
 		else:
@@ -273,8 +259,6 @@ class Root(object):
 			i = 0
 			while (not similarScenes.empty()) and i < 100:
 				similarScene = similarScenes.get()	
-				# TODO remove at some point
-				print similarScene
 
 				if similarScene == None:
 					continue
@@ -284,12 +268,9 @@ class Root(object):
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
-				scenes.append(renderTemplate('similarscene.html', configScene(similarVideo, similarSceneid)))
-				i+=1
+				content += renderTemplate('similarscene.html', configScene(similarVideo, similarSceneid))
 
-			content = ""
-			for scene in scenes:
-				content += scene
+				i+=1
 
 		config = {
 			'title': 'Found Scenes',
@@ -399,6 +380,12 @@ class Root(object):
 		else:
 			tree.addVideoDynamic(VIDEOS, vidid)
 			return "File successfully uploaded."
+
+
+	@cherrypy.expose
+	def toggleFilter(self):
+		FILTER = not FILTER
+		print FILTER
 
 if __name__ == '__main__':
 	cherrypy.config.update('./global.conf')

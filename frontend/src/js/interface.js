@@ -225,4 +225,11 @@ $(function() {
 		location.reload();
 	});
 
+	$('#filtersrc').change(function() {
+		$.ajax({
+			url: '/toggleFilter',
+			type: 'GET',
+		});
+	});
+
 });
