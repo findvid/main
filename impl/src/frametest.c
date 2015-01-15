@@ -7,8 +7,8 @@
 #include "largelist.h"
 #include "edgedetect.h"
 
-#define DSTW 800
-#define DSTH 600
+#define DSTW 320
+#define DSTH 200
 
 int main(int argc, char **argv) {
 	av_register_all();
@@ -27,14 +27,18 @@ int main(int argc, char **argv) {
 	
 	int frames = 0;
 
+	int targetFrame = 0;
+	if (argc > 2) {
+		targetFrame = atoi(argv[2]);
+		printf("Target Frame = %d\n", targetFrame);
+	}
+
 	uint32_t * features;
 	InterpolationWeights * weights = getLinearInterpolationWeights(DSTW, DSTH);
 
 	readFrame(iter, frame, &gotFrame);
-	while (gotFrame && frames < 1) { 
+	while (gotFrame) { 
 	
-		
-
 		frame->width = iter->cctx->width;
 		frame->height = iter->cctx->height;
 		edgeFeatures(frame, &features, weights, rgb2g_ctx);

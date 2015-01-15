@@ -22,6 +22,7 @@ feature_test: $(FEATURES) unittests/feature_test.cc
 
 pylib: $(BUILDFILES) src/findvidWrapper.c
 	gcc $(CFLAGS) $(PYFLAGS) $(PYFLAGSLIB) -I/usr/include/python2.7 -D PYVERSION=2 $^ -o FindVid.so $(LIBSFFMPEG)
+	-mv FindVid.so ../frontend/src/
 
 #Use this target to compile against Python 3.4; 
 pylib2: $(BUILDFILES) src/findvidWrapper.c
@@ -68,6 +69,9 @@ listtests: obj/largelist.o unittests/largelist_test.cc
 
 fvtests: obj/fvutils.o unittests/fvtest.cc 
 	g++ $(CFLAGS) $^ -o test -lgtest -lpthread $(LIBSFFMPEG)
+
+framerate_denethor: obj/fvutils.o unittests/fps_denethor.c
+	gcc $(CFLAGS) $^ -o test $(LIBSFFMPEG)
 
 clean:
 	rm -f ./test
