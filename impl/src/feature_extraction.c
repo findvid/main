@@ -221,26 +221,55 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 	//Allocate source frame for the iterator to decode into
 	AVFrame * frame = av_frame_alloc();
-	//Allocate Target buffer
-	int numBytes = avpicture_get_size(PIX_FMT_YUVJ420P, iter->cctx->width, iter->cctx->height);
-	uint8_t * buffer = av_malloc(numBytes);
 
 	frame->pts = 0;
 	frame->quality = trgtCtx->global_quality;
 	
-	int gotFrame = 0;
+	AVFrame * pFrameRGB24 = av_frame_alloc();
+	if (!pFrameRGB24) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
+	if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
+
+	int gotFrame = 1;
 	int currentFrame = 0;
 	int currentScene = 0;
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
 
-	if (av_seek_frame(iter->fctx, iter->videoStream, sceneFrames[currentScene], AVSEEK_FLAG_BACKWARD) < 0) {
-		return NULL;
-	}
-	printf("FRAME = %d, START_TIME = %ld\n", currentFrame, iter->fctx->streams[iter->videoStream]->start_time);
+	//Next frame to seek.
+	uint32_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
 
-	readFrame(iter, frame, &gotFrame);
-	while (gotFrame) {
+	while ((!hadVidThumb || (currentScene < sceneCount)) && gotFrame) {
+		
+		//Determine next frame to seek
+		if (vidThumb < sceneFrames[currentScene] && !hadVidThumb) {
+			SEAKING = vidThumb;
+		} else {
+			SEAKING = sceneFrames[currentScene];
+		}
+
+		//Seek this frame to skip some unneccessary frames
+		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
+			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
+	
+		
+		readFrame(iter, frame, &gotFrame);
+		if (frame->pkt_dts > SEAKING)
+			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! Used keyframe may not be exact.(sought = %d, retrieved = %lu)\n", sceneFrames[currentScene], frame->pkt_dts);
+		while (frame->pkt_dts < SEAKING) {
+			readFrame(iter, frame, &gotFrame);
+		}
+		currentFrame = frame->pkt_dts;
+
+		if (!gotFrame) {
+			break;
+		}
+
 		if (currentFrame == vidThumb) {
 			//Just save a thumbnail for the video
 			hadVidThumb = 1;
@@ -248,21 +277,9 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 		}
 		if (currentFrame == sceneFrames[currentScene]) {
-			//First save the thumbnail
-			
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
-
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 
-			AVFrame * pFrameRGB24 = av_frame_alloc();
-			if (!pFrameRGB24) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
-			if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
 
 
 			// Convert to a smaller frame for faster processing     
@@ -270,9 +287,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 			pFrameRGB24->width = DESTINATION_WIDTH;
 			pFrameRGB24->height = DESTINATION_HEIGHT;
-			
-			//AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-			
 
 			//Get features from different components for this frame
 			//Do some M.A.G.I.C.
@@ -283,24 +297,19 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), edgeWeights, convert_g8);
 			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
 			//dummyFeature(frame, &(res->feature_list[3][currentScene]));
+			
 
 			currentScene++;
-			
-			//avpicture_free((AVPicture *)pFrameG8);
-			//av_frame_free(&pFrameG8);
-
-			avpicture_free((AVPicture *)pFrameRGB24);
-			av_frame_free(&pFrameRGB24);
 		}
-		if (currentScene > sceneCount && hadVidThumb) break; //Everything's done
-		currentFrame++;
-		readFrame(iter, frame, &gotFrame);
 	}
+	
 	if (currentScene < sceneCount) { //Went all the way through without getting all the keyframes; artificially cut off the empty rest of res->features
 		res->feature_count -= (sceneCount - currentScene);
 	}
+	
+	avpicture_free((AVPicture *)pFrameRGB24);
+	av_frame_free(&pFrameRGB24);
 	av_frame_free(&frame);
-	av_free(buffer);
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
