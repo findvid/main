@@ -254,15 +254,17 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		}
 
 		// Whoever suggested that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
+		/*
 		int64_t SEEK_TARGET = av_rescale_q(SEAKING * AV_TIME_BASE, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
 		
 		//Seek this frame to skip some unneccessary frames
 		retry_seek: //Yes, this is a label. Yes, we will jump here if neccessary. Deal with it.
-		//if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
-		//	; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
-	
+		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
+			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
+		*/
 		
 		readFrame(iter, frame, &gotFrame);
+
 		if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
 			SEAKING -= frame->pkt_dts - SEAKING; //For each frame that was skipped, go back 1 frame for the seek target to retry seeking
