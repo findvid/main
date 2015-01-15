@@ -253,21 +253,16 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			SEAKING = sceneFrames[currentScene];
 		}
 
-		// Whoever suggest that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
-		// Either way, this rescale always returns 0, effectively forcing the extraction to iterate over the whole video up to the keyframe
-
+		// Whoever suggested that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
 		int64_t SEEK_TARGET = av_rescale_q(SEAKING * AV_TIME_BASE, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
-		printf("SEEK_TARGET = %lu, SEAKING = %ld\n", SEEK_TARGET, SEAKING);
-		
 		
 		//Seek this frame to skip some unneccessary frames
 		retry_seek: //Yes, this is a label. Yes, we will jump here if neccessary. Deal with it.
-		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
-			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
+		//if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
+		//	; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 	
 		
 		readFrame(iter, frame, &gotFrame);
-		printf("Skipped to frame %lu\n", frame->pkt_dts);
 		if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
 			SEAKING -= frame->pkt_dts - SEAKING; //For each frame that was skipped, go back 1 frame for the seek target to retry seeking
@@ -278,7 +273,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 		while (frame->pkt_dts < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
-			printf("Iterate to frame %ld\n", frame->pkt_dts);
 		}
 		currentFrame = frame->pkt_dts;
 
