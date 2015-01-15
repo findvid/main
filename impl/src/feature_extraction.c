@@ -242,7 +242,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	int hadVidThumb = 0;
 
 	//Next frame to seek.
-	uint32_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
+	int64_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
 
 	while ((!hadVidThumb || (currentScene < sceneCount)) && gotFrame) {
 		
@@ -253,14 +253,29 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			SEAKING = sceneFrames[currentScene];
 		}
 
+		// Whoever suggest that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
+		// Either way, this rescale always returns 0, effectively forcing the extraction to iterate over the whole video up to the keyframe
+
+		//uint64_t SEEK_TARGET = av_rescale_q(SEAKING, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
+		//printf("SEEK_TARGET = %lu, SEAKING = %ld\n", SEEK_TARGET, SEAKING);
+		
+		
 		//Seek this frame to skip some unneccessary frames
+		retry_seek: //Yes, this is a label. Yes, we will jump here if neccessary. Deal with it.
 		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
 			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 	
 		
 		readFrame(iter, frame, &gotFrame);
-		if (frame->pkt_dts > SEAKING)
-			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! Used keyframe may not be exact.(sought = %d, retrieved = %lu)\n", sceneFrames[currentScene], frame->pkt_dts);
+		printf("Skipped to frame %lu\n", frame->pkt_dts);
+		if (frame->pkt_dts > SEAKING){
+			//LET'S GET FREAKY
+			SEAKING -= frame->pkt_dts - SEAKING; //The more av_seek went over the desired frame, the moore we go back in frames to try and fix this
+			if (!SEAKING) SEAKING = 0; // ... don't overdo it, tho...
+			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! (sought = %d, retrieved = %lu)\nBounce back to frame %ld as target and retry seeking\n", sceneFrames[currentScene], frame->pkt_dts, SEAKING);
+			goto retry_seek;
+		}
+
 		while (frame->pkt_dts < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
 		}
