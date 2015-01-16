@@ -12,22 +12,28 @@ import kmeanstree as tree
 
 # instanciate and configure an argument parser
 PARSER = argparse.ArgumentParser(description='Starts a CherryPy Webserver, for the find.vid project.')
+PARSER.add_argument('port', metavar='PORT',
+	help='The port on which the webserver will run')
 PARSER.add_argument('database', metavar='DB',
 	help='The name of the MongoDB Database on localhost')
 PARSER.add_argument('collection', metavar='COLLECTION',
 	help='The name of the Collection in the Database')
+PARSER.add_argument('ksplit', metavar='KSPLIT',
+	help='The number of splits of the k-means-tree')
+PARSER.add_argument('kmax', metavar='KMAX',
+	help='The number of maximal children in the k-means-tree')
+PARSER.add_argument('filename', metavar='FILENAME',
+	help='The filename where the searchtree will be saved')
 
 # parse input arguments
 ARGS = PARSER.parse_args()
 
+PORT = ARGS.port
 DBNAME = ARGS.database
 COLNAME = ARGS.collection
-
-if not DBNAME:
-	DBNAME = "findvid"
-
-if not COLNAME:
-	COLNAME = "videos"
+KSPLIT = ARGS.ksplit
+KMAX = ARGS.kmax
+FILENAME = ARGS.filename
 
 # Directory of this file
 ROOTDIR = os.path.abspath('.')
@@ -54,7 +60,7 @@ UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 TREE = []
 
 # Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], 'searchtree.db')
+STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
 
 FILTER = True
 
@@ -388,7 +394,10 @@ class Root(object):
 		print FILTER
 
 if __name__ == '__main__':
-	cherrypy.config.update('./global.conf')
+	cherrypy.config.update({
+		'server.socket_host': '0.0.0.0',
+		'server.socket_port': int(PORT)
+	})
 
 	# Mount the directories which are configured
 	conf = {
@@ -417,7 +426,7 @@ if __name__ == '__main__':
 	# Build Searchtree
 	
 	# TODO: Exception Handling
-	TREE = tree.loadOrBuildAndSaveTree(VIDEOS, STORETREE)
+	TREE = tree.loadOrBuildAndSaveTree(videos=VIDEOS, filename=STORETREE, k=KSPLIT, imax=KMAX)
 
 	cherrypy.tree.mount(Root(), '/', conf)
 
