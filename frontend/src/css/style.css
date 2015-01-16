@@ -326,9 +326,21 @@ a:visited {
 }
 .content .content-wrap .similarscene .thumbnail {
   height: 138px;
+  position: relative;
 }
 .content .content-wrap .similarscene .thumbnail img {
   width: 246px;
+}
+.content .content-wrap .similarscene .thumbnail .label.similar {
+  position: absolute;
+  height: 17px;
+  width: 37px;
+  bottom: -1px;
+  right: 0;
+  padding-top: 4px;
+  font-size: 9pt;
+  color: #fff;
+  text-align: center;
 }
 .content .content-wrap .similarscene .meta .label {
   font-size: 10pt;
