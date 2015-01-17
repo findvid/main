@@ -12,12 +12,25 @@ FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
 
 def flattenFeatures(scene):
-	# Normalize featrues. Idea how to do it. Not sure if correct.
-	# For each feature f
-	# f_norm = (f - f_mean) / f_var
-	# f' = f_norm * sqrt(n_f1/n_f2)
-	# where n_fx is the amount of values of this feature
-	# use concated f's as result
+	'''
+	colors = npy.array(scene["colorhist"])
+	edges = npy.array(scene["edges"])
+	
+	#Normalize both features
+	# f_norm = (f - f_mean) / f_deviation
+	colors -= 500
+	edges -= 981
+	colors /= math.sqrt(4697656.84452)
+	edges /= math.sqrt(2980531.28808)
+	
+	#Supersample colorhists to compensate for different length of vectors
+	colors *= math.sqrt(2.5) # 320/128
+
+	# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
+	colors *= math.sqrt(1000)
+	edges *= math.sqrt(1000)
+	result = colors.append(edges)
+	'''
 	return npy.array(scene['colorhist'])
 
 class KMeansTree:
