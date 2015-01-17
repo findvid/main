@@ -341,7 +341,7 @@ class Root(object):
 		else:
 			scenes = []
 			i = 0
-			while (not similarScenes.empty()) and i < limit:
+			while (not similarScenes.empty()) and i < int(limit):
 				similarScene = similarScenes.get()	
 
 				if similarScene == None:
