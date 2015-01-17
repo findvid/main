@@ -24,6 +24,8 @@ PARSER.add_argument('kmax', metavar='KMAX',
 	help='The number of maximal children in the k-means-tree')
 PARSER.add_argument('filename', metavar='FILENAME',
 	help='The filename where the searchtree will be saved')
+PARSER.add_argument("--quiet", action="store_true",
+	help="No output will be created.")
 
 # parse input arguments
 ARGS = PARSER.parse_args()
@@ -417,6 +419,9 @@ if __name__ == '__main__':
 		'server.socket_host': '0.0.0.0',
 		'server.socket_port': int(PORT)
 	})
+
+	if ARGS.quiet:
+		cherrypy.config.update({'environment': 'embedded'})
 
 	# Mount the directories which are configured
 	conf = {
