@@ -99,8 +99,11 @@ class Root(object):
 		value = int(distance)
 		hsl = 120
 
-		if value >= 50:
+		# Calculate HUE Value between 0 and 120
+		if (value <= 100) and (value >= 50):
 			hsl = (value - 50) * 2.4
+		elif value > 100:
+			hsl = 120
 		else:
 			hsl = 0
 
@@ -263,6 +266,8 @@ class Root(object):
 		second = float(second)
 		frame = int(fps*second)
 
+		simPercent = int(100)
+
 		sceneid = 0
 		
 		for i,endframe in enumerate(video['cuts']):
@@ -290,10 +295,10 @@ class Root(object):
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
 				sceneConfig = self.configScene(similarVideo, similarSceneid)
-				sceneConfig += {
-					'hue': str(self.calcHue(100)),
-					'value': str(100)
-				}
+				sceneConfig.update ({
+					'hue': str(self.calcHue(simPercent)),
+					'value': str(simPercent)
+				})
 				content += self.renderTemplate('similarscene.html', sceneConfig)
 
 				i+=1
@@ -310,7 +315,7 @@ class Root(object):
 	# vidid - ID of the source video
 	# frame - Framenumber of the source scene in the source video
 	@cherrypy.expose
-	def searchSceneList(self, vidid = None, frame = None):
+	def searchSceneList(self, vidid=None, frame=None, limit=100, nnlimit=1000):
 		# If one of the parameters are unspecified, redirect to startpage
 		if not vidid:
 			return 'ERROR! - No vidid.'
@@ -327,7 +332,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
+		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=nnlimit, maxTouches=nnlimit)
 
 		result = ""
 
@@ -336,7 +341,7 @@ class Root(object):
 		else:
 			scenes = []
 			i = 0
-			while (not similarScenes.empty()) and i < 100:
+			while (not similarScenes.empty()) and i < limit:
 				similarScene = similarScenes.get()	
 
 				if similarScene == None:
