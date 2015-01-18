@@ -104,6 +104,15 @@ function bindEvents() {
 		loadContent('/searchScene/', {'vidid':vidid, 'second':second});
 	});
 
+	$('.thumbnail').on('mouseenter', function() {
+		$('.icon.deleteicon').fadeIn(0)
+	});
+
+	$('.thumbnail').on('mouseleave', function() {
+		$('.icon.deleteicon').fadeOut(0)
+	});
+
+
 	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta, .similarscene .thumbnail').on('click', function() {
 		var $this = $(this).parent(),
 			
