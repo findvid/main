@@ -70,18 +70,14 @@ a:visited {
   width: 1014px;
   background: url('../images/navi_back.png');
   margin: auto;
-  /* ----- Logo ----- */
-
-  /* ----- Search ----- */
-
-  /* ----- Upload ----- */
-
 }
+/* ----- Logo ----- */
 .menu .menu-wrap .logo {
   width: 200px;
   float: left;
   padding: 25px 0 0 0px;
 }
+/* ----- Search ----- */
 .menu .menu-wrap .searchnavi {
   height: 100%;
   float: left;
@@ -142,6 +138,7 @@ a:visited {
   border: none;
   outline: none;
 }
+/* ----- Upload ----- */
 .menu .menu-wrap .uploadwindow {
   height: 100%;
   float: right;
@@ -222,9 +219,6 @@ a:visited {
 .menu .menu-wrap .uploadwindow .upload-wrap .uploadmenu .upload .icons .icon.deleteicon {
   background: url('../images/video_delete.png');
   margin-bottom: 7px;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap .uploadmenu .upload .icons .icon.uploadicon {
-  background: url('../images/video_upload.png');
 }
 .menu .menu-wrap .uploadwindow .upload-wrap.active {
   padding: 4px;
@@ -307,6 +301,27 @@ a:visited {
 .content .content-wrap .originvideo .meta {
   cursor: pointer;
 }
+.content .content-wrap .originvideo .meta .icon {
+  float: left;
+  height: 15px;
+  width: 15px;
+  opacity: 1;
+}
+.content .content-wrap .originvideo .meta .icon:hover {
+  opacity: 0.6;
+}
+.content .content-wrap .originvideo .meta .icon:active {
+  opacity: 1;
+}
+.content .content-wrap .originvideo .meta .icon.editicon {
+  background: url('../images/video_edit.png');
+  margin-right: 5px;
+  float: right;
+}
+.content .content-wrap .originvideo .meta .icon.deleteicon {
+  background: url('../images/video_delete.png');
+  float: right;
+}
 .content .content-wrap .originvideo .tag-wrap .tag {
   float: left;
   margin: 5px 5px 0 0;
@@ -356,6 +371,25 @@ a:visited {
   float: left;
   width: 246px;
   padding: 10px 5px 0 5px;
+}
+.content .content-wrap .video .icon {
+  float: right;
+  height: 15px;
+  width: 15px;
+  opacity: 1;
+}
+.content .content-wrap .video .icon:hover {
+  opacity: 0.6;
+}
+.content .content-wrap .video .icon:active {
+  opacity: 1;
+}
+.content .content-wrap .video .icon.deleteicon {
+  display: none;
+  background: url('../images/video_delete.png');
+  position: relative;
+  margin-top: -135px;
+  margin-right: 3px;
 }
 .content .content-wrap .video .thumbnail {
   height: 138px;
