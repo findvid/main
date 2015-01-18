@@ -143,18 +143,21 @@ def benchmarkTreeBuild(outdir='./out'):
 		plt.subplot(311)
 		plt.title('Time of tree builds')
 		plt.plot(paramValues, timeValues, 'ro')
+		plt.plot(paramValues, timeValues, 'b-')
 		plt.xlabel(label)
 		plt.ylabel('time in seconds')
 
 		plt.subplot(312)
 		plt.title('Hitrate of trees')
 		plt.plot(paramValues, hitValues, 'ro')
+		plt.plot(paramValues, hitValues, 'b-')
 		plt.xlabel(label)
 		plt.ylabel('hits in %')
 
 		plt.subplot(313)
 		plt.title('Average time per scenesearch of trees')
 		plt.plot(paramValues, searchTimeValues, 'ro')
+		plt.plot(paramValues, searchTimeValues, 'b-')
 		plt.xlabel(label)
 		plt.ylabel('avrg. time in seconds')
 
@@ -163,15 +166,58 @@ def benchmarkTreeBuild(outdir='./out'):
 
 		plt.gcf().clear()
 
-def benchmarkSceneSearch(outdir='./out'):
-	#for i in range(0, 10):
-	return True
+def benchmarkSceneSearch(outdir='./out', ksplit=8, imax=100):
+	kmeanstree.loadOrBuildAndSaveTree(videos=VIDEOS, filename=os.path.join(ROOTDIR, 'temptree.db'), k=ksplit, imax=imax)
+	process = startWebserver(ksplit=ksplit, imax=imax, dbfile=os.path.join(ROOTDIR, 'temptree.db'))
+	
+	print "Benchmarking scenesearch - ksplit: " + str(ksplit) + "  -  imax: " + str(imax) + "\n"
+
+	paramValues = []
+	hitValues = []
+	searchTimeValues = []
+	# nnlimit from 100 to 10000
+	for i in range(0, 100):
+		nnlimit = 100+(100*i)
+		
+		paramValues.append(nnlimit)
+
+		print "Testing SceneSearch - nnlimit: " + str(nnlimit)
+		searchBenchmark = sceneSearch(limit=10, nnlimit=nnlimit)
+
+		hitValues.append(searchBenchmark['correct'])
+		searchTimeValues.append(searchBenchmark['averagetime'])
+
+		print str(searchBenchmark['correct']) + "% hitrate"
+		print "In average " + str(searchBenchmark['averagetime']) + " seconds per searchquery\n"
+
+	stopWebserver(process)
+	os.remove(os.path.join(ROOTDIR, 'temptree.db'))
+
+	plt.subplot(211)
+	plt.title('Hitrate of trees')
+	plt.plot(paramValues, hitValues, 'ro')
+	plt.plot(paramValues, hitValues, 'b-')
+	plt.xlabel('nnlimit')
+	plt.ylabel('hits in %')
+
+	plt.subplot(212)
+	plt.title('Average time per scenesearch of trees')
+	plt.plot(paramValues, searchTimeValues, 'ro')
+	plt.plot(paramValues, searchTimeValues, 'b-')
+	plt.xlabel('nnlimit')
+	plt.ylabel('avrg. time in seconds')
+
+	plt.tight_layout()
+	plt.savefig(os.path.join(outdir, "nnlimit.png"))
+
+	plt.gcf().clear()
+
 
 
 # Search for all videos starting with "query" in database
 # RegEx: Search for substring "query" in path, with digits after the string and a period after the digits
 # (so we can be sure 'query' is not some directory name or else...)
-def sceneSearch(limit=100, nnlimit=1000, outdir='./out'):
+def sceneSearch(limit=100, nnlimit=1000):
 	queryvideos = VIDEOS.find({'filename': {'$regex': 'query\d*\.'}}, {'filename': 1, 'cuts': 1})
 
 	count = queryvideos.count()
@@ -283,3 +329,4 @@ if __name__ == '__main__':
 
 	benchmarkTreeBuild(outdir)
 
+	benchmarkSceneSearch(outdir)
