@@ -11,8 +11,17 @@ FILE_TREE = "_tree.db"
 FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
 
-def flattenFeatures(scene):
-	'''
+def flattenFeatures(scene, weight):
+	
+	if not (weight >= 0 and weight <= 1):
+		print ("Illegal weight parameter, defaulting to 0,5 / 0,5\n")
+		weight = 0.5
+
+	edgeweight = weight
+	colorweight = 1 - weight
+
+	maxweight = max(edgeweight, colorweight)
+
 	colors = npy.array(scene["colorhist"])
 	edges = npy.array(scene["edges"])
 	
@@ -27,10 +36,11 @@ def flattenFeatures(scene):
 	colors *= math.sqrt(2.5) # 320/128
 
 	# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
-	colors *= math.sqrt(1000)
-	edges *= math.sqrt(1000)
+	# also, multiply features with their weight
+	colors *= math.sqrt(colorweight / maxweight * 1000)
+	edges *= math.sqrt(edgeweight / maxweight * 1000)
 	result = colors.append(edges)
-	'''
+	
 	return npy.array(scene['colorhist'])
 
 class KMeansTree:
@@ -240,6 +250,9 @@ class SearchHandler:
 	# Dict of all videos that shouldn't be found
 	deletedVideos = dict()
 
+	#not the actual maximal distance between vectors, but anything beyond this distance is no match at all
+	max_dist = 1100.0 # average distance is normalized to 1000, something with average distance is a match of 10%
+
 	"""
 	Loads a tree from a file if the file exists, else it
 	builds the tree from a given a collection containing videodata
@@ -250,7 +263,7 @@ class SearchHandler:
 	@param imax		max iterations for the center finding
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
-	def __init__(self, videos, name, k=8, imax=100, forceRebuild=False):
+	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
 		self.name = name
 		self.videos = videos
 		# Try to load the tree from the file
@@ -276,7 +289,7 @@ class SearchHandler:
 				for scene in scenes:
 					sceneId = scene['_id']
 					# Flatten the features
-					feature = flattenFeatures(scene)
+					feature = flattenFeatures(scene, featureWeight)
 					data.append((feature,(vidHash,sceneId)))
 
 			print "Building Tree"
