@@ -125,27 +125,13 @@ class KMeansTree:
 				centersFound = True
 
 			centers = centersNew
-		# Poor attempt of multiporcessing
-		if recdepth == 0:
-			processes = []
-			results = multiprocessing.Queue()
-			for center,cluster in zip(centers,clusters):
-				p = multiprocessing.Process(target=buildChild, args=(center, cluster, k, maxiterations, recdepth, results))
-				processes.append(p)
-				p.start()
-			for p in processes:
-				# Add chlid to childrend
-				self.children.append(results.get())
-			for p in processes:
-				p.join()
-		else:
-			for center,cluster in zip(centers,clusters):
-				# Create a child for each cluster
-				child = KMeansTree(False, center, [])
-				# Fill it with values
-				child.buildTree(cluster, k, maxiterations, recdepth+1)
-				# Add chlid to children
-				self.children.append(child)
+		for center,cluster in zip(centers,clusters):
+			# Create a child for each cluster
+			child = KMeansTree(False, center, [])
+			# Fill it with values
+			child.buildTree(cluster, k, maxiterations, recdepth+1)
+			# Add chlid to children
+			self.children.append(child)
 
 	"""
 	@param query		Feature array for the request. Find NNs to this one
@@ -378,7 +364,7 @@ if __name__ == '__main__':
 	#"""
 	client = MongoClient(port=8099)
 	db = client["findvid"]
-	videos = db["oldvids"]#"small"]
+	videos = db["benchmark_tiny"]#oldvids"]#"small"]
 
 	vid = videos.find_one({'filename':{'$regex':'.*mp4.*'}})
 
