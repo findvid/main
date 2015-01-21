@@ -278,7 +278,8 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
+		# TODO sourceVideo only when it should be excluded otherwise None
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000, sourceVideo=vidid)
 
 		content = ""
 		if not similarScenes:
@@ -412,7 +413,7 @@ class Root(object):
 			print "Error: File already exists."
 			return "Error: File already exists."
 		else:
-			TREE.addVideo(vidid)
+			TREE.addVideo(vidHash=vidid)
 			return "File successfully uploaded."
 
 
@@ -459,7 +460,6 @@ if __name__ == '__main__':
 	
 	# TODO: Exception Handling
 	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=False)
-
 	cherrypy.tree.mount(Root(), '/', conf)
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big
