@@ -28,6 +28,12 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 	uint32_t *data;
 	int size = processVideo(filename, &data);
 
+	if (!size) {
+		char[256] err;
+		sprintf(err, "Could not read video file '%s'!", filename);
+		PyErr_SetString(PyExc_IOError, "Failed");
+	}
+
 	pyList = PyList_New(size);
 	for (int i = 0; i < size; i++) {
 #if PYVERSION == 3
