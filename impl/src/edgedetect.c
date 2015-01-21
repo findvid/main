@@ -839,9 +839,10 @@ void getEdgeFeatures(AVFrame * frm, uint32_t * data, InterpolationWeights * weig
 	for (int i = 0; i < FEATURES_EDGES; i++)
 		data[i] = (uint32_t)values[i];
 
+	free(values);
 	avpicture_free((AVPicture *)sobel.dir);
 	av_frame_free(&sobel.dir);
-	
+		
 	avpicture_free((AVPicture *)edges);
 	av_frame_free(&edges);
 }
