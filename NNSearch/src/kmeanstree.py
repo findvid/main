@@ -12,7 +12,6 @@ FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
 
 def flattenFeatures(scene, weight):
-	
 	if not (weight >= 0 and weight <= 1):
 		print ("Illegal weight parameter, defaulting to 0,5 / 0,5\n")
 		weight = 0.5
@@ -228,7 +227,10 @@ def buildChild(center, cluster, k, maxiterations, recdepth, results):
 class SearchHandler:
 	# Name for the filenames
 	name = None
+	# Collection containing the videos
 	videos = None
+	# Weigth for the faltening
+	featureWeight = 0.5
 	# KMeans-Tree
 	tree = None
 	# List for now
@@ -252,6 +254,7 @@ class SearchHandler:
 	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
 		self.name = name
 		self.videos = videos
+		self.featureWeight = featureWeight
 		# Try to load the tree from the file
 		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
 			print "Loading Tree from file"
@@ -299,13 +302,17 @@ class SearchHandler:
 
 	@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
 	"""
-	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100):
+	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, sourceVideo = None):
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
-		query = flattenFeatures(scene)
+		query = flattenFeatures(scene, self.featureWeight)
+		# Copy the list of videos which won't be found and add the source Video
+		toIgnore = self.deletedVideos.copy()
+		if sourceVideo != None:
+			toIgnore[sourceVideo] = True
 		# Search in the tree
-		results = self.tree.search(query, self.deletedVideos, wantedNNs, maxTouches)
+		results = self.tree.search(query, toIgnore, wantedNNs, maxTouches)
 		# Add the newlyUploaded scenes to the results
 		for feature,scene in self.addedScenes:
 			results.put((dist(query,feature),scene))
@@ -332,7 +339,7 @@ class SearchHandler:
 				scenes = vid['scenes']
 				for scene in scenes:
 					sceneId = scene['_id']
-					feature = flattenFeatures(scene)
+					feature = flattenFeatures(scene, self.featureWeight)
 					self.addedScenes.append((feature,(vidHash,sceneId)))
 				pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
@@ -358,6 +365,7 @@ class SearchHandler:
 		if needsSaving:
 			self.addedScenes = addedScenesNew
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
 
 if __name__ == '__main__':
 	# Example code
