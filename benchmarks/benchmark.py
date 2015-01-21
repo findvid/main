@@ -76,8 +76,8 @@ COLORNORMAL = '\033[0m'
 COLORWARNING = '\033[93m'
 COLORFAIL = '\033[91m'
 
-def startWebserver(ksplit, imax, dbfile):
-	command = 'python ' + SERVERFILE + ' ' + PORT + ' ' + DBNAME + ' ' + COLNAME + ' ' + str(ksplit) + ' ' + str(imax) + ' ' + str(dbfile) + ' --quiet'
+def startWebserver(featureWeight, ksplit, imax, dbfile):
+	command = 'python ' + SERVERFILE + ' ' + PORT + ' ' + DBNAME + ' ' + COLNAME + ' ' + str(featureWeight) + ' ' + str(ksplit) + ' ' + str(imax) + ' ' + str(dbfile) + ' --quiet'
 	return subprocess.Popen('exec ' + command, stdout=subprocess.PIPE, shell=True)
 
 def stopWebserver(process):
@@ -95,35 +95,41 @@ def benchmarkTreeBuild(outdir='./out'):
 
 	print "Building the trees with " + str(videocount) + " Videos and " + str(scenecount) + " Scenes\n"
 	
-	for i in range(0, 2):
+	for i in range(0, 3):
 
 		paramValues = []
 		timeValues = []
 		hitValues = []
 		searchTimeValues = []
-		for power in range(0, 8):
+		for factor in range(0, 11):
 			if i == 0:
-				ksplit = 2**power
+				featureWeight = 0.5
+				ksplit = 2**factor
 				imax = 100
-			else:
+				paramValues.append(ksplit)
+			elif i == 1:
+				featureWeight = 0.5
 				ksplit = 8
-				imax = 2**power
+				imax = 2**factor
+				paramValues.append(imax)
+			else:
+				featureWeight = factor*0.1
+				paramValues.append(featureWeight)
+				ksplit = 8
+				imax = 100
 
-			paramValues.append(power)
-
-			print "Bulding tree - ksplit: " + str(ksplit) + "  -  imax: " + str(imax)
+			print "Bulding tree - ksplit: " + str(ksplit) + "  -  imax: " + str(imax) + "  -  featureWeight: " + str(featureWeight)
 
 			starttime = time.time()
-			kmeanstree.loadOrBuildAndSaveTree(videos=VIDEOS, filename=os.path.join(ROOTDIR, 'temptree.db'), k=ksplit, imax=imax)
+			kmeanstree.SearchHandler(videos=VIDEOS, name=os.path.join(ROOTDIR, 'temptree'), featureWeight=featureWeight, k=ksplit, imax=imax, forceRebuild=True)
 			endtime = time.time()
-
 			difftime = endtime-starttime
 			print "Builded tree in " + str(difftime) + " seconds"
 
 			timeValues.append(difftime)
 
 			print "Testing SceneSearch..."
-			process = startWebserver(ksplit=ksplit, imax=imax, dbfile=os.path.join(ROOTDIR, 'temptree.db'))
+			process = startWebserver(featureWeight=featureWeight, ksplit=ksplit, imax=imax, dbfile=os.path.join(ROOTDIR, 'temptree'))
 			searchBenchmark = sceneSearch(limit=10)
 			stopWebserver(process)
 
@@ -132,8 +138,6 @@ def benchmarkTreeBuild(outdir='./out'):
 
 			print str(searchBenchmark['correct']) + "% hitrate"
 			print "In average " + str(searchBenchmark['averagetime']) + " seconds per searchquery\n"
-
-			os.remove(os.path.join(ROOTDIR, 'temptree.db'))
 
 		if i == 0:
 			label = "ksplit"
@@ -144,21 +148,21 @@ def benchmarkTreeBuild(outdir='./out'):
 		plt.title('Time of tree builds')
 		plt.plot(paramValues, timeValues, 'ro')
 		plt.plot(paramValues, timeValues, 'b-')
-		plt.xlabel(label + "(2**x)")
+		plt.xlabel(label)
 		plt.ylabel('time in seconds')
 
 		plt.subplot(312)
 		plt.title('Hitrate of trees')
 		plt.plot(paramValues, hitValues, 'ro')
 		plt.plot(paramValues, hitValues, 'b-')
-		plt.xlabel(label + "(2**x)")
+		plt.xlabel(label)
 		plt.ylabel('hits in %')
 
 		plt.subplot(313)
 		plt.title('Average time per scenesearch of trees')
 		plt.plot(paramValues, searchTimeValues, 'ro')
 		plt.plot(paramValues, searchTimeValues, 'b-')
-		plt.xlabel(label + "(2**x)")
+		plt.xlabel(label)
 		plt.ylabel('avrg. time in seconds')
 
 		plt.tight_layout()
@@ -166,11 +170,12 @@ def benchmarkTreeBuild(outdir='./out'):
 
 		plt.gcf().clear()
 
-def benchmarkSceneSearch(outdir='./out', ksplit=8, imax=100):
-	kmeanstree.loadOrBuildAndSaveTree(videos=VIDEOS, filename=os.path.join(ROOTDIR, 'temptree.db'), k=ksplit, imax=imax)
-	process = startWebserver(ksplit=ksplit, imax=imax, dbfile=os.path.join(ROOTDIR, 'temptree.db'))
-	
-	print "Benchmarking scenesearch - ksplit: " + str(ksplit) + "  -  imax: " + str(imax) + "\n"
+
+def benchmarkSceneSearch(outdir='./out', featureWeight=0.5, ksplit=8, imax=100):
+	print "Benchmarking scenesearch - ksplit: " + str(ksplit) + "  -  imax: " + str(imax) + "  -  featureWeight: " + str(featureWeight) + "\n"
+
+	kmeanstree.SearchHandler(videos=VIDEOS, name=os.path.join(ROOTDIR, 'temptree'), featureWeight=featureWeight, k=ksplit, imax=imax, forceRebuild=True)
+	process = startWebserver(featureWeight=featureWeight, ksplit=ksplit, imax=imax, dbfile=os.path.join(ROOTDIR, 'temptree'))
 
 	paramValues = []
 	hitValues = []
