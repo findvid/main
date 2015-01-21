@@ -30,11 +30,11 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
-# Searchtree array
-TREE = []
+# Searchhandler
+SEARCHHANDLER = None
 
 # Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], 'searchtree.db')
+STORETREE = os.path.join(CONFIG['abspath'], 'searchHandler')
 
 # Renders a template.
 # filename - The filename of the template in HTMLDIR
@@ -238,7 +238,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000)
+		similarScenes = SEACHHANDLER.seach(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=1000, souceVideo=vidid)
 
 		if not similarScenes:
 			content = 'No Scenes found for your search query.'
@@ -325,7 +325,7 @@ class Root(object):
 			print "Error: File already exists."
 			return "Error: File already exists."
 		else:
-			tree.addVideoDynamic(VIDEOS, vidid)
+			SEACHHANDLER.addVideo(vidHash=vidid)
 			return "File successfully uploaded."
 
 if __name__ == '__main__':
@@ -358,7 +358,7 @@ if __name__ == '__main__':
 	# Build Searchtree
 	
 	# TODO: Exception Handling
-	TREE = tree.loadOrBuildAndSaveTree(VIDEOS, STORETREE)
+	SEARCHHANDLER = SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=0.5, k=8, imax = 100, forceRebuild=False)
 
 	cherrypy.tree.mount(Root(), '/', conf)
 
