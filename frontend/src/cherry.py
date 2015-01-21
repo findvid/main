@@ -18,6 +18,8 @@ PARSER.add_argument('database', metavar='DB',
 	help='The name of the MongoDB Database on localhost')
 PARSER.add_argument('collection', metavar='COLLECTION',
 	help='The name of the Collection in the Database')
+PARSER.add_argument('featureweight', metavar='FEATUREWEIGHT',
+	help='The factor for the feature weights. 0 means only colorhists, 1 means only edges')
 PARSER.add_argument('ksplit', metavar='KSPLIT',
 	help='The number of splits of the k-means-tree')
 PARSER.add_argument('kmax', metavar='KMAX',
@@ -33,6 +35,7 @@ ARGS = PARSER.parse_args()
 PORT = ARGS.port
 DBNAME = ARGS.database
 COLNAME = ARGS.collection
+FEATUREWEIGHT = ARGS.featureweight
 KSPLIT = ARGS.ksplit
 KMAX = ARGS.kmax
 FILENAME = ARGS.filename
@@ -332,7 +335,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = tree.searchForScene(videos=VIDEOS, tree=TREE, vidHash=vidid, sceneId=sceneid, wantedNNs=int(nnlimit), maxTouches=int(nnlimit))
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(nnlimit), maxTouches=int(nnlimit))
 
 		result = ""
 
@@ -455,7 +458,7 @@ if __name__ == '__main__':
 	# Build Searchtree
 	
 	# TODO: Exception Handling
-	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=0.5, k=KSPLIT, imax=KMAX, forceRebuild=False)
+	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=False)
 
 	cherrypy.tree.mount(Root(), '/', conf)
 
