@@ -5,121 +5,44 @@ import Queue
 import pickle
 import math
 import os.path
+import multiprocessing
 from pymongo import MongoClient
 
-newlyUploadedScenes = []
+FILE_TREE = "_tree.db"
+FILE_DEL = "_deletedVideos.db"
+FILE_ADD = "_addedScenes.db"
 
-def flattenFeatures(scene):
-	# Normalize features. Idea how to do it. Not sure if correct.
-	# For each feature f
-	# f_norm = (f - f_mean) / f_var
-	# f' = f_norm * sqrt(n_f1/n_f2)
-	# where n_fx is the amount of values of this feature
-	# use concatenated f's as result
-	edges = npy.array(scene['edges'])
-	colorhist = npy.array(scene['colorhist'])
-	edges = ((edges - 2109) / 2088)
-	colorhist = ((colorhist - 500) / 2171) * math.sqrt(160/128)
+def flattenFeatures(scene, weight):
 	
-	return npy.append(edges, colorhist)
-	#return npy.array(scene["edges"])
+	if not (weight >= 0 and weight <= 1):
+		print ("Illegal weight parameter, defaulting to 0,5 / 0,5\n")
+		weight = 0.5
 
-"""
-Loads a tree from a file if the file exists, else it
-builds the tree from a given a collection containing videodata
+	edgeweight = weight
+	colorweight = 1 - weight
 
-@param videos	The collection
-@param filename	filename of the tree
-@param k	Splittingfactor k
-@param imax	max iterations for the center finding
+	maxweight = max(edgeweight, colorweight)
 
-@return		kmeans tree to search on
-"""
-def loadOrBuildAndSaveTree(videos, filename, k=8, imax=100):
-	if os.path.isfile(filename):
-		print "Loading Tree from file"
-		return pickle.load(open(filename, "rb"))
-	tree = buildTreeFromCollection(videos)
-	print "Saving Tree"
-	pickle.dump(tree, open(filename, "wb"))
-	return tree
+	colors = npy.array(scene["colorhist"])
+	edges = npy.array(scene["edges"])
+	
+	#Normalize both features
+	# f_norm = (f - f_mean) / f_deviation
+	colors -= 500
+	edges -= 981
+	colors /= math.sqrt(4697656.84452)
+	edges /= math.sqrt(2980531.28808)
+	
+	#Supersample colorhists to compensate for different length of vectors
+	colors *= math.sqrt(2.5) # 320/128
 
-"""
-Build a tree from a given collection containing videodata
-
-@param videos	The collection containing the videos
-@param k	Splittingfactor k
-@param imax	max iterations for the center finding
-
-@return		kmeans tree to search on
-"""
-def buildTreeFromCollection(videos, k=8, imax=100):
-	print "Reading data from database"
-
-	# Get all searchable videos. This also gets rid of the config entry
-	vids = videos.find({'searchable' : True})
-
-	data = []
-	for vid in vids:
-		scenes = vid['scenes']
-		vidHash = vid['_id']
-		for scene in scenes:
-			sceneId = scene['_id']
-			# TODO Add call to some smart flatening here
-			feature = flattenFeatures(scene)
-			data.append((feature,(vidHash,sceneId)))
-
-	print "Building Tree"
-	tree = KMeansTree(False, [], [])
-	tree.buildTree(data, k, imax)
-	return tree
-
-"""
-Search for a scene from a collection
-
-@param videos		Collection containing the query
-@param tree		kmeans tree to search on
-@param vidHash		id of the video of the query scene
-@param sceneId		id of the query scene
-@param wantedNNs	amount of NNs you want
-@param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
-
-@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
-"""
-def searchForScene(videos, tree, vidHash, sceneId, wantedNNs, maxTouches):
-	vid = videos.find_one({'_id':vidHash})
-	scene = vid['scenes'][sceneId]
-	feature = flattenFeatures(scene)
-	results = tree.search(feature, wantedNNs, maxTouches)
-	# Add the newlyUploaded scenes to the results
-	searchRest(feature, results)
-	return results
-
-"""
-Add a video after the tree is build
-
-@param videos	the collection the video is in
-@param vidHash	hash of the video
-"""
-def addVideoDynamic(videos, vidHash):
-	# TODO set searchable flag
-	vid = videos.find_one({'_id':vidHash})
-	if vid['searchable']:
-		scenes = vid['scenes']
-		for scene in scenes:
-			sceneId = scene['_id']
-			feature = flattenFeatures(scene)
-			newlyUploadedScenes.append((feature,(vidHash,sceneId)))
-
-"""
-Searching the linear part
-
-@param query	query feature
-@param results	PrioiryQueue for the results
-"""
-def searchRest(query, results):
-	for feature,scene in newlyUploadedScenes:
-		results.put((dist(query,feature),scene))
+	# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
+	# also, multiply features with their weight
+	colors *= math.sqrt(colorweight / maxweight * 1000)
+	edges *= math.sqrt(edgeweight / maxweight * 1000)
+	result = colors.append(edges)
+	
+	return npy.array(scene['colorhist'])
 
 class KMeansTree:
 	isLeave = False
@@ -213,35 +136,38 @@ class KMeansTree:
 
 	"""
 	@param query		Feature array for the request. Find NNs to this one
+	@param deletedVideos	Dictornary containing videos which shouldn't be found
 	@param wantedNNs	Amount of NNs to be found
 	@param maxPointsToTouch	Limit of leaves that get touched. Higher value -> better results but slower calculation
 	"""
-	def search(self, query, wantedNNs = 1, maxPointsToTouch = 42):
+	def search(self, query, deletedVideos, wantedNNs = 1, maxPointsToTouch = 42):
 		# for the nodes that get checked later
 		nextNodes = Queue.PriorityQueue()
 		# for the results
 		results = Queue.PriorityQueue()
 
 		# search from root
-		self.traverse(nextNodes, results, query)
+		self.traverse(nextNodes, results, query, deletedVideos)
 		# while there are nextNodes and the max amount of points or the number of NNs is not reached
 		while (not nextNodes.empty()) and (results.qsize() < maxPointsToTouch or results.qsize() < wantedNNs):
 			# get the next clostest node
 			_,nextNode = nextNodes.get()
 			# and continue searching there
-			nextNode.traverse(nextNodes, results, query)
+			nextNode.traverse(nextNodes, results, query, deletedVideos)
 		return results
 
 	"""
 	@param nextNodes	PrioQueue for 'checkout-later'-nodes
 	@param results		PrioQueue for the results
 	@param query		Feature array for the request. Find NNs to this one.
+	@param deletedVideos	Dictornary containing videos which shouldn't be found
 	"""
-	def traverse(self, nextNodes, results, query):
+	def traverse(self, nextNodes, results, query, deletedVideos):
 		if self.isLeave:
 			# put the leave to the results
 			for center,value in self.children:
-				results.put((dist(query, center),value))
+				if not value[0] in deletedVideos:
+					results.put((dist(query, center),value))
 		else:
 			# find the closest child
 			closestChild = None
@@ -260,7 +186,7 @@ class KMeansTree:
 					# add the child to the later to check nodes
 					nextNodes.put((distance,child))
 			# go on searching in the closest child
-			closestChild.traverse(nextNodes, results, query)
+			closestChild.traverse(nextNodes, results, query, deletedVideos)
 
 	def __str__(self):
 		return self.str2("")
@@ -295,20 +221,159 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
+def buildChild(center, cluster, k, maxiterations, recdepth, results):
+	child = KMeansTree(False, center, [])
+	child.buildTree(cluster, k, maxiterations, recdepth+1)
+	results.put(child)
+
+class SearchHandler:
+	# Name for the filenames
+	name = None
+	videos = None
+	# KMeans-Tree
+	tree = None
+	# List for now
+	addedScenes = []
+	# Dict of all videos that shouldn't be found
+	deletedVideos = dict()
+
+	#not the actual maximal distance between vectors, but anything beyond this distance is no match at all
+	max_dist = 1100.0 # average distance is normalized to 1000, something with average distance is a match of 10%
+
+	"""
+	Loads a tree from a file if the file exists, else it
+	builds the tree from a given a collection containing videodata
+	
+	@param videos		The collection
+	@param filename		filename of the tree
+	@param k		Splittingfactor k
+	@param imax		max iterations for the center finding
+	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
+	"""
+	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
+		self.name = name
+		self.videos = videos
+		# Try to load the tree from the file
+		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
+			print "Loading Tree from file"
+			self.tree = pickle.load(open(self.name + FILE_TREE, "rb"))
+			# Read files for deleted videos/added videos
+			if os.path.isfile(self.name + FILE_DEL):
+				self.deletedVideos = pickle.load(open(self.name + FILE_DEL, "rb"))
+			if os.path.isfile(self.name + FILE_ADD):
+				self.addedScenes = pickle.load(open(self.name + FILE_ADD, "rb"))
+		# Build the tree
+		else:
+			print "Reading data from database"
+			# Get all searchable videos. This also gets rid of the config entry
+			vids = videos.find({'searchable' : True})
+
+			data = []
+			# Get all scenes for all searchable videos
+			for vid in vids:
+				scenes = vid['scenes']
+				vidHash = vid['_id']
+				for scene in scenes:
+					sceneId = scene['_id']
+					# Flatten the features
+					feature = flattenFeatures(scene, featureWeight)
+					data.append((feature,(vidHash,sceneId)))
+
+			print "Building Tree"
+			self.tree = KMeansTree(False, [], [])
+			self.tree.buildTree(data, k, imax)
+			
+			print "Saving Tree"
+			pickle.dump(self.tree, open(self.name + FILE_TREE, "wb"))
+			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
+			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
+
+	"""
+	Search for a scene from a collection
+
+	@param tree		kmeans tree to search on
+	@param vidHash		id of the video of the query scene
+	@param sceneId		id of the query scene
+	@param wantedNNs	amount of NNs you want
+	@param maxTouches	how many leaves should be touched at max. currently not different to wantedNNs
+
+	@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
+	"""
+	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100):
+		# Get feature of query scene
+		vid = self.videos.find_one({'_id':vidHash})
+		scene = vid['scenes'][sceneId]
+		query = flattenFeatures(scene)
+		# Search in the tree
+		results = self.tree.search(query, self.deletedVideos, wantedNNs, maxTouches)
+		# Add the newlyUploaded scenes to the results
+		for feature,scene in self.addedScenes:
+			results.put((dist(query,feature),scene))
+		return results
+
+	"""
+	Add a video after the tree is build
+	It will be kept in an extra list
+
+	@param vidHash	hash of the video
+	"""
+	def addVideo(self, vidHash):
+		vid = self.videos.find_one({'_id':vidHash})
+		if vid['searchable']:
+			if vidHash in self.deletedVideos:
+				self.deletedVideos.pop(vidHash)
+				pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
+			else:
+				# Check if the video is on the addedScenes list already
+				for _,(vidId,_) in self.addedScenes:
+					if vidHash == vidId:
+						return
+				# If not add it to it
+				scenes = vid['scenes']
+				for scene in scenes:
+					sceneId = scene['_id']
+					feature = flattenFeatures(scene)
+					self.addedScenes.append((feature,(vidHash,sceneId)))
+				pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
+
+	"""
+	Disable a video so it can't be found anymore
+
+	@param vidHash	hash of the video
+	"""
+	def deleteVideo(self, vidHash):
+		# Add to the deleted videos list
+		if not vidHash in self.deletedVideos:
+			self.deletedVideos[vidHash] = True
+			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
+		# Delete it from the dynamic list
+		addedScenesNew = []
+		needsSaving = False
+		for feature,(vidId,sceneNo) in self.addedScenes:
+			if not vidHash == vidId:
+				addedScenesNew.append((feature,(vidId,sceneNo)))
+			else:
+				needsSaving = True
+		if needsSaving:
+			self.addedScenes = addedScenesNew
+			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
 if __name__ == '__main__':
 	# Example code
 	#"""
-	client = MongoClient()
+	client = MongoClient(port=8099)
 	db = client["findvid"]
-	videos = db["videos"]
+	videos = db["benchmark_tiny"]#oldvids"]#"small"]
 
-	vid = videos.find_one({'filename':{'$regex':'.*hardcuts\.mp4.*'}})
+	vid = videos.find_one({'filename':{'$regex':'.*mp4.*'}})
 
-	tree = loadOrBuildAndSaveTree(videos, "tree.p")
+	searchHandler = SearchHandler(videos, "testvidhandler", forceRebuild=True)
 
-	addVideoDynamic(videos, vid["_id"])
+	searchHandler.addVideo(vid['_id'])
 
-	results = searchForScene(videos, tree, vid['_id'], 0, 100, 1000)
+	results = searchHandler.search(vid['_id'], 0, 100, 1000)
 
 	print results.get()
 	print results.get()
