@@ -54,7 +54,9 @@ int main(int argc, char **argv) {
 
 
 	free(features);
-
+	
+	free(weights);
+	free(weights->c);
 	av_frame_free(&frame);
 	sws_freeContext(rgb2g_ctx);
 
