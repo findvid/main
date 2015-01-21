@@ -42,7 +42,7 @@ def flattenFeatures(scene, weight):
 	edges *= math.sqrt(edgeweight / maxweight * 1000)
 	result = npy.append(colors, edges)
 	
-	return npy.array(scene['colorhist'])
+	return result
 
 class KMeansTree:
 	isLeave = False
