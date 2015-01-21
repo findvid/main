@@ -3,7 +3,7 @@
 #include "fvutils.h"
 #include "largelist.h"
 
-#define FEATURE_AMNT 4
+#define FEATURE_AMNT 3
 
 /*
  * As the tripple pointer can f**k with the brain quite a bit here is

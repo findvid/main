@@ -13,7 +13,8 @@
 
 //#define MAX_MEMORY_USAGE ((uint32_t)(3 * 1024 * 1024 * 1024))
 //always makes signed ints...not good
-uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
+//uint32_t MAX_MEMORY_USAGE = 3221225472 ;//3 * 1024 * 1024 * 1024;
+  uint32_t MAX_MEMORY_USAGE = 1048576; //1MB
 //uint32_t MAX_MEMORY_USAGE = (uint32_t)(2048 * 1024 * 1024); // For small testing systems...like a little useless black laptop
 
 
@@ -111,9 +112,15 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	// List for the cuts found by the color histogram approach
 	LargeList * list_cuts_colors = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
 
-	LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+	//LargeList * list_cuts_edges = list_init(sysconf(_SC_PAGESIZE)/sizeof(void *) - LLIST_DATA_OFFSET);
+
+	//To streamline concurring indexing processes, shotbounds should line up at the hard drive accesses in some manner
+	//as this will bottleneck the process of filling up the bulks in each process
+	//a semaphore would be an easy solution to this
+	
 
 	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
+		//SEMAPHORE DOWN
 
 		// Allocate a new frame, obviously
 		AVFrame* pFrameRGB24 = av_frame_alloc();
@@ -138,6 +145,8 @@ int processVideo(const char *filename, uint32_t **cuts) {
 
 		// If one bulk of frames is filled, let the frames be processed first and clear the list
 		if (list_frames->size >= TOTAL_FRAMES_IN_MEMORY) {
+					//SEMAPHORE UP
+					
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 					
@@ -205,7 +214,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	free(cutsIt);
 
 
-	list_destroy(list_cuts_edges);
+	//list_destroy(list_cuts_edges);
 	list_destroy(list_cuts_colors);
 	list_destroy(list_hist_diff);
 

@@ -136,7 +136,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		return NULL;
 	}
 
-
 	FeatureTuple * res = malloc(sizeof(FeatureTuple));
 
 	res->feature_list = malloc(sizeof(uint32_t **) * FEATURE_AMNT);
@@ -149,7 +148,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	tinyImageLength(&res->feature_length[0]); 
 	edgeFeatures_length(&res->feature_length[1]); 
 	histogramLength(&res->feature_length[2]); 
-	dummyFeatureLength(&res->feature_length[3]); 
+	//dummyFeatureLength(&res->feature_length[3]); 
 	res->feature_count = sceneCount;
 	//res->feature_count = 0; //If nothing's done, there are no features saved in res->feature_list[x][y]
 
@@ -212,7 +211,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	sprintf(folder, "%s/%s", expath, hashstring);
 
 	if (mkdir(folder, 0777) < 0) {
-		// TODO EEXIST dosen't check if it's a folder
+		// TODO EEXIST doesn't check if it's a folder
 		if (errno != EEXIST) {
 			printf("Cannot create folder to save to!(%s)\nERROR = %d\n", folder, errno);
 			free(res);
@@ -222,20 +221,66 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 	//Allocate source frame for the iterator to decode into
 	AVFrame * frame = av_frame_alloc();
-	//Allocate Target buffer
-	int numBytes = avpicture_get_size(PIX_FMT_YUVJ420P, iter->cctx->width, iter->cctx->height);
-	uint8_t * buffer = av_malloc(numBytes);
 
 	frame->pts = 0;
 	frame->quality = trgtCtx->global_quality;
 	
-	int gotFrame = 0;
+	AVFrame * pFrameRGB24 = av_frame_alloc();
+	if (!pFrameRGB24) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
+	if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
+
+	int gotFrame = 1;
 	int currentFrame = 0;
 	int currentScene = 0;
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
-	readFrame(iter, frame, &gotFrame);
-	while (gotFrame) {
+
+	//Next frame to seek.
+	int64_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
+
+	while ((!hadVidThumb || (currentScene < sceneCount)) && gotFrame) {
+		
+		//Determine next frame to seek
+		if (vidThumb < sceneFrames[currentScene] && !hadVidThumb) {
+			SEAKING = vidThumb;
+		} else {
+			SEAKING = sceneFrames[currentScene];
+		}
+
+		// Whoever suggested that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
+		/*int64_t SEEK_TARGET = av_rescale_q(SEAKING * AV_TIME_BASE, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
+		
+		//Seek this frame to skip some unneccessary frames
+		retry_seek: //Yes, this is a label. Yes, we will jump here if neccessary. Deal with it.
+		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
+			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
+		*/
+		
+		readFrame(iter, frame, &gotFrame);
+
+		if (frame->pkt_dts > SEAKING){
+			//LET'S GET FREAKY
+			SEAKING -= frame->pkt_dts - SEAKING; //For each frame that was skipped, go back 1 frame for the seek target to retry seeking
+			if (SEAKING < 0) SEAKING = 0; // ... don't overdo it, tho...
+			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! (sought = %d, retrieved = %ld)\nBounce back to frame %ld as target and retry seeking\n", sceneFrames[currentScene], frame->pkt_dts, SEAKING);
+			goto retry_seek;
+		}
+
+		while (frame->pkt_dts < SEAKING) {
+			readFrame(iter, frame, &gotFrame);
+		}
+		currentFrame = frame->pkt_dts;
+
+		if (!gotFrame) {
+			break;
+		}
+
 		if (currentFrame == vidThumb) {
 			//Just save a thumbnail for the video
 			hadVidThumb = 1;
@@ -243,21 +288,9 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 		}
 		if (currentFrame == sceneFrames[currentScene]) {
-			//First save the thumbnail
-			
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
-
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 
-			AVFrame * pFrameRGB24 = av_frame_alloc();
-			if (!pFrameRGB24) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
-			if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
 
 
 			// Convert to a smaller frame for faster processing     
@@ -265,36 +298,29 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 
 			pFrameRGB24->width = DESTINATION_WIDTH;
 			pFrameRGB24->height = DESTINATION_HEIGHT;
-			
-			AVFrame * pFrameG8 = getEdgeProfile(pFrameRGB24, convert_g8, DESTINATION_WIDTH, DESTINATION_HEIGHT);
-			
 
 			//Get features from different components for this frame
 			//Do some M.A.G.I.C.
 			//getMagicalRainbowFeatures(frame, res->feature_list[0], currentScene);
 			//...
 			tinyImageFeature(pFrameRGB24, &(res->feature_list[0][currentScene]), convert_tiny);
-			edgeFeatures(pFrameG8, &(res->feature_list[1][currentScene]), edgeWeights);
+			//edgeFeatures will get the edge profile itself. Care must be taken to pass a proper conversion context!
+			edgeFeatures(pFrameRGB24, &(res->feature_list[1][currentScene]), edgeWeights, convert_g8);
 			histogramFeature(pFrameRGB24, &(res->feature_list[2][currentScene]));
-			dummyFeature(frame, &(res->feature_list[3][currentScene]));
+			//dummyFeature(frame, &(res->feature_list[3][currentScene]));
+			
 
 			currentScene++;
-			
-			avpicture_free((AVPicture *)pFrameG8);
-			av_frame_free(&pFrameG8);
-
-			avpicture_free((AVPicture *)pFrameRGB24);
-			av_frame_free(&pFrameRGB24);
 		}
-		if (currentScene > sceneCount && hadVidThumb) break; //Everything's done
-		currentFrame++;
-		readFrame(iter, frame, &gotFrame);
 	}
+	
 	if (currentScene < sceneCount) { //Went all the way through without getting all the keyframes; artificially cut off the empty rest of res->features
 		res->feature_count -= (sceneCount - currentScene);
 	}
+	
+	avpicture_free((AVPicture *)pFrameRGB24);
+	av_frame_free(&pFrameRGB24);
 	av_frame_free(&frame);
-	av_free(buffer);
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);
 	avcodec_free_context(&trgtCtx);
@@ -320,7 +346,7 @@ void destroyFeatures(FeatureTuple * t) {
 /*
 int main(int argc, char **argv) {
 	uint32_t d[5] = {5, 50, 150, 250, 450};
-	FeatureTuple * r = getFeatures(argv[1], argv[2], 50, d, 5);
+	FeatureTuple * r = getFeatures(argv[1], "0xFUCKU", argv[2], 50, d, 5);
 
 	destroyFeatures(r);
 }

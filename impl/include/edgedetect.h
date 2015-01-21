@@ -8,8 +8,10 @@
 #include "fvutils.h"
 #include "largelist.h"
 
-#define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<((p)->height)) && ((x)<((p)->width)))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
+//#define inImage(x, y, w, h) ((x) >= 0 && (x) < (w) && (y) >= 0 && y < (h))
 //#define getPixelG8(p,x,y) (uint8_t)((p)->data[0][(x < 0?0:(x >= (p)->width?(p)->width:x)) + (y < 0?0:(y >= (p)->height?(p)->height:y)) * (p)->linesize[0]])
+
+#define getPixelG8(p,x,y) (uint8_t)((((x)>=0) && ((y)>=0) && ((y)<((p)->height)) && ((x)<((p)->width)))?((p)->data[0][(x) + ((y) * (p)->linesize[0])]):0)
 //#define setPixelG8(p,x,y,g) (p)->data[0][(x) + (y) * (p)->linesize[0]] = (uint8_t)(g)
 #define setPixelG8(p,x,y,g) do { \
 	if (x >= 0 && x < (p)->width && y >= 0 && y < (p)->height) \
@@ -17,17 +19,17 @@
 	} while(0)
 
 //Defines how many of the last elements of difference values during shot detection are returned and, in return, put back into the next call
-#define MAX_FEEDBACK_LENGTH 25
+//#define MAX_FEEDBACK_LENGTH 25
 
-#define OPERATOR_DIRECTIONS 6
+//#define OPERATOR_DIRECTIONS 6
 
 #define HYSTERESIS_T1 20
 #define HYSTERESIS_T2 10
 
 //
-#define QUADRANTS_WIDTH 16
-#define QUADRANTS_HEIGHT 10
-#define FEATURE_LENGTH (QUADRANTS_WIDTH*QUADRANTS_HEIGHT)
+#define QUADRANTS_WIDTH 8
+#define QUADRANTS_HEIGHT 5
+#define FEATURES_EDGES ((QUADRANTS_WIDTH*QUADRANTS_HEIGHT) * 8)
 
 //#define getEdgeProfile(i,s,w,h) getEdgeProfileSodel(i,s,w,h)
 
@@ -77,11 +79,11 @@ void linearScale(AVFrame * pic);
 AVFrame * getEdgeProfile_full(AVFrame * original, struct SwsContext * swsctx, int width, int height);
 
 //Use sobel magnitude as edge strength
-AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height);
+AVFrame * getEdgeProfile(AVFrame * original, struct SwsContext * swsctx, int width, int height, struct t_sobelOutput * sobel);
 
 void getSobelOutput(AVFrame * frame, struct t_sobelOutput * out);
 
-void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
+//void detectCutsByEdges(LargeList * list_frames, LargeList * list_cuts, uint32_t startframe, ShotFeedback * feedback, struct SwsContext * swsctx, int width, int height);
 
 void edgeFeatures_length(uint32_t *);
-void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *);
+void edgeFeatures(AVFrame *, uint32_t **, InterpolationWeights *, struct SwsContext *);

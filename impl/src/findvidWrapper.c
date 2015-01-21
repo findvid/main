@@ -28,6 +28,12 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 	uint32_t *data;
 	int size = processVideo(filename, &data);
 
+	if (!size) {
+		char err[256];
+		sprintf(err, "Could not read video file '%s'!", filename);
+		PyErr_SetString(PyExc_IOError, "Failed");
+	}
+
 	pyList = PyList_New(size);
 	for (int i = 0; i < size; i++) {
 #if PYVERSION == 3
@@ -114,7 +120,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 			}
 		}
 
-		item = Py_BuildValue("(OOOO)", f[0], f[1], f[2], f[3]);
+		item = Py_BuildValue("(OOO)", f[0], f[1], f[2]); //f[3] unused
 		free(f);
 		PyList_SET_ITEM(pyList, i, item);
 	}

@@ -3,6 +3,7 @@ import random as rand
 import sys
 import Queue
 import pickle
+import math
 import os.path
 import multiprocessing
 import math
@@ -35,7 +36,7 @@ class KMeansTree:
 		align = ""
 		for i in range(recdepth):
 			align += "  "
-		print align, recdepth, ": len(data): ", len(data)
+		#print align, recdepth, ": len(data): ", len(data)
 
 		# If there are less elements in data than a node should have children...
 		if len(data) <= k:
@@ -203,6 +204,8 @@ class SearchHandler:
 	featureWeight = 0.5
 	# KMeans-Tree
 	tree = None
+	# Weight of Features
+	featureWeight = 0.5
 	# List for now
 	addedScenes = []
 	# Dict of all videos that shouldn't be found
@@ -223,7 +226,7 @@ class SearchHandler:
 	"""
 	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
 		if not (featureWeight >= 0 and featureWeight <= 1):
-			print ("Illegal weight parameter, defaulting to 0.5/0.5\n")
+			print ("Illegal weight parameter (" + str(featureWeight) + "), defaulting to 0.5/0.5\n")
 			featureWeight = 0.5
 		self.name = name
 		self.videos = videos

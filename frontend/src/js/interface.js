@@ -104,6 +104,15 @@ function bindEvents() {
 		loadContent('/searchScene/', {'vidid':vidid, 'second':second});
 	});
 
+	$('.thumbnail').on('mouseenter', function() {
+		$('.icon.deleteicon').fadeIn(0)
+	});
+
+	$('.thumbnail').on('mouseleave', function() {
+		$('.icon.deleteicon').fadeOut(0)
+	});
+
+
 	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta, .similarscene .thumbnail').on('click', function() {
 		var $this = $(this).parent(),
 			
@@ -223,6 +232,13 @@ $(function() {
 	$('.uploadprogress .button.abort').on('click', function() {
 		$('.uploadprogress').hide();
 		location.reload();
+	});
+
+	$('#filtersrc').change(function() {
+		$.ajax({
+			url: '/toggleFilter',
+			type: 'GET',
+		});
 	});
 
 });
