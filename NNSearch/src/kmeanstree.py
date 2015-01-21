@@ -40,7 +40,7 @@ def flattenFeatures(scene, weight):
 	# also, multiply features with their weight
 	colors *= math.sqrt(colorweight / maxweight * 1000)
 	edges *= math.sqrt(edgeweight / maxweight * 1000)
-	result = colors.append(edges)
+	result = npy.append(colors, edges)
 	
 	return npy.array(scene['colorhist'])
 
@@ -232,6 +232,8 @@ class SearchHandler:
 	videos = None
 	# KMeans-Tree
 	tree = None
+	# Weight of Features
+	featureWeight = 0.5
 	# List for now
 	addedScenes = []
 	# Dict of all videos that shouldn't be found
@@ -253,6 +255,7 @@ class SearchHandler:
 	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
 		self.name = name
 		self.videos = videos
+		self.featureWeight = featureWeight
 		# Try to load the tree from the file
 		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
 			print "Loading Tree from file"
@@ -276,7 +279,7 @@ class SearchHandler:
 				for scene in scenes:
 					sceneId = scene['_id']
 					# Flatten the features
-					feature = flattenFeatures(scene, featureWeight)
+					feature = flattenFeatures(scene, self.featureWeight)
 					data.append((feature,(vidHash,sceneId)))
 
 			print "Building Tree"
@@ -304,7 +307,7 @@ class SearchHandler:
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
-		query = flattenFeatures(scene)
+		query = flattenFeatures(scene, self.featureWeight)
 		# Search in the tree
 		results = self.tree.search(query, self.deletedVideos, wantedNNs, maxTouches)
 		# Add the newlyUploaded scenes to the results
@@ -333,7 +336,7 @@ class SearchHandler:
 				scenes = vid['scenes']
 				for scene in scenes:
 					sceneId = scene['_id']
-					feature = flattenFeatures(scene)
+					feature = flattenFeatures(scene, self.featureWeight)
 					self.addedScenes.append((feature,(vidHash,sceneId)))
 				pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
