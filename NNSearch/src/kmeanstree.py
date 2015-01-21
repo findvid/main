@@ -5,42 +5,12 @@ import Queue
 import pickle
 import os.path
 import multiprocessing
+import math
 from pymongo import MongoClient
 
 FILE_TREE = "_tree.db"
 FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
-
-def flattenFeatures(scene, weight):
-	if not (weight >= 0 and weight <= 1):
-		print ("Illegal weight parameter, defaulting to 0,5 / 0,5\n")
-		weight = 0.5
-
-	edgeweight = weight
-	colorweight = 1 - weight
-
-	maxweight = max(edgeweight, colorweight)
-
-	colors = npy.array(scene["colorhist"])
-	edges = npy.array(scene["edges"])
-	
-	#Normalize both features
-	# f_norm = (f - f_mean) / f_deviation
-	colors -= 500
-	edges -= 981
-	colors /= math.sqrt(4697656.84452)
-	edges /= math.sqrt(2980531.28808)
-	
-	#Supersample colorhists to compensate for different length of vectors
-	colors *= math.sqrt(2.5) # 320/128
-
-	# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
-	# also, multiply features with their weight
-	colors *= math.sqrt(colorweight / maxweight * 1000)
-	edges *= math.sqrt(edgeweight / maxweight * 1000)
-	result = colors.append(edges)
-	
-	return npy.array(scene['colorhist'])
 
 class KMeansTree:
 	isLeave = False
@@ -252,6 +222,9 @@ class SearchHandler:
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
 	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
+		if not (featureWeight >= 0 and featureWeight <= 1):
+			print ("Illegal weight parameter, defaulting to 0.5/0.5\n")
+			featureWeight = 0.5
 		self.name = name
 		self.videos = videos
 		self.featureWeight = featureWeight
@@ -278,7 +251,7 @@ class SearchHandler:
 				for scene in scenes:
 					sceneId = scene['_id']
 					# Flatten the features
-					feature = flattenFeatures(scene, featureWeight)
+					feature = self.flattenFeatures(scene)
 					data.append((feature,(vidHash,sceneId)))
 
 			print "Building Tree"
@@ -290,6 +263,32 @@ class SearchHandler:
 			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
+	def flattenFeatures(self, scene):
+		edgeweight = self.featureWeight
+		colorweight = 1 - self.featureWeight
+
+		maxweight = max(edgeweight, colorweight)
+
+		colors = npy.array(scene["colorhist"])
+		edges = npy.array(scene["edges"])
+		
+		#Normalize both features
+		# f_norm = (f - f_mean) / f_deviation
+		colors -= 500
+		edges -= 981
+		colors /= math.sqrt(4697656.84452)
+		edges /= math.sqrt(2980531.28808)
+		
+		#Supersample colorhists to compensate for different length of vectors
+		colors *= math.sqrt(2.5) # 320/128
+
+		# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
+		# also, multiply features with their weight
+		colors *= math.sqrt(colorweight / maxweight * 1000)
+		edges *= math.sqrt(edgeweight / maxweight * 1000)
+		result = npy.append(colors, edges)
+		
+		return result #npy.array(scene['colorhist'])
 
 	"""
 	Search for a scene from a collection
@@ -306,7 +305,7 @@ class SearchHandler:
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
-		query = flattenFeatures(scene, self.featureWeight)
+		query = self.flattenFeatures(scene)
 		# Copy the list of videos which won't be found and add the source Video
 		toIgnore = self.deletedVideos.copy()
 		if sourceVideo != None:
@@ -314,8 +313,9 @@ class SearchHandler:
 		# Search in the tree
 		results = self.tree.search(query, toIgnore, wantedNNs, maxTouches)
 		# Add the newlyUploaded scenes to the results
-		for feature,scene in self.addedScenes:
-			results.put((dist(query,feature),scene))
+		for feature,(video, scene) in self.addedScenes:
+			if video != sourceVideo:
+				results.put((dist(query,feature),(video, scene)))
 		return results
 
 	"""
@@ -339,7 +339,7 @@ class SearchHandler:
 				scenes = vid['scenes']
 				for scene in scenes:
 					sceneId = scene['_id']
-					feature = flattenFeatures(scene, self.featureWeight)
+					feature = self.flattenFeatures(scene)
 					self.addedScenes.append((feature,(vidHash,sceneId)))
 				pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
@@ -374,13 +374,13 @@ if __name__ == '__main__':
 	db = client["findvid"]
 	videos = db["benchmark_tiny"]#oldvids"]#"small"]
 
-	vid = videos.find_one({'filename':{'$regex':'.*mp4.*'}})
+	vid = videos.find_one({'filename':{'$regex':'.*target.*'}})
 
 	searchHandler = SearchHandler(videos, "testvidhandler", forceRebuild=True)
 
 	searchHandler.addVideo(vid['_id'])
 
-	results = searchHandler.search(vid['_id'], 0, 100, 1000)
+	results = searchHandler.search(vid['_id'], 0, 100, 1000, vid['_id'])
 
 	print results.get()
 	print results.get()
