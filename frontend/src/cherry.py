@@ -336,7 +336,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(nnlimit), maxTouches=int(nnlimit))
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(nnlimit), maxTouches=int(nnlimit), sourceVideo=vidid)
 
 		result = ""
 
