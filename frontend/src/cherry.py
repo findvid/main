@@ -444,14 +444,19 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		if extension != ".mp4":
-			logInfo("Transcoding Video to mp4!")
-			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
-			filename = os.path.basename(newdestination)
-			idx.transcode_video(destination, newdestination, quiet=True)
+		#if extension != ".mp4":
+		logInfo("Transcoding Video to mp4!")
+		newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
+		filename = os.path.basename(newdestination)
+		idx.transcode_video(destination, newdestination, quiet=True)
+		logInfo("Transcoding finished.")
+		
+		if destination != newdestination:
 			os.remove(destination)
 
+		logInfo("Indexing Video.")
 		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		logInfo("Indexing finished.")
 		if vidid == None:
 			# TODO: error messages
 			logError("File already exists.")
