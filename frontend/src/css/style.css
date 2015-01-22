@@ -39,6 +39,12 @@ a:visited {
 .icon.deleteicon {
   background: url('../images/video_delete.png');
 }
+.icon.editicon {
+  background: url('../images/video_edit.png');
+}
+.icon.extend {
+  background: url('../images/upload_extend.png');
+}
 /* ---------- Menu ---------- */
 .menu {
   width: 100%;
@@ -77,7 +83,7 @@ a:visited {
 }
 /* ----- Logo ----- */
 .menu .menu-wrap .logo {
-  width: 200px;
+  width: 185px;
   float: left;
   padding: 25px 0 0 0px;
 }
@@ -159,6 +165,10 @@ a:visited {
   border: 1px solid #fff;
   height: 11px;
   padding: 7px 6px 11px 6px;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .button.extend {
+  width: 30px;
+  padding-left: 10px;
 }
 .menu .menu-wrap .uploadwindow .upload-wrap .button.labels {
   width: 181px;
@@ -315,7 +325,6 @@ a:visited {
   opacity: 1;
 }
 .content .content-wrap .originvideo .meta .icon.editicon {
-  background: url('../images/video_edit.png');
   margin-right: 5px;
   float: right;
 }
