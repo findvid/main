@@ -225,7 +225,16 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	frame->pts = 0;
 	frame->quality = trgtCtx->global_quality;
 	
-	
+
+	AVFrame * pFrameRGB24 = av_frame_alloc();
+	if (!pFrameRGB24) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
+	if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
+		// TODO Errorhandleing / frees
+		return NULL;
+	}
 
 	int gotFrame = 1;
 	int currentFrame = 0;
@@ -282,15 +291,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
 			writeFrame(thumbnailFilename, trgtCtx, frame);
 
-			AVFrame * pFrameRGB24 = av_frame_alloc();
-			if (!pFrameRGB24) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
-			if (avpicture_alloc((AVPicture *)pFrameRGB24, PIX_FMT_RGB24, DESTINATION_WIDTH, DESTINATION_HEIGHT) < 0) {
-				// TODO Errorhandleing / frees
-				return NULL;
-			}
 
 			// Convert to a smaller frame for faster processing     
 			sws_scale(convert_rgb24, (const uint8_t* const*)frame->data, frame->linesize, 0, iter->cctx->height, pFrameRGB24->data, pFrameRGB24->linesize);
@@ -309,8 +309,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			//dummyFeature(frame, &(res->feature_list[3][currentScene]));
 			
 
-			avpicture_free((AVPicture *)pFrameRGB24);
-			av_frame_free(&pFrameRGB24);
 			currentScene++;
 		}
 	}
@@ -319,7 +317,9 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		res->feature_count -= (sceneCount - currentScene);
 	}
 	
-	avpicture_free((AVPicture *)frame);
+	avpicture_free((AVPicture *)pFrameRGB24);
+	av_frame_free(&pFrameRGB24);
+	//avpicture_free((AVPicture *)frame); //Causes invalid free in avcodec_close ?!?!?!
 	av_frame_free(&frame);
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);
