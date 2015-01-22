@@ -69,6 +69,9 @@ listtests: obj/largelist.o unittests/largelist_test.cc
 fvtests: obj/fvutils.o unittests/fvtest.cc 
 	g++ $(CFLAGS) $^ -o test -lgtest -lpthread $(LIBSFFMPEG)
 
+framerate_denethor: obj/fvutils.o unittests/fps_denethor.c
+	gcc $(CFLAGS) $^ -o test $(LIBSFFMPEG)
+
 clean:
 	rm -f ./test
 	rm -rf obj/
