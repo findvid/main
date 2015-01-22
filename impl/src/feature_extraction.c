@@ -225,6 +225,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	frame->pts = 0;
 	frame->quality = trgtCtx->global_quality;
 	
+
 	AVFrame * pFrameRGB24 = av_frame_alloc();
 	if (!pFrameRGB24) {
 		// TODO Errorhandleing / frees
@@ -272,12 +273,14 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! (sought = %d, retrieved = %ld)\nBounce back to frame %ld as target and retry seeking\n", sceneFrames[currentScene], frame->pkt_dts, SEAKING);
 			goto retry_seek;
 		}
-*/
 		while (currentFrame < SEAKING) {
+		}*/
+
+		while (frame->pkt_dts < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
-			currentFrame++;
+		//	currentFrame++;
 		}
-		//currentFrame = frame->pkt_dts;
+		currentFrame = frame->pkt_dts;
 
 		if (!gotFrame) {
 			break;
@@ -292,7 +295,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		if (currentFrame == sceneFrames[currentScene]) {
 			sprintf(thumbnailFilename, "%s/scene%d.jpeg", folder, currentScene);
 			writeFrame(thumbnailFilename, trgtCtx, frame);
-
 
 
 			// Convert to a smaller frame for faster processing     
@@ -322,6 +324,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	
 	avpicture_free((AVPicture *)pFrameRGB24);
 	av_frame_free(&pFrameRGB24);
+	//avpicture_free((AVPicture *)frame); //Causes invalid free in avcodec_close ?!?!?!
 	av_frame_free(&frame);
 	destroy_VideoIterator(iter);
 	avcodec_close(trgtCtx);

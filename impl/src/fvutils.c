@@ -128,9 +128,15 @@ VideoIterator * get_VideoIterator(const char * filename) {
 	AVCodec * pCodec = avcodec_find_decoder(iter->cctx->codec_id);
 	if (pCodec == NULL)
 		goto failure;
-	
-	if (avcodec_open2(iter->cctx, pCodec, NULL) < 0)
+
+	//Define dictionary to limit threading to 1
+	AVDictionary * dick = NULL;
+	av_dict_set(&dick, "threads", "1", 0);
+
+	if (avcodec_open2(iter->cctx, pCodec, &dick) < 0)
 		goto failure;
+
+	av_dict_free(&dick);
 
 	return iter;
 
