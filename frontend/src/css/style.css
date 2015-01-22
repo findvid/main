@@ -3,6 +3,7 @@
 body {
   font-family: Arial;
   margin: 0;
+  overflow-y: scroll;
 }
 /* ----- Buttons ----- */
 .button {
@@ -34,6 +35,9 @@ a:visited {
 }
 .hidden {
   display: none;
+}
+.icon.deleteicon {
+  background: url('../images/video_delete.png');
 }
 /* ---------- Menu ---------- */
 .menu {
@@ -216,17 +220,14 @@ a:visited {
 .menu .menu-wrap .uploadwindow .upload-wrap .uploadmenu .upload .icons .icon:active {
   opacity: 1;
 }
-.menu .menu-wrap .uploadwindow .upload-wrap .uploadmenu .upload .icons .icon.deleteicon {
-  background: url('../images/video_delete.png');
-  margin-bottom: 7px;
-}
 .menu .menu-wrap .uploadwindow .upload-wrap.active {
-  padding: 4px;
+  padding: 5px;
   background-color: #ffffff;
   border: 3px solid #dadada;
 }
 .menu .menu-wrap .uploadwindow .upload-wrap.active .button.upload {
   border: 1px solid #dadada;
+  padding: 5px 7px 10px 7px;
 }
 .menu .menu-wrap .uploadwindow .upload-wrap.active .uploadmenu {
   display: block;
@@ -319,7 +320,6 @@ a:visited {
   float: right;
 }
 .content .content-wrap .originvideo .meta .icon.deleteicon {
-  background: url('../images/video_delete.png');
   float: right;
 }
 .content .content-wrap .originvideo .tag-wrap .tag {
@@ -386,11 +386,12 @@ a:visited {
 }
 .content .content-wrap .video .icon.deleteicon {
   display: none;
-  background: url('../images/video_delete.png');
-  position: relative;
-  margin-top: -138px;
+  position: absolute;
+  right: 5px;
+  top: 5px;
 }
 .content .content-wrap .video .thumbnail {
+  position: relative;
   height: 138px;
 }
 .content .content-wrap .video .thumbnail img {

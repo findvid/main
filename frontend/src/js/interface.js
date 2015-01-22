@@ -104,12 +104,12 @@ function bindEvents() {
 		loadContent('/searchScene/', {'vidid':vidid, 'second':second});
 	});
 
-	$('.thumbnail').on('mouseenter', function() {
-		$('.icon.deleteicon').fadeIn(0)
+	$('.video .thumbnail').on('mouseenter', function() {
+		$(this).find('.icon.deleteicon').show();
 	});
 
-	$('.thumbnail').on('mouseleave', function() {
-		$('.icon.deleteicon').fadeOut(0)
+	$('.video .thumbnail').on('mouseleave', function() {
+		$(this).find('.icon.deleteicon').css('display', '');
 	});
 
 
