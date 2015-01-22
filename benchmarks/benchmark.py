@@ -27,8 +27,6 @@ PARSER.add_argument('collection', metavar='COLLECTION',
 	help='The name of the Collection in the Database')
 PARSER.add_argument('origpath', metavar='ORIGINALPATH',
 	help='The original path, where the queries and targets are (absolute!!!). This is used for the informations in the output files and reading the groundtruth file.')
-PARSER.add_argument('tolerance', metavar='TOLERANCE',
-	help='The tolerance (in frames) how many frames the found target can be away from ground truth')
 
 # parse input arguments
 ARGS = PARSER.parse_args()
@@ -38,7 +36,6 @@ PORT = ARGS.port
 DBNAME = ARGS.database
 COLNAME = ARGS.collection
 ORIGPATH = ARGS.origpath
-TOLERANCE = int(ARGS.tolerance)
 
 # Directory of this file
 ROOTDIR = os.path.abspath('.')
@@ -97,6 +94,9 @@ def benchmarkTreeBuild(outdir='./out'):
 	
 	for i in range(0, 3):
 
+		if not i == 2:
+			continue;
+
 		paramValues = []
 		timeValues = []
 		hitValues = []
@@ -133,6 +133,10 @@ def benchmarkTreeBuild(outdir='./out'):
 			searchBenchmark = sceneSearch(limit=10)
 			stopWebserver(process)
 
+			os.remove(os.path.join(ROOTDIR, 'temptree_tree.db'))
+			os.remove(os.path.join(ROOTDIR, 'temptree_addedScenes.db'))
+			os.remove(os.path.join(ROOTDIR, 'temptree_deletedVideos.db'))
+
 			hitValues.append(searchBenchmark['correct'])
 			searchTimeValues.append(searchBenchmark['averagetime'])
 
@@ -141,8 +145,10 @@ def benchmarkTreeBuild(outdir='./out'):
 
 		if i == 0:
 			label = "ksplit"
-		else:
+		elif i == 1:
 			label = "imax"
+		else:
+			label = "featureWeight"
 
 		plt.subplot(311)
 		plt.title('Time of tree builds')
@@ -196,7 +202,9 @@ def benchmarkSceneSearch(outdir='./out', featureWeight=0.5, ksplit=8, imax=100):
 		print "In average " + str(searchBenchmark['averagetime']) + " seconds per searchquery\n"
 
 	stopWebserver(process)
-	os.remove(os.path.join(ROOTDIR, 'temptree.db'))
+	os.remove(os.path.join(ROOTDIR, 'temptree_tree.db'))
+	os.remove(os.path.join(ROOTDIR, 'temptree_addedScenes.db'))
+	os.remove(os.path.join(ROOTDIR, 'temptree_deletedVideos.db'))
 
 	plt.subplot(211)
 	plt.title('Hitrate of trees')
@@ -236,14 +244,14 @@ def sceneSearch(limit=100, nnlimit=1000):
 		scenecount = len(video['cuts']) - 1
 
 		frame = 0
-		# When the video has more than 1 scene, take the longest
-		if scenecount > 1:
-			length = 0
-			for cut in range(0, scenecount):
-				thislength = video['cuts'][cut+1]-1 - video['cuts'][cut]
-				if thislength > length:
-					length = thislength
-					frame = video['cuts'][cut]
+		# COMMENTED: When the video has more than 1 scene, take the longest
+		#if scenecount > 1:
+		#	length = 0
+		#	for cut in range(0, scenecount):
+		#		thislength = video['cuts'][cut+1]-1 - video['cuts'][cut]
+		#		if thislength > length:
+		#			length = thislength
+		#			frame = video['cuts'][cut]
 
 		response = False
 		tries = 0
@@ -269,9 +277,12 @@ def sceneSearch(limit=100, nnlimit=1000):
 			if len(query) == 0:
 				continue
 
+			tolerance = 0
+
 			gtfilename = os.path.splitext(os.path.basename(query[0]))[0]
 			if basename == gtfilename:
 				gtline = query
+				tolerance = (int(gtline[3]) - int(gtline[2])) / 2
 				break
 
 		if not gtline:
@@ -299,11 +310,11 @@ def sceneSearch(limit=100, nnlimit=1000):
 				endGt = int(gtline[3])
 
 				# If the start value is not in tolerance range of groundtruth value: continue
-				if not ((startResult >= startGt-TOLERANCE) and (startResult <= startGt+TOLERANCE)):
+				if not ((startResult >= startGt-tolerance) and (startResult <= startGt+tolerance)):
 					continue
 
 				# If the end value is not in tolerance range of groundtruth value: continue
-				if not ((endResult >= endGt-TOLERANCE) and (endResult <= endGt+TOLERANCE)):
+				if not ((endResult >= endGt-tolerance) and (endResult <= endGt+tolerance)):
 					continue
 
 				# If we got here, congratulation. We found a correct target.
