@@ -128,9 +128,15 @@ VideoIterator * get_VideoIterator(const char * filename) {
 	AVCodec * pCodec = avcodec_find_decoder(iter->cctx->codec_id);
 	if (pCodec == NULL)
 		goto failure;
-	
-	if (avcodec_open2(iter->cctx, pCodec, NULL) < 0)
+
+	//Define dictionary to limit threading to 1
+	AVDictionary * dick = NULL;
+	av_dict_set(&dick, "threads", "1", 0);
+
+	if (avcodec_open2(iter->cctx, pCodec, &dick) < 0)
 		goto failure;
+
+	av_dict_free(&dick);
 
 	return iter;
 
@@ -198,4 +204,16 @@ void destroy_VideoIterator(VideoIterator * iter) {
 	avcodec_close(iter->cctx);
 	avformat_close_input(&iter->fctx);
 	free(iter);
+}
+
+double getFramerate(const char * filename) {
+	av_register_all();
+	VideoIterator * iter = get_VideoIterator(filename);
+	//framerate is not a member of struct AVCodecContext ???!!! Similar to SwsContext not appearing to have dstw or dsth...
+	//double res = (double)iter->cctx->framerate.num / iter->cctx->framerate.den;
+	AVRational * r = &(iter->fctx->streams[iter->videoStream]->avg_frame_rate);
+	double res = (double)r->num / r->den;
+	//double res = (double)iter->cctx->time_base.den / iter->cctx->time_base.num;
+	destroy_VideoIterator(iter);
+	return res;
 }
