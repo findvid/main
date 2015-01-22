@@ -6,17 +6,16 @@ import FindVid as fv
 from sys import argv, exit
 import hashlib
 import os
+import subprocess, shlex
 
 def hashFile(filename, blocksize):
 	hash = hashlib.sha1()
-	try:
-		with open(filename, 'rb') as f:
+	# File not found error is thrown up(wards)
+	with open(filename, 'rb') as f:
+		buffer = f.read(blocksize)
+		while len(buffer) > 0:
+			hash.update(buffer)
 			buffer = f.read(blocksize)
-			while len(buffer) > 0:
-				hash.update(buffer)
-				buffer = f.read(blocksize)
-	except IOError:
-		return None
 
 	return str(hash.hexdigest())
 
@@ -30,6 +29,16 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 CONFIG = config() # abs, thumbnail, video
 VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
 
+def transcode_video(srcVideo, dstVideo, quiet=False):
+	quietText = ""
+	if quiet:
+		quietText = " -loglevel quiet"
+
+	cmd = "ffmpeg -y -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow " + dstVideo
+	if not quiet:
+		print (cmd)
+	subprocess.call(cmd,shell=True)
+
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
 def index_video(collection, videofile, searchable=True, uploaded=False, thumbpath = None):
 
@@ -37,7 +46,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 
 	#Get Hash
 	fileHash = hashFile(vidpath, 65536)
-	if (fileHash is None): return False
+	#if (fileHash is None): return False
 
 	#Check if this exact video exists already
 	video = collection.find_one({'_id': fileHash})
@@ -46,7 +55,6 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
-
 	#Heuristic approach: Suitable keyframe between 2 cuts
 	keyframes = [(cuts[i-1] + cuts[i])/2 for i in range(1, len(cuts))]
 
@@ -91,7 +99,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 
 if __name__ == "__main__":
 	if len(argv) < 2:
-		print "ERROR: file missing!"
+		print "ERROR: file missing!" + "\n"
 		exit(1)
 	#Get PyMongo client
 	client = MongoClient(port=8099)
