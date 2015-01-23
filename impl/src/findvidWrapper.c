@@ -32,6 +32,7 @@ PyObject *getCutsWrapper(PyObject *self, PyObject *args) {
 		char err[256];
 		sprintf(err, "Could not read video file '%s'!", filename);
 		PyErr_SetString(PyExc_IOError, "Failed");
+		return NULL;
 	}
 
 	pyList = PyList_New(size);
@@ -90,7 +91,7 @@ PyObject * getFeaturesWrapper(PyObject *self, PyObject *args) {
 	FeatureTuple * results = getFeatures(filename, hashstring, path, vidThumb, scenes,(int)size);
 	if (!results) {
 			char err[128];
-			sprintf(err, "Video could not be opened!");
+			sprintf(err, "Video could not be opened! Feature extraction failed.\n");
 			PyErr_SetString(PyExc_TypeError, err);
 			return NULL;
 	}
