@@ -97,10 +97,12 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	feedback_colors.last_diff = 0;
 	feedback_colors.last_derivation = 0;
 
+	/*
 	ShotFeedback edge_feedback;
 	edge_feedback.lastFrame = NULL;
 	edge_feedback.diff_len = 0;
 	edge_feedback.diff = NULL;
+	*/
 
 	// List to contain all the small frames and pass it to processing when the video is finished or one bulk is filled (defined by MAX_MEMORY_USAGE)
 	// Each block of data should be the size of a mempage and contains pointers.
@@ -118,9 +120,10 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	//as this will bottleneck the process of filling up the bulks in each process
 	//a semaphore would be an easy solution to this
 	
-
-	while ((pFrame = nextFrame(vidIt, NULL)) != NULL) {
-		//SEMAPHORE DOWN
+	int gotFrame = 0;
+	while ((pFrame = nextFrame(vidIt, &gotFrame)) != NULL) {
+		if (gotFrame < 0) goto frameFailure; //Error while decoding the next frame; return -1
+		//SEMAPHORE DOWN?
 
 		// Allocate a new frame, obviously
 		AVFrame* pFrameRGB24 = av_frame_alloc();
@@ -150,11 +153,11 @@ int processVideo(const char *filename, uint32_t **cuts) {
 					// Process frames
 					detectCutsByHistogram(list_frames, list_cuts_colors, bulkStart, &feedback_colors, list_hist_diff);
 					
-					//Not useful yet
+					//Not useful --y-e-t-- ever
 					//detectCutsByEdges(list_frames, list_cuts_edges, bulkStart, &edge_feedback, g8ctx, DESTINATION_WIDTH, DESTINATION_HEIGHT);
 
-					if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
-					edge_feedback.lastFrame = list_pop(list_frames);
+					//if (edge_feedback.lastFrame != NULL) av_frame_free(&edge_feedback.lastFrame);
+					//edge_feedback.lastFrame = list_pop(list_frames);
 
 					list_forall(list_frames, (void (*) (void *))avpicture_free);
 					list_forall(list_frames, av_free);
@@ -223,6 +226,13 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	destroy_VideoIterator(vidIt);
 
 	return cutCount;
+	
+	frameFailure:
+	list_forall(list_frames, (void (*) (void *))avpicture_free);
+	list_forall(list_frames, av_free);
+	list_destroy(list_frames);
+
+	return -1;
 }
 /*
 int main(int argc, char **argv) {	
