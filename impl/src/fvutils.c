@@ -174,14 +174,14 @@ void readFrame(VideoIterator * iter, AVFrame * targetFrame, int * gotFrame) {
 	AVPacket p;
 	while (!*gotFrame) {
 		if (av_read_frame(iter->fctx, &p) < 0) {
-			*gotFrame = 0;
+			*gotFrame = 0; //End of video
 			av_free_packet(&p);
 			return;
 		}
 		if (p.stream_index == iter->videoStream) {
 			int len = avcodec_decode_video2(iter->cctx, targetFrame, gotFrame, &p);
 			if (len<0) {
-				*gotFrame = 0;
+				*gotFrame = -1; //
 				av_free_packet(&p);
 				return;
 			}
