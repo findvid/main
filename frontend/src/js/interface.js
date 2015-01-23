@@ -221,7 +221,7 @@ $(function() {
 		$('.submenu-wrap').removeClass('active');
 	});
 
-	$('.upload-wrap').on('mouseleave', function() {
+	$('.uploadwindow').on('mouseleave', function() {
 		$('.submenu-wrap').removeClass('active');
 	});
 

@@ -173,6 +173,34 @@ a:visited {
 .menu .menu-wrap .uploadwindow .upload-wrap .button.labels {
   width: 181px;
   text-align: center;
+  cursor: default;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap {
+  display: none;
+  position: absolute;
+  z-index: 3;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap.active .uploadmenu {
+  display: block;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap.active {
+  display: block;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.source {
+  float: left;
+  width: 57px;
+  margin-top: -1px;
+  text-align: center;
+  border: 1px solid #dadada;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.index {
+  float: left;
+  margin-top: 31px;
+  margin-left: -75px;
+  position: inherit;
+  width: 57px;
+  text-align: center;
+  border: 1px solid #dadada;
 }
 .menu .menu-wrap .uploadwindow .upload-wrap .button.submenu {
   padding: 8px 0 9px 3px;
@@ -265,33 +293,6 @@ a:visited {
   border: 1px solid #dadada;
   padding: 5px 0 10px 4px;
   margin: 0 -1px 0 -5px;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap.active .uploadmenu {
-  display: block;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap {
-  display: none;
-  position: absolute;
-  z-index: 3;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap.active {
-  display: block;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.source {
-  float: left;
-  width: 57px;
-  margin-top: -1px;
-  text-align: center;
-  border: 1px solid #dadada;
-}
-.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.index {
-  float: left;
-  margin-top: 31px;
-  margin-left: -75px;
-  position: inherit;
-  width: 57px;
-  text-align: center;
-  border: 1px solid #dadada;
 }
 /* ---------- Filter ---------- */
 .filter {
