@@ -237,7 +237,10 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	}
 
 	int gotFrame = 1;
+	
 	int currentFrame = 0;
+	readFrame(iter, frame, &gotFrame);
+	
 	int currentScene = 0;
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
@@ -246,13 +249,14 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	int64_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
 
 	while ((!hadVidThumb || (currentScene < sceneCount)) && gotFrame) {
-		
 		//Determine next frame to seek
 		if (vidThumb < sceneFrames[currentScene] && !hadVidThumb) {
 			SEAKING = vidThumb;
 		} else {
 			SEAKING = sceneFrames[currentScene];
 		}
+		printf("THE SEA KING DEMANDS FRAME %d\n", SEAKING);
+		sleep(1);
 
 		// Whoever suggested that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
 		/*int64_t SEEK_TARGET = av_rescale_q(SEAKING * AV_TIME_BASE, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
@@ -263,8 +267,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 		*/
 		
-		//readFrame(iter, frame, &gotFrame);
-		//currentFrame++;
 
 		/*if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
@@ -276,11 +278,15 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		while (currentFrame < SEAKING) {
 		}*/
 
-		while (frame->pkt_dts < SEAKING) {
+		while (currentFrame < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
-		//	currentFrame++;
+			currentFrame++;
+			printf("Reading frame %d\n", currentFrame);
+			sleep(1);
 		}
-		currentFrame = frame->pkt_dts;
+
+		printf("Extract frame %d\n", currentFrame);
+		sleep(1);
 
 		if (!gotFrame) {
 			break;
