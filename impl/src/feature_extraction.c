@@ -266,7 +266,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0) //AVSEEK_FLAG_ANY doesn't help either. Or AVSEEK_FLAG_FRAME.
 			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 		*/
-		
 
 		/*if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
@@ -281,12 +280,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		while (currentFrame < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
 			currentFrame++;
-			printf("Reading frame %d\n", currentFrame);
-			sleep(1);
 		}
-
-		printf("Extract frame %d\n", currentFrame);
-		sleep(1);
 
 		if (!gotFrame) {
 			break;
