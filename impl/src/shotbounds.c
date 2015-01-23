@@ -122,6 +122,7 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	
 	int gotFrame = 0;
 	while ((pFrame = nextFrame(vidIt, &gotFrame)) != NULL) {
+		if (gotFrame < 0) goto frameFailure; //Error while decoding the next frame; return -1
 		//SEMAPHORE DOWN?
 
 		// Allocate a new frame, obviously
@@ -225,6 +226,13 @@ int processVideo(const char *filename, uint32_t **cuts) {
 	destroy_VideoIterator(vidIt);
 
 	return cutCount;
+	
+	frameFailure:
+	list_forall(list_frames, (void (*) (void *))avpicture_free);
+	list_forall(list_frames, av_free);
+	list_destroy(list_frames);
+
+	return -1;
 }
 /*
 int main(int argc, char **argv) {	
