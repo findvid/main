@@ -225,7 +225,7 @@ class SearchHandler:
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
 	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
-		if not (featureWeight >= 0 and featureWeight <= 1):
+		if not (featureWeight >= 0.0 and featureWeight <= 1.0):
 			print ("Illegal weight parameter (" + str(featureWeight) + "), defaulting to 0.5/0.5\n")
 			featureWeight = 0.5
 		self.name = name
@@ -292,6 +292,11 @@ class SearchHandler:
 		result = npy.append(colors, edges)
 		
 		return result #npy.array(scene['colorhist'])
+
+
+	def distQuality(self, dist):
+		v = (1 - (dist/1000))
+		return max(v, 0)
 
 	"""
 	Search for a scene from a collection
@@ -385,9 +390,7 @@ if __name__ == '__main__':
 
 	results = searchHandler.search(vid['_id'], 0, 100, 1000, vid['_id'])
 
-	print results.get()
-	print results.get()
-	print results.get()
-	print results.get()
-	print results.get()
+	for i in range(10):
+		(d, vid) = results.get()
+		print (searchHandler.distQuality(d), vid)
 	#"""
