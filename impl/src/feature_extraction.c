@@ -228,7 +228,10 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	
 
 	int gotFrame = 1;
+	
 	int currentFrame = 0;
+	readFrame(iter, frame, &gotFrame);
+	
 	int currentScene = 0;
 	//int writtenFrames = 0;
 	int hadVidThumb = 0;
@@ -237,7 +240,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 	int64_t SEAKING = 0; //I AM THE SEA KING. TREMBLE BEFORE MY MIGHT!
 
 	while ((!hadVidThumb || (currentScene < sceneCount)) && gotFrame) {
-		
 		//Determine next frame to seek
 		if (vidThumb < sceneFrames[currentScene] && !hadVidThumb) {
 			SEAKING = vidThumb;
@@ -253,8 +255,7 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
 			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 		*/
-		
-		readFrame(iter, frame, &gotFrame);
+
 		/*if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
 			SEAKING -= frame->pkt_dts - SEAKING; //For each frame that was skipped, go back 1 frame for the seek target to retry seeking
@@ -263,10 +264,10 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			goto retry_seek;
 		}*/
 
-		while (frame->pkt_dts < SEAKING) {
+		while (currentFrame < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
+			currentFrame++;
 		}
-		currentFrame = frame->pkt_dts;
 
 		if (!gotFrame) {
 			break;
