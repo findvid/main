@@ -290,6 +290,11 @@ class SearchHandler:
 		
 		return result #npy.array(scene['colorhist'])
 
+
+	def distQuality(self, dist):
+		v = (1 - (dist/1000))
+		return max(v, 0)
+
 	"""
 	Search for a scene from a collection
 
@@ -382,9 +387,7 @@ if __name__ == '__main__':
 
 	results = searchHandler.search(vid['_id'], 0, 100, 1000, vid['_id'])
 
-	print results.get()
-	print results.get()
-	print results.get()
-	print results.get()
-	print results.get()
+	for i in range(10):
+		(d, vid) = results.get()
+		print (searchHandler.distQuality(d), vid)
 	#"""
