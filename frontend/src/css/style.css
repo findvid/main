@@ -178,11 +178,22 @@ a:visited {
   padding: 8px 0 9px 3px;
   margin-left: -4px;
 }
+.menu .menu-wrap .uploadwindow .upload-wrap .button.submenu:active {
+  padding: 8px 0 9px 3px;
+  margin-left: -4px;
+  background-color: #575756;
+}
 .menu .menu-wrap .uploadwindow .upload-wrap .button.submenu .icon.expand {
   width: 7px;
   height: 6px;
   margin-top: 5px;
   float: left;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .button.submenu .icon:hover {
+  opacity: 0.6;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .button.submenu .icon:active {
+  background: url('../images/upload_expand_rev.png');
 }
 .menu .menu-wrap .uploadwindow .upload-wrap .uploadmenu {
   display: none;
@@ -257,6 +268,30 @@ a:visited {
 }
 .menu .menu-wrap .uploadwindow .upload-wrap.active .uploadmenu {
   display: block;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap {
+  display: none;
+  position: absolute;
+  z-index: 3;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap.active {
+  display: block;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.source {
+  float: left;
+  width: 57px;
+  margin-top: -1px;
+  text-align: center;
+  border: 1px solid #dadada;
+}
+.menu .menu-wrap .uploadwindow .upload-wrap .submenu-wrap .button.index {
+  float: left;
+  margin-top: 31px;
+  margin-left: -75px;
+  position: inherit;
+  width: 57px;
+  text-align: center;
+  border: 1px solid #dadada;
 }
 /* ---------- Filter ---------- */
 .filter {

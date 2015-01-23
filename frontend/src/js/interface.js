@@ -213,6 +213,18 @@ $(function() {
 		$('.upload-wrap').removeClass('active');
 	});
 
+	$('.submenu').on('click', function() {
+		$('.submenu-wrap').addClass('active');
+	});
+
+	$('.submenu-wrap').on('mouseleave', function() {
+		$('.submenu-wrap').removeClass('active');
+	});
+
+	$('.upload-wrap').on('mouseleave', function() {
+		$('.submenu-wrap').removeClass('active');
+	});
+
 	$('.button.search').on('click', function() {
 		loadContent('/search/', {'name':$('.searchbar .searchfield').val()})
 
