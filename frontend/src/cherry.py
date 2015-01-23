@@ -5,9 +5,9 @@ import os
 import argparse
 import re
 
-# Indexer
-import indexing as idx
+from sys import stdout, stderr
 
+import indexing as idx
 import kmeanstree as tree
 
 # instanciate and configure an argument parser
@@ -28,6 +28,8 @@ PARSER.add_argument('filename', metavar='FILENAME',
 	help='The filename where the searchtree will be saved')
 PARSER.add_argument("--quiet", action="store_true",
 	help="No output will be created.")
+PARSER.add_argument("--forcerebuild", action="store_true",
+	help="Rebuild the searchtree and delete existing tree files if necessary.")
 
 # parse input arguments
 ARGS = PARSER.parse_args()
@@ -35,9 +37,9 @@ ARGS = PARSER.parse_args()
 PORT = ARGS.port
 DBNAME = ARGS.database
 COLNAME = ARGS.collection
-FEATUREWEIGHT = ARGS.featureweight
-KSPLIT = ARGS.ksplit
-KMAX = ARGS.kmax
+FEATUREWEIGHT = float(ARGS.featureweight)
+KSPLIT = int(ARGS.ksplit)
+KMAX = int(ARGS.kmax)
 FILENAME = ARGS.filename
 
 # Directory of this file
@@ -67,10 +69,15 @@ TREE = None
 # Filename of saved tree
 STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
 
-FILTER = True
+def logInfo(message):
+	stdout.write("INFO: %s\n" % str(message))
+
+def logError(message):
+	stderr.write("ERROR: %s\n" % str(message))
 
 # Root of the whole CherryPy Server
 class Root(object):
+	filterChecked = True
 
 	# Returns the startpage, where the history is shown
 	@cherrypy.expose
@@ -119,8 +126,13 @@ class Root(object):
 		# Get the uploads
 		uploads = self.getUploads()
 
+		filterText = ""
+		if self.filterChecked:
+			filterText = "checked"
+
 		# Expand config with uploads
 		config.update({
+			'filter': filterText,
 			'videocount': uploads['videocount'],
 			'scenecount': uploads['scenecount'],
 			'uploads': uploads['uploads']
@@ -154,6 +166,7 @@ class Root(object):
 			# TODO use the relative thumbnails path and confirm that this is the right way to do this
 			'thumbnail': os.path.join('/thumbnails/', os.path.splitext(os.path.basename(vidid))[0], 'scene0.jpeg'),
 			'videoid': vidid,
+			'deletelink': '/removeVideo?vidid='+vidid,
 			'filename': os.path.basename(filename),
 			'length': self.formatTime(int(video['cuts'][-1]), fps)
 		}
@@ -187,7 +200,7 @@ class Root(object):
 	def getUploads(self):
 		# Fetch all entries in video-collection where upload = True, except config
 		# Sorted by Timestamp, only the 8 newest Videos
-		uploadsFromDb = VIDEOS.find({'upload': True},{'scenes':0}).sort([('uploadtime', -1)]).limit(8)
+		uploadsFromDb = VIDEOS.find({'upload': True, 'removed':{'$not':{'$eq': True}}},{'scenes':0}).sort([('uploadtime', -1)]).limit(8)
 
 		uploads = ""
 
@@ -209,6 +222,7 @@ class Root(object):
 				# TODO use the relative thumbnails path and confirm that this is the right way to do this
 				'thumbnail': os.path.join('/thumbnails/', os.path.basename(vidid), 'scene0.jpeg'),
 				'videoid': vidid,
+				'deletelink': '/removeVideo?vidid='+vidid,
 				'scenecount': scenes,
 				'filename': filename,
 				'length': self.formatTime(int(upload['cuts'][-1]), fps) # Last entry in cuts is also the framecount
@@ -227,7 +241,7 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		# Get all videos with substring: <name> 
-		videosFromDb = VIDEOS.find({"filename": { '$regex': name}}, {"scenes" : 0})
+		videosFromDb = VIDEOS.find({"filename": { '$regex': name}, 'removed':{'$not':{'$eq': True}}}, {"scenes" : 0})
 
 		# If no videos where found, tell the user
 		if videosFromDb.count() == 0:
@@ -264,7 +278,7 @@ class Root(object):
 			raise cherrypy.HTTPRedirect('/')
 
 		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
-		video = VIDEOS.find_one({'_id': str(vidid)}, {'scenes' : 0})
+		video = VIDEOS.find_one({'_id': str(vidid), 'removed':{'$not':{'$eq': True}}}, {'scenes' : 0})
 		fps = int(video['fps'])
 		second = float(second)
 		frame = int(fps*second)
@@ -278,8 +292,11 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		# TODO sourceVideo only when it should be excluded otherwise None
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000, sourceVideo=vidid)
+		if self.filterChecked:
+			sourceVideo = None
+		else:
+			sourceVideo = vidid
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000, sourceVideo=sourceVideo)
 
 		content = ""
 		if not similarScenes:
@@ -328,7 +345,7 @@ class Root(object):
 			return 'ERROR! - No framenumber.'
 
 		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
-		video = VIDEOS.find_one({'_id': str(vidid)}, {'scenes' : 0})
+		video = VIDEOS.find_one({'_id': str(vidid), 'removed':{'$not':{'$eq': True}}}, {'scenes' : 0})
 
 		sceneid = 0
 		for i,endframe in enumerate(video['cuts']):
@@ -369,7 +386,7 @@ class Root(object):
 		if not vidid:
 			raise cherrypy.HTTPRedirect('/')
 
-		videoFromDb = VIDEOS.find_one({'_id': str(vidid)}, {"scenes" : 0})
+		videoFromDb = VIDEOS.find_one({'_id': str(vidid), 'removed':{'$not':{'$eq': True}}}, {"scenes" : 0})
 
 		# If there is no video with the given vidid, redirect to startpage
 		if not videoFromDb:
@@ -398,29 +415,63 @@ class Root(object):
 
 		return self.renderMainTemplate(config)
 
+	@cherrypy.expose
+	def removeVideo(self, vidid):
+		# If video is unspecified, redirect to startpage
+		if not vidid:
+			raise cherrypy.HTTPRedirect('/')
+
+		TREE.deleteVideo(vidid)
+		VIDEOS.update({'_id': vidid}, {'$set': {'removed': True}})
+		
+		raise cherrypy.HTTPRedirect('/')
+
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.
 	@cherrypy.expose
 	def upload(self):
+		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
+
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
+		basename = os.path.splitext(filename)[0]
+		extension = os.path.splitext(filename)[1]
+
+		if not extension in allowedExtensions:
+			logError("Filetype '%s' is not within allowed extensions!" % extension)
+			return "ERROR: Wrong file extension."
+
 		destination = os.path.join(UPLOADDIR, filename)
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
+		#if extension != ".mp4":
+		logInfo("Transcoding Video to mp4!")
+		newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
+		filename = os.path.basename(newdestination)
+		idx.transcode_video(destination, newdestination, quiet=True)
+		logInfo("Transcoding finished.")
+		
+		if destination != newdestination:
+			os.remove(destination)
+
+		logInfo("Indexing Video.")
 		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		logInfo("Indexing finished.")
 		if vidid == None:
 			# TODO: error messages
-			print "Error: File already exists."
-			return "Error: File already exists."
+			logError("File already exists.")
+			return "ERROR: File already exists."
 		else:
 			TREE.addVideo(vidHash=vidid)
+			logInfo("Video successfully completed. VideoID: %s" % vidid)
 			return "File successfully uploaded."
 
 
 	@cherrypy.expose
 	def toggleFilter(self):
-		FILTER = not FILTER
-		print FILTER
+		self.filterChecked = not self.filterChecked
+		
+		raise cherrypy.HTTPRedirect('/')
 
 if __name__ == '__main__':
 
@@ -457,9 +508,9 @@ if __name__ == '__main__':
 	}
 
 	# Build Searchtree
-	
+
 	# TODO: Exception Handling
-	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=False)
+	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=ARGS.forcerebuild)
 	cherrypy.tree.mount(Root(), '/', conf)
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big

@@ -259,11 +259,12 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		
 		//Seek this frame to skip some unneccessary frames
 		retry_seek: //Yes, this is a label. Yes, we will jump here if neccessary. Deal with it.
-		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0)
+		if (av_seek_frame(iter->fctx, iter->videoStream, SEAKING, AVSEEK_FLAG_BACKWARD) < 0) //AVSEEK_FLAG_ANY doesn't help either. Or AVSEEK_FLAG_FRAME.
 			; //Actually, just try to iterate frame by frame then. It's slower, but should work unless seek has just SERIOUSLY screwed up the format context!
 		*/
 		
-		readFrame(iter, frame, &gotFrame);
+		//readFrame(iter, frame, &gotFrame);
+		//currentFrame++;
 
 		/*if (frame->pkt_dts > SEAKING){
 			//LET'S GET FREAKY
@@ -271,10 +272,13 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 			if (SEAKING < 0) SEAKING = 0; // ... don't overdo it, tho...
 			fprintf(stderr, "Warning: av_seek_frame has skipped the keyframe! (sought = %d, retrieved = %ld)\nBounce back to frame %ld as target and retry seeking\n", sceneFrames[currentScene], frame->pkt_dts, SEAKING);
 			goto retry_seek;
+		}
+		while (currentFrame < SEAKING) {
 		}*/
 
 		while (frame->pkt_dts < SEAKING) {
 			readFrame(iter, frame, &gotFrame);
+		//	currentFrame++;
 		}
 		currentFrame = frame->pkt_dts;
 
