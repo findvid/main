@@ -255,8 +255,6 @@ FeatureTuple * getFeatures(const char * filename, const char * hashstring, const
 		} else {
 			SEAKING = sceneFrames[currentScene];
 		}
-		printf("THE SEA KING DEMANDS FRAME %d\n", SEAKING);
-		sleep(1);
 
 		// Whoever suggested that anything but the actual frame number goes into av_FRAME_seek has smoked some serious dope.
 		/*int64_t SEEK_TARGET = av_rescale_q(SEAKING * AV_TIME_BASE, AV_TIME_BASE_Q, iter->fctx->streams[iter->videoStream]->time_base);
