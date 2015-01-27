@@ -34,7 +34,7 @@ def transcode_video(srcVideo, dstVideo, quiet=False):
 	if quiet:
 		quietText = " -loglevel quiet"
 
-	cmd = "ffmpeg -y -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow " + dstVideo
+	cmd = "ffmpeg -y -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
 	if not quiet:
 		print (cmd)
 	subprocess.call(cmd,shell=True)
