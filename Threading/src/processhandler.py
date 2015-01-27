@@ -1,0 +1,256 @@
+import multiprocessing
+import threading
+import Queue
+import signal, os
+import time
+
+"""
+Runs a callable with given arguments and put the results on a queue.
+
+@param queue	The queue to put the results on
+@param target	The callable to run
+@param args 	Arguments for the callable
+@param kwargs	Keyword arguments for the callable
+"""
+def resultPacker(queue, target, args=(), kwargs={}):
+	result = target(*args, **kwargs)
+	queue.put(result)
+
+class ProcessHandler:
+	maxProcesses = 7
+	maxPrioritys = 4
+	lock = threading.Lock()
+	waitingProcesses = None
+	pausedProcesses = None
+	activeProcesses = None
+
+	def __init__(self, maxProcesses=7, maxPrioritys=4):
+		self.maxProcesses = maxProcesses
+		self.maxPrioritys = maxPrioritys
+		
+		self.waitingProcesses = [[] for i in range(self.maxPrioritys)]
+		self.pausedProcesses = [[] for i in range(self.maxPrioritys)]
+		self.activeProcesses = [[] for i in range(self.maxPrioritys)]
+
+	"""
+	Counts the amount of currently running processes
+
+	@return	the amount of running processes
+	"""
+	def activeCount(self):
+		count = 0
+		for pros in self.activeProcesses:
+			count += len(pros)
+		return count
+
+	"""
+	Removes all finished processes from the list
+	"""
+	def removeFinished(self):
+		for active in self.activeProcesses:
+			removed = []
+			for p in active:
+				if p.exitcode != None:
+					removed.append(p)
+			for p in removed:
+				active.remove(p)
+				print "Removed:", p.name
+
+	"""
+	Tries to free a process for a given priority
+
+	@param neededPriority	The priority of the process that needs the resource
+
+	@return			True if a process resource is free/was freed, False otherwise
+	"""
+	def freeProcess(self, neededPriority):
+		#self.removeFinished()
+		# Are there free resources?
+		if self.activeCount() < self.maxProcesses:
+			return True
+		# If there is no Process of this priority running one should get freed not matter what
+		if len(self.activeProcesses[neededPriority]) < 1:
+			neededPriority = self.maxPrioritys + 1
+
+		for (priority,(paused,active)) in enumerate(zip(self.pausedProcesses, self.activeProcesses)):
+			# Not important enough?
+			if neededPriority <= priority:
+				return False
+			# Only stop a process if there is still one of the same priority running
+			if len(active) > 1:
+				toPause = active.pop(0)
+				try:
+					os.kill(toPause.pid, signal.SIGSTOP)
+					paused.append(toPause)
+					print "Pause:", toPause.name
+				except OSError, e:
+					print "Tried to pause process but it's already gone?", toPause.name
+				return True
+		return False
+
+	"""
+	Tries to start new processes and pauses other ones if needed
+	"""
+	def update(self):
+		self.lock.acquire()
+		try:
+			self.removeFinished()
+			for (priority,(waiting,paused,active)) in reversed(list(enumerate(zip(self.waitingProcesses, self.pausedProcesses, self.activeProcesses)))):
+				# Try to continue processes
+				while len(paused) > 0:
+					if not self.freeProcess(priority):
+						break
+					toStart = paused.pop(0)
+					try:
+						os.kill(toStart.pid, signal.SIGCONT)
+						active.append(toStart)
+						print "Continue:", toStart.name
+					except OSError, e:
+						print "Can't kill process. Process '%s' is not running." % toStart.name
+				# Try to start new processes
+				while len(waiting) > 0:
+					if not self.freeProcess(priority):
+						break
+					onComplete, target, args, kwargs, name = waiting.pop(0)
+					results = multiprocessing.Queue()
+					process = multiprocessing.Process(target=resultPacker, args=(results, target, args, kwargs), name=name)
+					thread = threading.Thread(target=self.runProcess, args=(results, onComplete, process))
+					thread.start()
+					active.append(process)
+					print "Start:", process.name
+		#	pro = self.activeProcesses
+		#	print len(pro[0]), len(pro[1]), len(pro[2]), len(pro[3])
+		#	tmp = "["
+		#	for (waiting,paused,active) in zip(self.waitingProcesses, self.pausedProcesses, self.activeProcesses):
+		#		tmp = tmp + "["
+		#		for pro in active:
+		#			tmp = tmp + str(pro) + ","
+		#		tmp = tmp + "]"
+		#	tmp = tmp + "]"
+		#	print tmp
+		finally:
+			self.lock.release()
+
+	"""
+	Waits for the queue and then let's a callable deal with the result
+
+	@param queue		Queue wich will get one result put on
+	@param onComplete	Callable that can work with this result
+	"""
+	def runProcess(self, queue, onComplete, process):
+		process.start()
+		res = queue.get()
+		#process.join()
+		#self.lock.acquire()
+		#try:
+		#	for active in self.activeProcesses:
+		#		if active.count(process) > 0:
+		#			active.remove(process)
+		#			print "I Removed:", process.name
+		#			break
+		#finally:
+		#	self.lock.release()
+		process.join()
+		self.update()
+		onComplete(res)
+
+	"""
+	Run a task in it's own process and executes another callable on the result
+	in an own thread
+
+	@param priority		Priority of the task
+	@param onComplete		Callable that will deal with the result of target
+	@param target		Callable that represents the task
+	@param args		Arguments for target
+	@param kwargs		Keyword arguments for target
+	@param name		Name of the process
+
+	@return			A pair of the thread and the process
+	"""
+	def runTask(self, priority, onComplete, target, args=(), kwargs={}, name=None):
+		if priority >= self.maxPrioritys or priority < 0:
+			raise "Fuckedup Priority"
+		self.lock.acquire()
+		try:
+			self.waitingProcesses[priority].append((onComplete, target, args, kwargs, name))
+		finally:
+			self.lock.release()
+
+	"""
+	Shoots a process
+
+	@param process		The process that should get stopped
+	"""
+	def stopProcess(self, process):
+		try:
+			os.kill(process.pid, signal.SIGKILL)
+		except OSError, e:
+			print "Tried to shoot process but it's already gone?", process.pid
+		
+
+def fib(n):
+	if n <= 2:
+		return n
+	return fib(n-1) + fib(n-2)
+
+def printer(toPrint):
+	y = toPrint
+	print "\tPrinter:", toPrint
+
+if __name__ == '__main__':
+
+	ph = ProcessHandler(8)
+	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(0))
+	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(1))
+
+	for prio in range(4):
+		for i in range(1000):
+			ph.runTask(prio, printer, fib, args=tuple([34]), name=str(prio)+"-"+str(i))
+
+	#time.sleep(100)
+	print "I'm out"
+	while True:
+		time.sleep(1)
+		ph.update()
+
+
+	"""
+	#phand.addTask(3, test1, tuple([phand]), "Test1orso")
+
+	#for i in range(100):
+	#	time.sleep(1)
+	#	print "Bla-", i
+	#	phand.join()
+	#	x = True
+	#	while x:
+	#		x = phand.startProcess()
+
+
+	for i in range(10):
+		phand.addTask(0, fib, tuple([38]), "0-FromLoop-"+str(i))
+	for i in range(10):
+		phand.addTask(1, fib, tuple([38]), "1-FromLoop-"+str(i))
+	for i in range(10):
+		phand.addTask(2, fib, tuple([38]), "2-FromLoop-"+str(i))
+	for i in range(10):
+		phand.addTask(3, fib, tuple([38]), "3-FromLoop-"+str(i))
+
+
+	for i in range(100):
+		time.sleep(1)
+		print "Bla-", i
+		phand.join()
+		x = True
+		while x:
+			x = phand.startProcess()
+
+	#p = multiprocessing.Process(target=onComplete)
+	#p.start()
+	#os.kill(p.pid, signal.SIGSTOP)
+	#time.sleep(1)
+	#print "Bla"
+	#os.kill(p.pid, signal.SIGCONT)
+	#time.sleep(1)
+	#print "Bla"
+	#p.join()
+	#"""
