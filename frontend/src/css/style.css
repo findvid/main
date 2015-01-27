@@ -361,14 +361,12 @@ a:visited {
 .content .content-wrap .originvideo .thumbnail img {
   width: 543px;
 }
-.content .content-wrap .originvideo .meta {
-  cursor: pointer;
-}
 .content .content-wrap .originvideo .meta .icon {
   float: left;
   height: 15px;
   width: 15px;
   opacity: 1;
+  cursor: pointer;
 }
 .content .content-wrap .originvideo .meta .icon:hover {
   opacity: 0.6;

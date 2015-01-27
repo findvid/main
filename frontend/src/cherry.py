@@ -110,12 +110,7 @@ class Root(object):
 		hsl = 120
 
 		# Calculate HUE Value between 0 and 120
-		if (value <= 100) and (value >= 50):
-			hsl = (value - 50) * 2.4
-		elif value > 100:
-			hsl = 120
-		else:
-			hsl = 0
+		hsl = value * 1.2
 
 		return hsl
 
@@ -168,6 +163,7 @@ class Root(object):
 			'videoid': vidid,
 			'deletelink': '/removeVideo?vidid='+vidid,
 			'filename': os.path.basename(filename),
+			'time': '0',
 			'length': self.formatTime(int(video['cuts'][-1]), fps)
 		}
 
@@ -283,8 +279,6 @@ class Root(object):
 		second = float(second)
 		frame = int(fps*second)
 
-		simPercent = int(100)
-
 		sceneid = 0
 		
 		for i,endframe in enumerate(video['cuts']):
@@ -310,10 +304,13 @@ class Root(object):
 				if similarScene == None:
 					continue
 
+				distance = similarScene[0]
 				similarVidid = similarScene[1][0]
 				similarSceneid = similarScene[1][1]
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+
+				simPercent = int(TREE.distQuality(distance) * 100)
 
 				sceneConfig = self.configScene(similarVideo, similarSceneid)
 				sceneConfig.update ({
@@ -373,7 +370,7 @@ class Root(object):
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
-				result += " " + similarVideo['filename'] + " " + str(similarVideo['cuts'][similarSceneid]) + " " + str( int(similarVideo['cuts'][similarSceneid+1])-1 ) + "\n" 
+				result += " " + similarVideo['filename'] + " " + str( int(similarVideo['cuts'][similarSceneid]) ) + " " + str( int(similarVideo['cuts'][similarSceneid+1])-1 ) + "\n" 
 				i+=1
 
 		return result
@@ -429,7 +426,7 @@ class Root(object):
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.
 	@cherrypy.expose
-	def upload(self):
+	def upload(self, searchable):
 		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
 
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
@@ -441,10 +438,18 @@ class Root(object):
 			return "ERROR: Wrong file extension."
 
 		destination = os.path.join(UPLOADDIR, filename)
+
+		i = 2
+		while os.path.exists(destination):
+			destination = os.path.join(UPLOADDIR, basename + "_" + "%1.2d" % i + extension)
+			logInfo('File allready exists, renaming to %s!' % destination)
+			i+=1
+
+		basename = os.path.splitext(os.path.basename(destination))[0]
+
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		#if extension != ".mp4":
 		logInfo("Transcoding Video to mp4!")
 		newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
 		filename = os.path.basename(newdestination)
@@ -455,7 +460,7 @@ class Root(object):
 			os.remove(destination)
 
 		logInfo("Indexing Video.")
-		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=True, uploaded=True, thumbpath=THUMBNAILDIR)
+		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
 		logInfo("Indexing finished.")
 		if vidid == None:
 			# TODO: error messages

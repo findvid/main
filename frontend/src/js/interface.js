@@ -1,4 +1,4 @@
-function upload(file) {
+function upload(file, searchable) {
 	var xhr = new XMLHttpRequest();
 
 	$('.uploadprogress').show();
@@ -31,7 +31,7 @@ function upload(file) {
 		}
 	});
 
-	xhr.open('POST', '/upload', true);
+	xhr.open('POST', '/upload?searchable=' + searchable, true);
 	xhr.setRequestHeader('X-Filename', file.name);
 
 	console.log('sending', file.name, file);
@@ -113,7 +113,7 @@ function bindEvents() {
 	});
 
 
-	$('.scene .thumbnail, .originvideo .thumbnail, .originvideo .meta, .similarscene .thumbnail').on('click', function() {
+	$('.scene .thumbnail, .originvideo .thumbnail, .similarscene .thumbnail').on('click', function() {
 		var $this = $(this).parent(),
 			
 			vidid = $this.data('vidid'),
@@ -235,9 +235,19 @@ $(function() {
 		$('#uploadfile').click();
 	});
 
+	$('.button.source').on('click', function() {
+		$('#uploadassrc').click();
+	});
+
 	$('#uploadfile').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
-			upload(event.target.files[i]); 
+			upload(event.target.files[i], 1);
+		}
+	});
+
+	$('#uploadassrc').change(function(event) {
+		for(var i = 0; i < event.target.files.length; i += 1) {
+			upload(event.target.files[i], 0);
 		}
 	});
 
