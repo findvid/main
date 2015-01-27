@@ -51,7 +51,11 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	#Check if this exact video exists already
 	video = collection.find_one({'_id': fileHash})
 	if (video):
-		return None
+		if video['removed']:
+			collection.update({'_id': fileHash}, {'$set': {'removed': False}})
+			return fileHash
+		else:
+			return None
 
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
