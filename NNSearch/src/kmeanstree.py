@@ -211,6 +211,8 @@ class SearchHandler:
 	# Dict of all videos that shouldn't be found
 	deletedVideos = dict()
 
+	processHandler = None
+
 	#not the actual maximal distance between vectors, but anything beyond this distance is no match at all
 	max_dist = 1100.0 # average distance is normalized to 1000, something with average distance is a match of 10%
 
@@ -224,13 +226,14 @@ class SearchHandler:
 	@param imax		max iterations for the center finding
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
-	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
+	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False, processHandler=None):
 		if not (featureWeight >= 0.0 and featureWeight <= 1.0):
 			print ("Illegal weight parameter (" + str(featureWeight) + "), defaulting to 0.5/0.5\n")
 			featureWeight = 0.5
 		self.name = name
 		self.videos = videos
 		self.featureWeight = featureWeight
+		self.processHandler = processHandler
 		# Try to load the tree from the file
 		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
 			print "Loading Tree from file"

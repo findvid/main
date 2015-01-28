@@ -9,6 +9,7 @@ from sys import stdout, stderr
 
 import indexing as idx
 import kmeanstree as tree
+import processhandler as ph
 
 # instanciate and configure an argument parser
 PARSER = argparse.ArgumentParser(description='Starts a CherryPy Webserver, for the find.vid project.')
@@ -68,6 +69,9 @@ TREE = None
 
 # Filename of saved tree
 STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
+
+# Multithreading
+HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
 
 def logInfo(message):
 	stdout.write("INFO: %s\n" % str(message))
@@ -330,6 +334,7 @@ class Root(object):
 		return self.renderMainTemplate(config)
 
 	# Returns a text-version of scenes, found by similarscene search
+	# This function is for benchmark purposes
 	# vidid - ID of the source video
 	# frame - Framenumber of the source scene in the source video
 	@cherrypy.expose
@@ -459,18 +464,22 @@ class Root(object):
 		if destination != newdestination:
 			os.remove(destination)
 
+		HANDLER.runTask(priority=0, onComplete=indexComplete, target=indexUpload, args=(searchable))
+
+	def indexUpload(self, searchable):
 		logInfo("Indexing Video.")
 		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
 		logInfo("Indexing finished.")
+
+	def indexComplete(self, vidid):
 		if vidid == None:
 			# TODO: error messages
 			logError("File already exists.")
-			return "ERROR: File already exists."
+			return False
 		else:
 			TREE.addVideo(vidHash=vidid)
 			logInfo("Video successfully completed. VideoID: %s" % vidid)
-			return "File successfully uploaded."
-
+			return True
 
 	@cherrypy.expose
 	def toggleFilter(self):
