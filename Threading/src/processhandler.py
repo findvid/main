@@ -19,14 +19,16 @@ def resultPacker(queue, target, args=(), kwargs={}):
 class ProcessHandler:
 	maxProcesses = 7
 	maxPrioritys = 4
+	debug = False
 	lock = threading.Lock()
 	waitingProcesses = None
 	pausedProcesses = None
 	activeProcesses = None
 
-	def __init__(self, maxProcesses=7, maxPrioritys=4):
+	def __init__(self, maxProcesses=7, maxPrioritys=4, debug=False):
 		self.maxProcesses = maxProcesses
 		self.maxPrioritys = maxPrioritys
+		self.debug = debug
 		
 		self.waitingProcesses = [[] for i in range(self.maxPrioritys)]
 		self.pausedProcesses = [[] for i in range(self.maxPrioritys)]
@@ -54,7 +56,8 @@ class ProcessHandler:
 					removed.append(p)
 			for p in removed:
 				active.remove(p)
-				print "Removed:", p.name
+				if self.debug:
+					print "Removed:", p.name
 
 	"""
 	Tries to free a process for a given priority
@@ -82,7 +85,8 @@ class ProcessHandler:
 				try:
 					os.kill(toPause.pid, signal.SIGSTOP)
 					paused.append(toPause)
-					print "Pause:", toPause.name
+					if self.debug:
+						print "Pause:", toPause.name
 				except OSError, e:
 					print "Tried to pause process but it's already gone?", toPause.name
 				return True
@@ -104,7 +108,8 @@ class ProcessHandler:
 					try:
 						os.kill(toStart.pid, signal.SIGCONT)
 						active.append(toStart)
-						print "Continue:", toStart.name
+						if self.debug:
+							print "Continue:", toStart.name
 					except OSError, e:
 						print "Can't kill process. Process '%s' is not running." % toStart.name
 				# Try to start new processes
@@ -117,7 +122,8 @@ class ProcessHandler:
 					thread = threading.Thread(target=self.runProcess, args=(results, onComplete, process))
 					thread.start()
 					active.append(process)
-					print "Start:", process.name
+					if self.debug:
+						print "Start:", process.name
 		#	pro = self.activeProcesses
 		#	print len(pro[0]), len(pro[1]), len(pro[2]), len(pro[3])
 		#	tmp = "["
@@ -175,6 +181,8 @@ class ProcessHandler:
 			self.waitingProcesses[priority].append((onComplete, target, args, kwargs, name))
 		finally:
 			self.lock.release()
+
+		self.update()
 
 	"""
 	Shoots a process
