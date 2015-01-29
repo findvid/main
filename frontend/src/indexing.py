@@ -51,16 +51,17 @@ def index_video(database, collection, fileHash, videofile, searchable=True, uplo
 
 	videos, videopath, thumbnailpath = config(db=database, collection=collection)
 
+	#retrieve absolute path
 	vidpath = os.path.join(videopath, videofile);
 
 	#Check if this exact video exists already
 	video = videos.find_one({'_id': fileHash})
 	if (video):
-		return None
 		#if video['removed']:
 		#	videos.update({'_id': fileHash}, {'$set': {'removed': False}})
 		#	return fileHash
 		#else:
+		return None
 
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
