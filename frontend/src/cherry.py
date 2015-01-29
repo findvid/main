@@ -25,12 +25,6 @@ PARSER.add_argument('database', metavar='DB',
 	help='The name of the MongoDB Database on localhost')
 PARSER.add_argument('collection', metavar='COLLECTION',
 	help='The name of the Collection in the Database')
-PARSER.add_argument('featureweight', metavar='FEATUREWEIGHT',
-	help='The factor for the feature weights. 0 means only colorhists, 1 means only edges')
-PARSER.add_argument('ksplit', metavar='KSPLIT',
-	help='The number of splits of the k-means-tree')
-PARSER.add_argument('kmax', metavar='KMAX',
-	help='The number of maximal children in the k-means-tree')
 PARSER.add_argument('filename', metavar='FILENAME',
 	help='The filename where the searchtree will be saved')
 PARSER.add_argument("--quiet", action="store_true",
@@ -44,9 +38,9 @@ ARGS = PARSER.parse_args()
 PORT = ARGS.port
 DBNAME = ARGS.database
 COLNAME = ARGS.collection
-FEATUREWEIGHT = float(ARGS.featureweight)
-KSPLIT = int(ARGS.ksplit)
-KMAX = int(ARGS.kmax)
+FEATUREWEIGHT = 0.5
+KSPLIT = 32
+KMAX = 8
 FILENAME = ARGS.filename
 
 # Directory of this file
