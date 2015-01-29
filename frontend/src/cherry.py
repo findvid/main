@@ -90,7 +90,7 @@ class Root(object):
 	# Returns the startpage, where the history is shown
 	@cherrypy.expose
 	def index(self):
-		historyVideos = HISTORY.find({}, {'_id': 1, 'vidid': 1, 'sceneid': 1})
+		historyVideos = HISTORY.find({}, {'_id': 1, 'vidid': 1, 'sceneid': 1}).limit(50)
 
 		content = "<h1>History</h1><br />"
 
