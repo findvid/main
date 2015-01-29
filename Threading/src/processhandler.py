@@ -195,7 +195,23 @@ class ProcessHandler:
 			os.kill(process.pid, signal.SIGKILL)
 		except OSError, e:
 			print "Tried to shoot process but it's already gone?", process.pid
-		
+
+	"""
+	Waits till all processes of a priority are finished and then returns
+
+	@param priority		The priority to wait for
+	@param waitTime		Amount of seconds between checking
+	"""
+	def waitForPriority(self, priority, waitTime=1):
+		while True:
+			count = 0
+			self.lock.acquire()
+			try:
+				if (len(self.pausedProcesses[priority]) + len(self.waitingProcesses[priority]) + len(self.activeProcesses[priority])) == 0:
+					return
+			finally:
+				self.lock.release()
+			time.sleep(waitTime)
 
 def fib(n):
 	if n <= 2:
@@ -216,6 +232,8 @@ if __name__ == '__main__':
 		for i in range(10):
 			ph.runTask(priority=prio, onComplete=printer, target=fib, args=tuple([34]), name=str(prio)+"-"+str(i))
 
+	ph.waitForPriority(2, 1)
+	print "Done!"
 	#time.sleep(100)
 	#print "I'm out"
 	#while True:
