@@ -9,7 +9,9 @@ import time
 import datetime
 import threading
 
+from bson.objectid import ObjectId
 from sys import stdout, stderr
+from time import time
 
 import indexing as idx
 import kmeanstree as tree
@@ -58,6 +60,7 @@ MONGOCLIENT = pymongo.MongoClient(port=8099)
 DB = MONGOCLIENT[DBNAME]
 VIDEOS = DB[COLNAME]
 INDEXES = DB["indexes"]
+HISTORY = DB["history"][COLNAME]
 
 # Get config from MongoDb
 CONFIG = VIDEOS.find_one({'_id': 'config'})
@@ -93,8 +96,63 @@ class Root(object):
 	# Returns the startpage, where the history is shown
 	@cherrypy.expose
 	def index(self):
-		
-		content = """<div style="padding-left:5px"><b>Latest search terms:</b><br>...<br><br><b>Latest scene searches:</b><br>...</div>"""
+		historyVideos = HISTORY.find({}, {'_id': 1, 'vidid': 1, 'sceneid': 1})
+
+		content = "<h1>History</h1><br />"
+
+		if historyVideos.count() == 0:
+			content += "No Videos in the history."
+
+		for video in historyVideos:
+			if not video['vidid']:
+				continue
+
+			dbEntry = VIDEOS.find_one({'_id': video['vidid']}, {'scenes': 0})
+
+			vidConfig = self.configScene(dbEntry, int(video['sceneid']))
+			vidConfig.update({'historylink': video['_id']})
+
+			content+=self.renderTemplate('history.html', vidConfig)
+
+		config = {
+			'title': 'Main',
+			'searchterm': '',
+			'content': content
+		}
+		return self.renderMainTemplate(config)
+
+	@cherrypy.expose
+	def history(self, historyid):
+		historyEntry = HISTORY.find_one({'_id': ObjectId(historyid)})
+
+		if not historyEntry:
+			raise cherrypy.HTTPRedirect('/')
+
+		similarScenes = historyEntry['similarScenes']
+
+		content = ""
+		if not similarScenes:
+			content = 'No Scenes found for your search query.'
+		else:
+			scenes = []
+			for similarScene in similarScenes:
+				if similarScene == None:
+					continue
+
+				distance = similarScene[0]
+				similarVidid = similarScene[1][0]
+				similarSceneid = similarScene[1][1]
+
+				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+
+				simPercent = int(TREE.distQuality(distance) * 100)
+
+				sceneConfig = self.configScene(similarVideo, similarSceneid)
+				sceneConfig.update ({
+					'hue': str(self.calcHue(simPercent)),
+					'value': str(simPercent)
+				})
+				content += self.renderTemplate('similarscene.html', sceneConfig)
 
 		config = {
 			'title': 'Main',
@@ -338,6 +396,8 @@ class Root(object):
 
 		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
 
+		HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
+
 		content = ""
 		if not similarScenes:
 			content = 'No Scenes found for your search query.'
@@ -392,7 +452,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(nnlimit), maxTouches=int(nnlimit), sourceVideo=vidid)
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(limit), maxTouches=int(nnlimit), filterChecked=True)
 
 		result = ""
 
@@ -400,10 +460,7 @@ class Root(object):
 			return 'No Scenes found for your search query.'
 		else:
 			scenes = []
-			i = 0
-			while (not similarScenes.empty()) and i < int(limit):
-				similarScene = similarScenes.get()	
-
+			for similarScene in similarScenes:
 				if similarScene == None:
 					continue
 
@@ -413,7 +470,6 @@ class Root(object):
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
 				result += " " + similarVideo['filename'] + " " + str( int(similarVideo['cuts'][similarSceneid]) ) + " " + str( int(similarVideo['cuts'][similarSceneid+1])-1 ) + "\n" 
-				i+=1
 
 		return result
 
