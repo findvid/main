@@ -5,6 +5,7 @@ import os
 import argparse
 import re
 import socket
+import time
 
 from sys import stdout, stderr
 
@@ -54,6 +55,7 @@ HTMLDIR = os.path.join(ROOTDIR, 'html')
 MONGOCLIENT = pymongo.MongoClient(port=8099)
 DB = MONGOCLIENT[DBNAME]
 VIDEOS = DB[COLNAME]
+INDEXES = DB["indexes"]
 
 # Get config from MongoDb
 CONFIG = VIDEOS.find_one({'_id': 'config'})
@@ -171,6 +173,16 @@ class Root(object):
 			'time': '0',
 			'length': self.formatTime(int(video['cuts'][-1]), fps)
 		}
+	
+	# Returns configuration for an indexing process
+	def configIndexProc(self, indproc):
+		# Basically just remaps _id to videohash...
+		return {
+			'FILENAME': indproc["filename"],
+			'TIMESTAMP': indproc["timestamp"],
+			'VIDEOHASH': indproc["_id"]
+		}
+
 
 	# Returns the configuration for a given scene
 	def configScene(self, video, sceneid):
@@ -232,6 +244,31 @@ class Root(object):
 			uploads += self.renderTemplate('upload.html', uploadconfig)
 
 		return {'scenecount': scenecount, 'videocount': videocount, 'uploads': uploads}
+
+	# Returns a list of all currently running indexing processes
+	@cherrypy.expose
+	def indexes(self, vidId = None):
+		content = ""
+		cursorIndexingProcesses = INDEXES.find()
+
+		# if a video ID has been passed, abort the process
+		if vidId:
+			print "Abort indexing process for video " , vidId
+			INDEXES.remove({"_id": vidId})
+
+		for indexProcess in cursorIndexingProcesses:
+			content += self.renderTemplate('indexes.html', self.configIndexProc(indexProcess))
+			print "Found indproc for file " , indexProcess["filename"]
+		
+		config = {
+		'title': 'Currently Indexing',
+			'searchterm': '',
+			'content': content
+		}
+
+		return self.renderMainTemplate(config)
+
+	
 
 	# Returns a list of videos, found by given name (GET parameter)
 	# name - string after which is searched
@@ -477,7 +514,21 @@ class Root(object):
 
 	def indexUpload(self, searchable, filename):
 		logInfo("Indexing Video - '%s'" % filename)
-		vidid = idx.index_video(DBNAME, COLNAME, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
+		#Create an entry in "indexes" collection
+		t = time.time()
+		vidHash = idx.hashFile(os.path.join(CONFIG["abspath"], CONFIG["videopath"], filename), 65536)
+		indexes = DB["indexes"]
+		index = {}
+		index["_id"] = vidHash
+		index["timestamp"] = t
+		index["filename"] = filename
+		indexes.insert(index)
+
+		vidid = idx.index_video(DBNAME, COLNAME, vidHash, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
+
+		#Remove the entry to mark this indexing process as done
+		indexes.remove({"_id" : vidHash, "timestamp" : t, "filename" : filename})
+
 		logInfo("Indexing finished - '%s'" % filename)
 
 	def indexComplete(self, vidid):
