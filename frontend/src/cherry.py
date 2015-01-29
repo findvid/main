@@ -5,9 +5,9 @@ import os
 import shutil
 import argparse
 import re
-import socket
 import time
 import datetime
+import threading
 
 from sys import stdout, stderr
 
@@ -77,6 +77,8 @@ STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
 
 # Multithreading
 HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
+
+SHADOWLOCK = threading.Lock()
 
 def logInfo(message):
 	stdout.write("INFO: %s\n" % str(message))
@@ -462,6 +464,51 @@ class Root(object):
 		VIDEOS.update({'_id': vidid}, {'$set': {'removed': True}})
 		
 		raise cherrypy.HTTPRedirect('/')
+
+	def buildNewTree(self, lock, treeInstance, treeargs):
+		lock.acquire()
+		try:
+			if not treeInstance.shadowCopy:
+				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + time(), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
+			else:
+				return
+		finally:
+			lock.release()
+		
+		treeInstance.shadowCopy.loadOrBuildTree(k=treeargs['ksplit'], imax=treeargs['kmax'], forceRebuild=True)
+
+		treeInstance = treeInstance.shadowCopy
+		logInfo("Tree was build and swapped!")
+		
+
+	@cherrypy.expose
+	def shadowTree(self):
+		print "Try to Shadow Tree"
+		#treeargs = {
+		#	'videos': VIDEOS,
+		#	'storetree': STORETREE,
+		#	'featureWeight': FEATUREWEIGHT,
+		#	'ksplit': KSPLIT,
+		#	'kmax': KMAX,
+		#	'handler': HANDLER
+		#}
+
+		#thread = threading.Thread(target=self.buildNewTree, args=(SHADOWLOCK, TREE, treeargs))
+		#thread.start()
+
+		SHADOWLOCK.acquire()
+		try:
+			if not TREE.shadowCopy:
+				TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + time(), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+			else:
+				return
+		finally:
+			SHADOWLOCK.release()
+		
+		TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
+
+		TREE = TREE.shadowCopy
+		logInfo("Tree was build and swapped!")
 
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.
