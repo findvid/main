@@ -328,7 +328,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100000, filterChecked=self.filterChecked)
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
 
 		content = ""
 		if not similarScenes:

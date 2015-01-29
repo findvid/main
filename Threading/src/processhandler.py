@@ -146,9 +146,9 @@ class ProcessHandler:
 	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
 		res = None
 		process.start()
+		res = queue.get()
 		process.join()
-		if process.exitcode == 0:
-			res = queue.get()
+		#if process.exitcode == 0:
 		#process.join()
 		#self.lock.acquire()
 		#try:
