@@ -6,7 +6,7 @@ body {
   overflow-y: scroll;
 }
 h1 {
-  margin-top: 0;
+  margin: 0;
 }
 /* ----- Buttons ----- */
 .button {
@@ -395,17 +395,17 @@ a:visited {
   background-color: #a0a0a0;
   color: #fff;
 }
-.content .content-wrap .similarscene {
+.content .content-wrap .similarscene, .content .content-wrap .history {
   float: left;
   width: 246px;
   cursor: pointer;
   padding: 10px 5px 0 5px;
 }
-.content .content-wrap .similarscene .thumbnail {
+.content .content-wrap .similarscene .thumbnail, .content .content-wrap .history .thumbnail {
   height: 138px;
   position: relative;
 }
-.content .content-wrap .similarscene .thumbnail img {
+.content .content-wrap .similarscene .thumbnail img, .content .content-wrap .history .thumbnail img {
   width: 246px;
 }
 .content .content-wrap .similarscene .thumbnail .label.similar {
@@ -419,13 +419,13 @@ a:visited {
   color: #fff;
   text-align: center;
 }
-.content .content-wrap .similarscene .meta .label {
+.content .content-wrap .similarscene .meta .label, .content .content-wrap .history .meta .label {
   font-size: 10pt;
 }
-.content .content-wrap .similarscene .meta .label.title {
+.content .content-wrap .similarscene .meta .label.title, .content .content-wrap .history .meta .label.title {
   font-weight: bold;
 }
-.content .content-wrap .similarscene .meta .label.interval {
+.content .content-wrap .similarscene .meta .label.interval, .content .content-wrap .history .meta .label.interval {
   font-size: 9pt;
   float: left;
 }

@@ -317,10 +317,13 @@ class Root(object):
 			HANDLER.stopProcess(name=vidId)
 			raise cherrypy.HTTPRedirect('/indexes')
 
+		if cursorIndexingProcesses.count() == 0:
+			content = "There are no videos indexing at the moment."
+
 		for indexProcess in cursorIndexingProcesses:
 			content += self.renderTemplate('indexes.html', self.configIndexProc(indexProcess))
 			print "Found indproc for file " , indexProcess["filename"]
-		
+
 		config = {
 		'title': 'Currently Indexing',
 			'searchterm': '',
