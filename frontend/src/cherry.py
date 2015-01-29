@@ -4,11 +4,14 @@ import shutil
 import os
 import argparse
 import re
+import socket
+import time
 
 from sys import stdout, stderr
 
 import indexing as idx
 import kmeanstree as tree
+import processhandler as ph
 
 # instanciate and configure an argument parser
 PARSER = argparse.ArgumentParser(description='Starts a CherryPy Webserver, for the find.vid project.')
@@ -52,6 +55,7 @@ HTMLDIR = os.path.join(ROOTDIR, 'html')
 MONGOCLIENT = pymongo.MongoClient(port=8099)
 DB = MONGOCLIENT[DBNAME]
 VIDEOS = DB[COLNAME]
+INDEXES = DB["indexes"]
 
 # Get config from MongoDb
 CONFIG = VIDEOS.find_one({'_id': 'config'})
@@ -68,6 +72,9 @@ TREE = None
 
 # Filename of saved tree
 STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
+
+# Multithreading
+HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
 
 def logInfo(message):
 	stdout.write("INFO: %s\n" % str(message))
@@ -166,6 +173,16 @@ class Root(object):
 			'time': '0',
 			'length': self.formatTime(int(video['cuts'][-1]), fps)
 		}
+	
+	# Returns configuration for an indexing process
+	def configIndexProc(self, indproc):
+		# Basically just remaps _id to videohash...
+		return {
+			'FILENAME': indproc["filename"],
+			'TIMESTAMP': indproc["timestamp"],
+			'VIDEOHASH': indproc["_id"]
+		}
+
 
 	# Returns the configuration for a given scene
 	def configScene(self, video, sceneid):
@@ -227,6 +244,31 @@ class Root(object):
 			uploads += self.renderTemplate('upload.html', uploadconfig)
 
 		return {'scenecount': scenecount, 'videocount': videocount, 'uploads': uploads}
+
+	# Returns a list of all currently running indexing processes
+	@cherrypy.expose
+	def indexes(self, vidId = None):
+		content = ""
+		cursorIndexingProcesses = INDEXES.find()
+
+		# if a video ID has been passed, abort the process
+		if vidId:
+			print "Abort indexing process for video " , vidId
+			INDEXES.remove({"_id": vidId})
+
+		for indexProcess in cursorIndexingProcesses:
+			content += self.renderTemplate('indexes.html', self.configIndexProc(indexProcess))
+			print "Found indproc for file " , indexProcess["filename"]
+		
+		config = {
+		'title': 'Currently Indexing',
+			'searchterm': '',
+			'content': content
+		}
+
+		return self.renderMainTemplate(config)
+
+	
 
 	# Returns a list of videos, found by given name (GET parameter)
 	# name - string after which is searched
@@ -330,6 +372,7 @@ class Root(object):
 		return self.renderMainTemplate(config)
 
 	# Returns a text-version of scenes, found by similarscene search
+	# This function is for benchmark purposes
 	# vidid - ID of the source video
 	# frame - Framenumber of the source scene in the source video
 	@cherrypy.expose
@@ -427,6 +470,8 @@ class Root(object):
 	# This function is intended to be called by javascript only.
 	@cherrypy.expose
 	def upload(self, searchable):
+		cherrypy.response.timeout = 1000000
+
 		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
 
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
@@ -451,27 +496,51 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		logInfo("Transcoding Video to mp4!")
-		newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
-		filename = os.path.basename(newdestination)
+		if extension != '.mp4':
+			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
+			filename = os.path.basename(newdestination)
+			HANDLER.runTask(priority=1, onComplete=None, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename))
+		else:
+			HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename))
+
+	def transcodeAndIndexUpload(self, destination, newdestination, searchable, filename):
+		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 		idx.transcode_video(destination, newdestination, quiet=True)
-		logInfo("Transcoding finished.")
-		
+		logInfo("Transcoding finished - '%s'" % filename)
+
 		if destination != newdestination:
 			os.remove(destination)
 
-		logInfo("Indexing Video.")
-		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
-		logInfo("Indexing finished.")
+		HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename))
+
+	def indexUpload(self, searchable, filename):
+		logInfo("Indexing Video - '%s'" % filename)
+		#Create an entry in "indexes" collection
+		t = time.time()
+		vidHash = idx.hashFile(os.path.join(CONFIG["abspath"], CONFIG["videopath"], filename), 65536)
+		indexes = DB["indexes"]
+		index = {}
+		index["_id"] = vidHash
+		index["timestamp"] = t
+		index["filename"] = filename
+		indexes.insert(index)
+
+		vidid = idx.index_video(DBNAME, COLNAME, vidHash, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
+
+		#Remove the entry to mark this indexing process as done
+		indexes.remove({"_id" : vidHash, "timestamp" : t, "filename" : filename})
+
+		logInfo("Indexing finished - '%s'" % filename)
+
+	def indexComplete(self, vidid):
 		if vidid == None:
 			# TODO: error messages
 			logError("File already exists.")
-			return "ERROR: File already exists."
+			return False
 		else:
 			TREE.addVideo(vidHash=vidid)
 			logInfo("Video successfully completed. VideoID: %s" % vidid)
-			return "File successfully uploaded."
-
+			return True
 
 	@cherrypy.expose
 	def toggleFilter(self):
@@ -521,6 +590,7 @@ if __name__ == '__main__':
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big
 	cherrypy.server.max_request_body_size = 0
+	cherrypy.server.socket_timeout = 3600
 
 	if hasattr(cherrypy.engine, 'block'):
 		# 3.1 syntax

@@ -8,7 +8,7 @@ import hashlib
 import os
 import subprocess, shlex
 
-def hashFile(filename, blocksize):
+def hashFile(filename, blocksize=65536):
 	hash = hashlib.sha1()
 	# File not found error is thrown up(wards)
 	with open(filename, 'rb') as f:
@@ -24,10 +24,10 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 	client = MongoClient(port=8099)
 	db = client[db]
 	videos = db[collection]
-	return videos.find(config).next()
+	config = videos.find_one(config)
+	videopath = config["abspath"] + config["videopath"]
 
-CONFIG = config() # abs, thumbnail, video
-VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
+	return (videos, videopath)
 
 def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	quietText = ""
@@ -46,19 +46,17 @@ def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	subprocess.call(cmd,shell=True)
 
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
-def index_video(collection, videofile, searchable=True, uploaded=False, thumbpath = None):
+def index_video(database, collection, fileHash, videofile, searchable=True, uploaded=False, thumbpath = None):
 
-	vidpath = os.path.join(VIDEOPATH, videofile);
+	videos, videopath = config(db=database, collection=collection)
 
-	#Get Hash
-	fileHash = hashFile(vidpath, 65536)
-	#if (fileHash is None): return False
+	vidpath = os.path.join(videopath, videofile);
 
 	#Check if this exact video exists already
-	video = collection.find_one({'_id': fileHash})
+	video = videos.find_one({'_id': fileHash})
 	if (video):
 		if video['removed']:
-			collection.update({'_id': fileHash}, {'$set': {'removed': False}})
+			videos.update({'_id': fileHash}, {'$set': {'removed': False}})
 			return fileHash
 		else:
 			return None
@@ -92,7 +90,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	fps = fv.getFramerate(vidpath)
 	video["fps"] = fps
 	
-	
+	video["removed"] = False
 	video["cuts"] = cuts
 	video["scenes"] = scenes
 
@@ -102,7 +100,7 @@ def index_video(collection, videofile, searchable=True, uploaded=False, thumbpat
 	#The momentous step of inserting into the database
 	#This is done on a single document(Or is it?) and therefore atomic, according to the documentation
 	#therefore, user induced process abortion should not leave anything to be cleaned up
-	collection.insert(video)
+	videos.insert(video)
 
 
 	return fileHash
