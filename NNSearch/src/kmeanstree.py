@@ -417,7 +417,7 @@ class SearchHandler:
 		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
-			if not ignoreSource or video != vidHash:
+			if not filterChecked or video != vidHash:
 				results.put((dist(query,feature),(video, scene)))
 		return results
 
