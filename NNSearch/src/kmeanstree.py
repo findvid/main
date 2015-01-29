@@ -264,7 +264,7 @@ class SearchHandler:
 	@param imax		max iterations for the center finding
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
-	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False, processHandler=None):
+	def __init__(self, videos, name, featureWeight=0.5, processHandler=None):
 		if not (featureWeight >= 0.0 and featureWeight <= 1.0):
 			print ("Illegal weight parameter (" + str(featureWeight) + "), defaulting to 0.5/0.5\n")
 			featureWeight = 0.5
@@ -272,6 +272,8 @@ class SearchHandler:
 		self.videos = videos
 		self.featureWeight = featureWeight
 		self.processHandler = processHandler
+
+	def loadOrBuildTree(self, k=8, imax=100, forceRebuild=False):
 		# Try to load the tree from the file
 		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
 			print "Loading Tree from file"
@@ -284,7 +286,7 @@ class SearchHandler:
 		# Build the tree
 		else:
 			print "Reading data from database"
-			data = self.processHandler.runTaskWait(priority=1, target=self.readFromDB, kwargs={"db":videos.database.name, "collection":videos.name})
+			data = self.processHandler.runTaskWait(priority=1, target=self.readFromDB, kwargs={"db":self.videos.database.name, "collection":self.videos.name})
 
 			print "Building Tree"
 			self.tree = KMeansTree(False, [], [])

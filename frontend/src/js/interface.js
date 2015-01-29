@@ -239,6 +239,14 @@ $(function() {
 		$('#uploadassrc').click();
 	});
 
+	$('.button.index').on('click', function() {
+		alert('Building tree was started.')
+		$.ajax({
+			url: '/shadowTree',
+			type: 'GET',
+		});
+	});
+
 	$('#uploadfile').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
 			upload(event.target.files[i], 1);
