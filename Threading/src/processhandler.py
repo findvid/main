@@ -116,10 +116,10 @@ class ProcessHandler:
 				while len(waiting) > 0:
 					if not self.freeProcess(priority):
 						break
-					onComplete, target, args, kwargs, name = waiting.pop(0)
+					onComplete, ocArgs, ocKwargs, target, args, kwargs, name = waiting.pop(0)
 					results = multiprocessing.Queue()
 					process = multiprocessing.Process(target=resultPacker, args=(results, target, args, kwargs), name=name)
-					thread = threading.Thread(target=self.runProcess, args=(results, onComplete, process))
+					thread = threading.Thread(target=self.runProcess, args=(results, process, onComplete, ocArgs, ocKwargs))
 					thread.start()
 					active.append(process)
 					if self.debug:
@@ -143,7 +143,7 @@ class ProcessHandler:
 	@param queue		Queue wich will get one result put on
 	@param onComplete	Callable that can work with this result
 	"""
-	def runProcess(self, queue, onComplete, process):
+	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
 		process.start()
 		res = queue.get()
 		#process.join()
@@ -158,7 +158,8 @@ class ProcessHandler:
 		#	self.lock.release()
 		process.join()
 		self.update()
-		onComplete(res)
+		if onComplete != None:
+			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
 
 	"""
 	Run a task in it's own process and executes another callable on the result
@@ -173,12 +174,12 @@ class ProcessHandler:
 
 	@return			A pair of the thread and the process
 	"""
-	def runTask(self, priority, onComplete, target, args=(), kwargs={}, name=None):
+	def runTask(self, target, args=(), kwargs={}, priority=0, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}, name=None):
 		if priority >= self.maxPrioritys or priority < 0:
 			raise "Fuckedup Priority"
 		self.lock.acquire()
 		try:
-			self.waitingProcesses[priority].append((onComplete, target, args, kwargs, name))
+			self.waitingProcesses[priority].append((onComplete, onCompleteArgs, onCompleteKwargs, target, args, kwargs, name))
 		finally:
 			self.lock.release()
 
@@ -212,14 +213,14 @@ if __name__ == '__main__':
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(1))
 
 	for prio in range(4):
-		for i in range(1000):
-			ph.runTask(prio, printer, fib, args=tuple([34]), name=str(prio)+"-"+str(i))
+		for i in range(10):
+			ph.runTask(priority=prio, onComplete=printer, target=fib, args=tuple([34]), name=str(prio)+"-"+str(i))
 
 	#time.sleep(100)
-	print "I'm out"
-	while True:
-		time.sleep(1)
-		ph.update()
+	#print "I'm out"
+	#while True:
+	#	time.sleep(1)
+	#	ph.update()
 
 
 	"""
