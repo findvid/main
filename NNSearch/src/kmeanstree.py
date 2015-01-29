@@ -18,10 +18,18 @@ FILE_ADD = "_addedScenes.db"
 lock = threading.Lock()
 
 """
+Returns children for the given arguments.
+They are most of the times don't have childs
+of there own yet but if so there is a second
+return value with the data the subchilds will
+be made off.
+
 @param data		[(features, key),...] List of pairs of features and keys
 @param k		Giving the max amount of leaves a node should have
 @param maxiterations	limiting the iterations for the center finding
-@param recdepth
+@param recdepth		Don't mind me. Debuggin reasons
+
+@return 		[(child, data)], where data is None if the child is a leave
 """
 def buildTree(data, k, maxiterations, recdepth = 0):
 	# Output to get a feeling how long it takes (a long time)
@@ -59,18 +67,10 @@ def buildTree(data, k, maxiterations, recdepth = 0):
 		centersNew = []
 		# calculate new centers
 		for cluster in clusters:
-			# only if at least one point was added to the cluster it can be kept
-			# TODO: this is a problem as certain data could cause all points to be in one cluster
-			# like a data set of many equal entries
-			# it would cause an not stopped recursion
-			# Kind of fixed. See the Todo below
 			if not cluster == []:
 				center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
 				centersNew.append(center)
 
-		# TODO Quick fix for now. If all points fall into one center they just become a child node
-		# Might be problematic if there are many of them as that could slow down searches.
-		# So they should be splitted in this case.
 		if len(centersNew) == 1:
 			tmp = [[] for i in range(k)]
 			for i,v in enumerate(clusters[0]):
@@ -100,12 +100,18 @@ def buildTree(data, k, maxiterations, recdepth = 0):
 		else:
 			child = KMeansTree(False, center, [])
 			res.append((child, cluster))
-		# Fill it with values
-		# TODO Move: child.buildTree(cluster, k, maxiterations, recdepth+1)
-		# Add chlid to children
-		#self.children.append(child)
 	return res
 
+"""
+Builds a tree, multithreaded (processed)
+
+@param result		Result of the last build. So it't really rather the tasts that there are
+@param parent		Parent of the childs in result
+@param processHandler	Object to create processes
+@param k		k the split factor for the tree
+@param maxiterations	maxiterations factor for the tree
+@param recdepth		Debugging reasons
+"""
 def treeBuilder(result, parent, processHandler, k, maxiterations, recdepth=0):
 	for (tree,data) in result:
 		if not tree.isLeave:
@@ -198,6 +204,9 @@ class KMeansTree:
 			# go on searching in the closest child
 			closestChild.traverse(nextNodes, results, query, deletedVideos)
 
+	"""
+	To String for debugging
+	"""
 	def __str__(self):
 		return self.str2("")
 
@@ -273,6 +282,13 @@ class SearchHandler:
 		self.featureWeight = featureWeight
 		self.processHandler = processHandler
 
+	"""
+	Loads the tree or builds it if needed/requested
+
+	@param k		Splitfactor for the tree
+	@param imax		iterations factor for the tree
+	@param forceRebuild	if true the tree won't be loaded even if one exists
+	"""
 	def loadOrBuildTree(self, k=8, imax=100, forceRebuild=False):
 		# Try to load the tree from the file
 		if os.path.isfile(self.name + FILE_TREE) and (not forceRebuild):
@@ -300,6 +316,18 @@ class SearchHandler:
 			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
+	"""
+	Reads the feature data from the database and flattens it.
+
+	@param db		name of the batabase
+	@param collection	name of the collection
+
+	@return			a list like [(feature,(vidHash,sceneId))]
+				where
+				feature is the flattend features of the scene
+				vidHash the hash of the video
+				sceneId the ID of the scene in the video
+	"""
 	def readFromDB(self, db, collection):
 		client = MongoClient(port=8099)
 		db = client[db]
@@ -319,7 +347,13 @@ class SearchHandler:
 				data.append((feature,(vidHash,sceneId)))
 		return data
 
+	"""
+	Flattens the features for a scenen
 
+	@param scene		the scene containing the different features
+
+	@return 		the flattend features
+	"""
 	def flattenFeatures(self, scene):
 		edgeweight = self.featureWeight
 		colorweight = 1 - self.featureWeight
@@ -347,8 +381,15 @@ class SearchHandler:
 		
 		return result #npy.array(scene['colorhist'])
 
+	"""
+	Calculates a precent value for a distance
 
+	@param dist		distance in the tree
+
+	@return 		a value between 0 and 100
+	"""
 	def distQuality(self, dist):
+		# 1000 fits well with the way our flattening works
 		v = (1 - (dist/1000))
 		return max(v, 0)
 
@@ -433,9 +474,6 @@ class SearchHandler:
 		if needsSaving:
 			self.addedScenes = addedScenesNew
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
-
-def printer(a, b, c, d):
-	print "lol"
 
 
 if __name__ == '__main__':
