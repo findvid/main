@@ -508,7 +508,7 @@ class Root(object):
 		logInfo("Indexing Video - '%s'" % filename)
 		#Create an entry in "indexes" collection
 		t = time.time()
-		vidHash = idx.hashFile(os.path.join(CONFIG["abspath"], CONFIG["videopath"], filename), 65536)
+		vidHash = idx.hashFile(os.path.join(CONFIG["abspath"], CONFIG["videopath"], 'uploads/', filename), 65536)
 		indexes = DB["indexes"]
 		index = {}
 		index["_id"] = vidHash
