@@ -4,13 +4,116 @@ import sys
 import Queue
 import pickle
 import os.path
-import multiprocessing
 import math
+import threading
+import processhandler
 from pymongo import MongoClient
 
 FILE_TREE = "_tree.db"
 FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
+
+"""
+@param data		[(features, key),...] List of pairs of features and keys
+@param k		Giving the max amount of leaves a node should have
+@param maxiterations	limiting the iterations for the center finding
+@param recdepth
+"""
+def buildTree(data, k, maxiterations, recdepth = 0):
+	# Output to get a feeling how long it takes (a long time)
+	# 76 minutes for 1.000.000 entries with 1024 vectors
+	align = ""
+	for i in range(recdepth):
+		align += "  "
+	print align, recdepth, ": len(data): ", len(data)
+
+	# Get random centers as starting point
+	centers = calg(data,k)
+
+	centersFound = False
+	iterations = 0
+
+	# Improve the centers
+	while not centersFound and iterations < maxiterations:
+		iterations += 1
+		clusters = []
+
+		for _ in range(len(centers)):
+			clusters.append([])
+
+		# cluster the points around the closest centers
+		for position,value in data:
+			index = 0
+			mindist = sys.maxint
+			for i,center in enumerate(centers):
+				distance = dist(position, center)
+				if distance < mindist:
+					mindist = distance
+					index = i
+			clusters[index].append((position, value))
+
+		centersNew = []
+		# calculate new centers
+		for cluster in clusters:
+			# only if at least one point was added to the cluster it can be kept
+			# TODO: this is a problem as certain data could cause all points to be in one cluster
+			# like a data set of many equal entries
+			# it would cause an not stopped recursion
+			# Kind of fixed. See the Todo below
+			if not cluster == []:
+				center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
+				centersNew.append(center)
+
+		# TODO Quick fix for now. If all points fall into one center they just become a child node
+		# Might be problematic if there are many of them as that could slow down searches.
+		# So they should be splitted in this case.
+		if len(centersNew) == 1:
+			tmp = range(k)
+			for i,v in enumerate(clusters[0]):
+				res[i%k].append(v)
+
+			res = []
+			for cluster in res:
+				if len(cluster) < k:
+					child = KMeansTree(True, center, cluster)
+					res.append((child, None))
+				else:
+					child = KMeansTree(False, center, [])
+					res.append((child, cluster))
+			return res
+
+		# Check if the centers changed
+		if npy.array_equal(centers, centersNew):
+			centersFound = True
+
+		centers = centersNew
+	res = []
+	for center,cluster in zip(centers,clusters):
+		if len(cluster) < k:
+			# Create a child for each cluster
+			child = KMeansTree(True, center, cluster)
+			res.append((child, None))
+		else:
+			child = KMeansTree(False, center, [])
+			res.append((child, cluster))
+		# Fill it with values
+		# TODO Move: child.buildTree(cluster, k, maxiterations, recdepth+1)
+		# Add chlid to children
+		#self.children.append(child)
+	return res
+
+lock = threading.Lock()
+
+def treeBuilder(result, parent, processhandler, k, maxiterations, recdepth = 0):
+	lock.acquire()
+	try:
+		for (tree,data) in result:
+			if parent != None:
+				parent.children.append(tree)
+			if not tree.isLeave:
+				processhandler.runTask(priority=1, onComplete=treeBuilder, onCompleteArgs=(), onCompleteKwargs={"parent":tree, "pha":pha, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, target=buildTree, args=(), kwargs={"data":data, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, name=None)
+	finally:
+		lock.release()
 
 class KMeansTree:
 	isLeave = False
@@ -22,85 +125,6 @@ class KMeansTree:
 		self.isLeave = isLeave
 		self.center = center
 		self.children = children
-
-	"""
-	@param data		[(features, key),...] List of pairs of features and keys
-	@param k		Giving the max amount of leaves a node should have
-	@param maxiterations	limiting the iterations for the center finding
-	@param recdepth
-	"""
-	def buildTree(self, data, k, maxiterations, recdepth = 0):
-		# Output to get a feeling how long it takes (a long time)
-		# 76 minutes for 1.000.000 entries with 1024 vectors
-		align = ""
-		for i in range(recdepth):
-			align += "  "
-		print align, recdepth, ": len(data): ", len(data)
-
-		# If there are less elements in data than a node should have children...
-		if len(data) <= k:
-			# Add all elements and become a leave node
-			self.children = data
-			self.isLeave = True
-			return
-		# Get random centers as starting point
-		centers = calg(data,k)
-
-		centersFound = False
-		iterations = 0
-
-		# Improve the centers
-		while not centersFound and iterations < maxiterations:
-			iterations += 1
-			clusters = []
-
-			for _ in range(len(centers)):
-				clusters.append([])
-
-			# cluster the points around the closest centers
-			for position,value in data:
-				index = 0
-				mindist = sys.maxint
-				for i,center in enumerate(centers):
-					distance = dist(position, center)
-					if distance < mindist:
-						mindist = distance
-						index = i
-				clusters[index].append((position, value))
-
-			centersNew = []
-			# calculate new centers
-			for cluster in clusters:
-				# only if at least one point was added to the cluster it can be kept
-				# TODO: this is a problem as certain data could cause all points to be in one cluster
-				# like a data set of many equal entries
-				# it would cause an not stopped recursion
-				# Kind of fixed. See the Todo below
-				if not cluster == []:
-					center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
-					centersNew.append(center)
-
-			# TODO Quick fix for now. If all points fall into one center they just become a child node
-			# Might be problematic if there are many of them as that could slow down searches.
-			# So they should be splitted in this case.
-			if len(centersNew) == 1:
-				print "Waring building a child node with", len(data), "entries"
-				self.children = data
-				self.isLeave = True
-				return
-
-			# Check if the centers changed
-			if npy.array_equal(centers, centersNew):
-				centersFound = True
-
-			centers = centersNew
-		for center,cluster in zip(centers,clusters):
-			# Create a child for each cluster
-			child = KMeansTree(False, center, [])
-			# Fill it with values
-			child.buildTree(cluster, k, maxiterations, recdepth+1)
-			# Add chlid to children
-			self.children.append(child)
 
 	"""
 	@param query		Feature array for the request. Find NNs to this one
@@ -189,11 +213,6 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-def buildChild(center, cluster, k, maxiterations, recdepth, results):
-	child = KMeansTree(False, center, [])
-	child.buildTree(cluster, k, maxiterations, recdepth+1)
-	results.put(child)
-
 class SearchHandler:
 	# Name for the filenames
 	name = None
@@ -221,7 +240,7 @@ class SearchHandler:
 	@param imax		max iterations for the center finding
 	@param forceRebuild	If true the tree will get rebuild no matter if the files exist
 	"""
-	def __init__(self, videos, name, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
+	def __init__(self, videos, name, processhandler, featureWeight=0.5, k=8, imax=100, forceRebuild=False):
 		if not (featureWeight >= 0.0 and featureWeight <= 1.0):
 			print ("Illegal weight parameter (" + str(featureWeight) + "), defaulting to 0.5/0.5\n")
 			featureWeight = 0.5
@@ -256,8 +275,10 @@ class SearchHandler:
 
 			print "Building Tree"
 			self.tree = KMeansTree(False, [], [])
-			self.tree.buildTree(data, k, imax)
-			
+			treeBuilder(result=[tree, data], processhandler=processhandler, parent=None, k=k, maxiterations=imax)
+
+			# TODO Wait for the Tree build to finish!
+
 			print "Saving Tree"
 			pickle.dump(self.tree, open(self.name + FILE_TREE, "wb"))
 			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
@@ -381,7 +402,7 @@ if __name__ == '__main__':
 
 	vid = videos.find_one({'filename':{'$regex':'.*target.*'}})
 
-	searchHandler = SearchHandler(videos, "testvidhandler", forceRebuild=True)
+	searchHandler = SearchHandler(videos, "testvidhandler", processhandler=processhandler.ProcessHandler(), forceRebuild=True)
 
 	searchHandler.addVideo(vid['_id'])
 
