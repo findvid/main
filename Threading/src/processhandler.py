@@ -144,22 +144,20 @@ class ProcessHandler:
 	@param onComplete	Callable that can work with this result
 	"""
 	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
-		res = None
+		res = False
+		poll = True
 		process.start()
-		res = queue.get()
-		process.join()
-		#if process.exitcode == 0:
-		#process.join()
-		#self.lock.acquire()
-		#try:
-		#	for active in self.activeProcesses:
-		#		if active.count(process) > 0:
-		#			active.remove(process)
-		#			print "I Removed:", process.name
-		#			break
-		#finally:
-		#	self.lock.release()
-		#process.join()
+		while poll:
+			try:
+				res = queue.get(timeout = 1)
+			except Queue.Empty, e:
+				pass
+			if res != False:
+				process.join(timeout = 0)
+			if process.exitcode != None:
+				poll = False
+				if process.exitcode != 0:
+					res = False
 		self.update()
 		if onComplete != None:
 			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
@@ -207,13 +205,31 @@ class ProcessHandler:
 	"""
 	Shoots a process
 
+	@param name		The name of the process that should get stopped
 	@param process		The process that should get stopped
 	"""
-	def stopProcess(self, process):
+	def stopProcess(self, name=None, process=None):
+		if process == None:
+			if name == None:
+				return
+			self.lock.acquire()
+			try:
+				for (paused, waiting, active) in zip(self.pausedProcesses, self.waitingProcesses, self.activeProcesses):
+					for pro in paused:
+						if pro.name == name:
+							process = pro
+					for pro in waiting:
+						if pro.name == name:
+							process = pro
+					for pro in active:
+						if pro.name == name:
+							process = pro
+			finally:
+				self.lock.release()
 		try:
 			os.kill(process.pid, signal.SIGKILL)
-			process.join()
-			self.update()
+			#process.join()
+			#self.update()
 		except OSError, e:
 			print "Tried to shoot process but it's already gone?", process.pid
 

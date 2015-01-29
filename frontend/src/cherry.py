@@ -576,9 +576,8 @@ if __name__ == '__main__':
 	# Build Searchtree
 
 	# TODO: Exception Handling
-	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=ARGS.forcerebuild, processHandler=HANDLER)
-	# Wait for the tree to fully build up
-	HANDLER.waitForPriority(priority=1, waitTime=10)
+	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+	TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
 
 	cherrypy.tree.mount(Root(), '/', conf)
 
