@@ -26,8 +26,9 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 	videos = db[collection]
 	config = videos.find_one(config)
 	videopath = config["abspath"] + config["videopath"]
+	thumbnailpath = config["abspath"] + config["thumbnailpath"]
 
-	return (videos, videopath)
+	return (videos, videopath, thumbnailpath)
 
 def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	quietText = ""
@@ -48,18 +49,18 @@ def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
 def index_video(database, collection, fileHash, videofile, searchable=True, uploaded=False, thumbpath = None):
 
-	videos, videopath = config(db=database, collection=collection)
+	videos, videopath, thumbnailpath = config(db=database, collection=collection)
 
 	vidpath = os.path.join(videopath, videofile);
 
 	#Check if this exact video exists already
 	video = videos.find_one({'_id': fileHash})
 	if (video):
-		if video['removed']:
-			videos.update({'_id': fileHash}, {'$set': {'removed': False}})
-			return fileHash
-		else:
-			return None
+		return None
+		#if video['removed']:
+		#	videos.update({'_id': fileHash}, {'$set': {'removed': False}})
+		#	return fileHash
+		#else:
 
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
@@ -68,7 +69,7 @@ def index_video(database, collection, fileHash, videofile, searchable=True, uplo
 
 	#extract features from videofile given the keyframes array, use the middle keyframe as videothumb and save to default folder
 	if (thumbpath == None):
-		thumbpath = os.path.join(CONFIG["abspath"], CONFIG["thumbnailpath"])
+		thumbpath = thumbnailpath # use default
 	
 	features = fv.getFeatures(vidpath, fileHash, keyframes[len(keyframes)/2], keyframes, thumbpath)
 
