@@ -263,6 +263,7 @@ class Root(object):
 			# INDEXPROCS[vidId].stop() or whatever
 			# Cleanup is done by callbacks if they receive an error-marker as result
 			HANDLER.stopProcess(name=vidId)
+			raise cherrypy.HTTPRedirect('/indexes')
 
 		for indexProcess in cursorIndexingProcesses:
 			content += self.renderTemplate('indexes.html', self.configIndexProc(indexProcess))
@@ -612,16 +613,18 @@ class Root(object):
 
 	def indexComplete(self, res, vidHash):
 		# process died, delete thumbnails folder if it exists and 
-		if res == False and os.path.exists(os.path.join(THUMBNAILDIR, vidHash)):
-			shutil.rmtree(os.path.join(THUMBNAILDIR, vidHash))
+		if res == False:
+			if os.path.exists(os.path.join(THUMBNAILDIR, vidHash)):
+				shutil.rmtree(os.path.join(THUMBNAILDIR, vidHash))
+			logInfo("Video indexing aborted. VideoID: %s" % vidHash)
 	
-		if res == None:
+		elif res == None:
 			# TODO: error messages
 			logError("File already exists.")
 			return False
 		else:
-			TREE.addVideo(vidHash=vidid)
-			logInfo("Video successfully completed. VideoID: %s" % vidid)
+			TREE.addVideo(vidHash=vidHash)
+			logInfo("Video successfully completed. VideoID: %s" % vidHash)
 			return True
 
 	@cherrypy.expose
