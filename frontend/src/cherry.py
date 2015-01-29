@@ -291,21 +291,14 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		if self.filterChecked:
-			sourceVideo = None
-		else:
-			sourceVideo = vidid
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=1000, maxTouches=1000, sourceVideo=sourceVideo)
+		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=100000, filterChecked=self.filterChecked)
 
 		content = ""
 		if not similarScenes:
 			content = 'No Scenes found for your search query.'
 		else:
 			scenes = []
-			i = 0
-			while (not similarScenes.empty()) and i < 100:
-				similarScene = similarScenes.get()	
-
+			for similarScene in similarScenes:
 				if similarScene == None:
 					continue
 
@@ -323,8 +316,6 @@ class Root(object):
 					'value': str(simPercent)
 				})
 				content += self.renderTemplate('similarscene.html', sceneConfig)
-
-				i+=1
 
 		config = {
 			'title': 'Found Scenes',
@@ -533,7 +524,10 @@ if __name__ == '__main__':
 	# Build Searchtree
 
 	# TODO: Exception Handling
-	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=ARGS.forcerebuild)
+	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, k=KSPLIT, imax=KMAX, forceRebuild=ARGS.forcerebuild, processHandler=HANDLER)
+	# Wait for the tree to fully build up
+	HANDLER.waitForPriority(priority=1, waitTime=10)
+
 	cherrypy.tree.mount(Root(), '/', conf)
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big

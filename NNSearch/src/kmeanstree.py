@@ -5,13 +5,122 @@ import Queue
 import pickle
 import math
 import os.path
-import multiprocessing
 import math
+import threading
+import processhandler
+import time
 from pymongo import MongoClient
 
 FILE_TREE = "_tree.db"
 FILE_DEL = "_deletedVideos.db"
 FILE_ADD = "_addedScenes.db"
+
+lock = threading.Lock()
+
+"""
+@param data		[(features, key),...] List of pairs of features and keys
+@param k		Giving the max amount of leaves a node should have
+@param maxiterations	limiting the iterations for the center finding
+@param recdepth
+"""
+def buildTree(data, k, maxiterations, recdepth = 0):
+	# Output to get a feeling how long it takes (a long time)
+	# 76 minutes for 1.000.000 entries with 1024 vectors
+	align = ""
+	for i in range(recdepth):
+		align += "  "
+	print align, recdepth, ": len(data): ", len(data)
+
+	# Get random centers as starting point
+	centers = calg(data,k)
+
+	centersFound = False
+	iterations = 0
+
+	# Improve the centers
+	while not centersFound and iterations < maxiterations:
+		iterations += 1
+		clusters = []
+
+		for _ in range(len(centers)):
+			clusters.append([])
+
+		# cluster the points around the closest centers
+		for position,value in data:
+			index = 0
+			mindist = sys.maxint
+			for i,center in enumerate(centers):
+				distance = dist(position, center)
+				if distance < mindist:
+					mindist = distance
+					index = i
+			clusters[index].append((position, value))
+
+		centersNew = []
+		# calculate new centers
+		for cluster in clusters:
+			# only if at least one point was added to the cluster it can be kept
+			# TODO: this is a problem as certain data could cause all points to be in one cluster
+			# like a data set of many equal entries
+			# it would cause an not stopped recursion
+			# Kind of fixed. See the Todo below
+			if not cluster == []:
+				center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
+				centersNew.append(center)
+
+		# TODO Quick fix for now. If all points fall into one center they just become a child node
+		# Might be problematic if there are many of them as that could slow down searches.
+		# So they should be splitted in this case.
+		if len(centersNew) == 1:
+			tmp = [[] for i in range(k)]
+			for i,v in enumerate(clusters[0]):
+				tmp[i%k].append(v)
+
+			res = []
+			for cluster in tmp:
+				if len(cluster) < k:
+					child = KMeansTree(True, center, cluster)
+					res.append((child, None))
+				else:
+					child = KMeansTree(False, center, [])
+					res.append((child, cluster))
+			return res
+
+		# Check if the centers changed
+		if npy.array_equal(centers, centersNew):
+			centersFound = True
+
+		centers = centersNew
+	res = []
+	for center,cluster in zip(centers,clusters):
+		if len(cluster) < k:
+			# Create a child for each cluster
+			child = KMeansTree(True, center, cluster)
+			res.append((child, None))
+		else:
+			child = KMeansTree(False, center, [])
+			res.append((child, cluster))
+		# Fill it with values
+		# TODO Move: child.buildTree(cluster, k, maxiterations, recdepth+1)
+		# Add chlid to children
+		#self.children.append(child)
+	return res
+
+def treeBuilder(result, parent, processHandler, k, maxiterations, recdepth=0):
+	for (tree,data) in result:
+		if not tree.isLeave:
+			if len(data) < 42:
+				res = buildTree(data=data, k=k, maxiterations=maxiterations, recdepth=recdepth)
+				treeBuilder(result=res, parent=tree, processHandler=processHandler, k=k, maxiterations=maxiterations, recdepth=recdepth)
+			else:
+				processHandler.runTask(priority=1, onComplete=treeBuilder, onCompleteArgs=(), onCompleteKwargs={"parent":tree, "processHandler":processHandler, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, target=buildTree, args=(), kwargs={"data":data, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, name=None)
+	lock.acquire()
+	try:
+		for (tree,_) in result:
+			if parent != None:
+				parent.children.append(tree)
+	finally:
+		lock.release()
 
 class KMeansTree:
 	isLeave = False
@@ -25,91 +134,16 @@ class KMeansTree:
 		self.children = children
 
 	"""
-	@param data		[(features, key),...] List of pairs of features and keys
-	@param k		Giving the max amount of leaves a node should have
-	@param maxiterations	limiting the iterations for the center finding
-	@param recdepth
-	"""
-	def buildTree(self, data, k, maxiterations, recdepth = 0):
-		# Output to get a feeling how long it takes (a long time)
-		# 76 minutes for 1.000.000 entries with 1024 vectors
-		align = ""
-		for i in range(recdepth):
-			align += "  "
-		#print align, recdepth, ": len(data): ", len(data)
+	Searches in the tree
 
-		# If there are less elements in data than a node should have children...
-		if len(data) <= k:
-			# Add all elements and become a leave node
-			self.children = data
-			self.isLeave = True
-			return
-		# Get random centers as starting point
-		centers = calg(data,k)
-
-		centersFound = False
-		iterations = 0
-
-		# Improve the centers
-		while not centersFound and iterations < maxiterations:
-			iterations += 1
-			clusters = []
-
-			for _ in range(len(centers)):
-				clusters.append([])
-
-			# cluster the points around the closest centers
-			for position,value in data:
-				index = 0
-				mindist = sys.maxint
-				for i,center in enumerate(centers):
-					distance = dist(position, center)
-					if distance < mindist:
-						mindist = distance
-						index = i
-				clusters[index].append((position, value))
-
-			centersNew = []
-			# calculate new centers
-			for cluster in clusters:
-				# only if at least one point was added to the cluster it can be kept
-				# TODO: this is a problem as certain data could cause all points to be in one cluster
-				# like a data set of many equal entries
-				# it would cause an not stopped recursion
-				# Kind of fixed. See the Todo below
-				if not cluster == []:
-					center = npy.mean(npy.transpose([i[0] for i in cluster]), axis=1, dtype=npy.int)
-					centersNew.append(center)
-
-			# TODO Quick fix for now. If all points fall into one center they just become a child node
-			# Might be problematic if there are many of them as that could slow down searches.
-			# So they should be splitted in this case.
-			if len(centersNew) == 1:
-				print "Waring building a child node with", len(data), "entries"
-				self.children = data
-				self.isLeave = True
-				return
-
-			# Check if the centers changed
-			if npy.array_equal(centers, centersNew):
-				centersFound = True
-
-			centers = centersNew
-		for center,cluster in zip(centers,clusters):
-			# Create a child for each cluster
-			child = KMeansTree(False, center, [])
-			# Fill it with values
-			child.buildTree(cluster, k, maxiterations, recdepth+1)
-			# Add chlid to children
-			self.children.append(child)
-
-	"""
 	@param query		Feature array for the request. Find NNs to this one
 	@param deletedVideos	Dictornary containing videos which shouldn't be found
 	@param wantedNNs	Amount of NNs to be found
 	@param maxPointsToTouch	Limit of leaves that get touched. Higher value -> better results but slower calculation
+
+	@return			Priority Queue with the results
 	"""
-	def search(self, query, deletedVideos, wantedNNs = 1, maxPointsToTouch = 42):
+	def search(self, query, deletedVideos, wantedNNs=1, maxPointsToTouch=42):
 		# for the nodes that get checked later
 		nextNodes = Queue.PriorityQueue()
 		# for the results
@@ -123,9 +157,16 @@ class KMeansTree:
 			_,nextNode = nextNodes.get()
 			# and continue searching there
 			nextNode.traverse(nextNodes, results, query, deletedVideos)
-		return results
+		res = []
+		for i in range(wantedNNs):
+			if results.empty():
+				return res
+			res.append(results.get())
+		return res
 
 	"""
+	Travereses the tree for the search
+
 	@param nextNodes	PrioQueue for 'checkout-later'-nodes
 	@param results		PrioQueue for the results
 	@param query		Feature array for the request. Find NNs to this one.
@@ -190,11 +231,6 @@ def calg(arr,k):
 				result[s] = x
 	return result
 
-def buildChild(center, cluster, k, maxiterations, recdepth, results):
-	child = KMeansTree(False, center, [])
-	child.buildTree(cluster, k, maxiterations, recdepth+1)
-	results.put(child)
-
 class SearchHandler:
 	# Name for the filenames
 	name = None
@@ -204,14 +240,14 @@ class SearchHandler:
 	featureWeight = 0.5
 	# KMeans-Tree
 	tree = None
-	# Weight of Features
-	featureWeight = 0.5
 	# List for now
 	addedScenes = []
 	# Dict of all videos that shouldn't be found
 	deletedVideos = dict()
-
+	# ProcessHander for multiprocessing
 	processHandler = None
+	# Shadow copy to keep it updated
+	shadowCopy = None
 
 	#not the actual maximal distance between vectors, but anything beyond this distance is no match at all
 	max_dist = 1100.0 # average distance is normalized to 1000, something with average distance is a match of 10%
@@ -219,6 +255,8 @@ class SearchHandler:
 	"""
 	Loads a tree from a file if the file exists, else it
 	builds the tree from a given a collection containing videodata
+	Use self.processHandler.waitForPriority(priority=1, waitTime=10) to wait till the tree is fully build.
+	This module assumes that you never build more than one tree at once.
 	
 	@param videos		The collection
 	@param filename		filename of the tree
@@ -246,28 +284,39 @@ class SearchHandler:
 		# Build the tree
 		else:
 			print "Reading data from database"
-			# Get all searchable videos. This also gets rid of the config entry
-			vids = videos.find({'searchable' : True})
-
-			data = []
-			# Get all scenes for all searchable videos
-			for vid in vids:
-				scenes = vid['scenes']
-				vidHash = vid['_id']
-				for scene in scenes:
-					sceneId = scene['_id']
-					# Flatten the features
-					feature = self.flattenFeatures(scene)
-					data.append((feature,(vidHash,sceneId)))
+			data = self.processHandler.runTaskWait(priority=1, target=self.readFromDB, kwargs={"db":videos.database.name, "collection":videos.name})
 
 			print "Building Tree"
 			self.tree = KMeansTree(False, [], [])
-			self.tree.buildTree(data, k, imax)
-			
+			treeBuilder(result=[(self.tree, data)], processHandler=self.processHandler, parent=None, k=k, maxiterations=imax)
+
+			self.processHandler.waitForPriority(priority=1, waitTime=10)
+			#time.sleep(200)
+
 			print "Saving Tree"
 			pickle.dump(self.tree, open(self.name + FILE_TREE, "wb"))
 			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
+	def readFromDB(self, db, collection):
+		client = MongoClient(port=8099)
+		db = client[db]
+		videos = db[collection]
+
+		vids = videos.find({'searchable' : True})
+
+		data = []
+		# Get all scenes for all searchable videos
+		for vid in vids:
+			scenes = vid['scenes']
+			vidHash = vid['_id']
+			for scene in scenes:
+				sceneId = scene['_id']
+				# Flatten the features
+				feature = self.flattenFeatures(scene)
+				data.append((feature,(vidHash,sceneId)))
+		return data
+
 
 	def flattenFeatures(self, scene):
 		edgeweight = self.featureWeight
@@ -312,20 +361,20 @@ class SearchHandler:
 
 	@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
 	"""
-	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, sourceVideo = None):
+	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, filterChecked=False):
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
 		query = self.flattenFeatures(scene)
 		# Copy the list of videos which won't be found and add the source Video
 		toIgnore = self.deletedVideos.copy()
-		if sourceVideo != None:
-			toIgnore[sourceVideo] = True
+		if filterChecked:
+			toIgnore[vidHash] = True
 		# Search in the tree
-		results = self.tree.search(query, toIgnore, wantedNNs, maxTouches)
+		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
-			if video != sourceVideo:
+			if not ignoreSource or video != vidHash:
 				results.put((dist(query,feature),(video, scene)))
 		return results
 
@@ -336,6 +385,9 @@ class SearchHandler:
 	@param vidHash	hash of the video
 	"""
 	def addVideo(self, vidHash):
+		# Keep the ShadowCopy updated
+		if self.shadowCopy != None:
+			self.shadowCopy.addVideo(vidHash)
 		vid = self.videos.find_one({'_id':vidHash})
 		if vid['searchable']:
 			if vidHash in self.deletedVideos:
@@ -361,6 +413,9 @@ class SearchHandler:
 	@param vidHash	hash of the video
 	"""
 	def deleteVideo(self, vidHash):
+		# Keep the ShadowCopy updated
+		if self.shadowCopy != None:
+			self.shadowCopy.deleteVideo(vidHash)
 		# Add to the deleted videos list
 		if not vidHash in self.deletedVideos:
 			self.deletedVideos[vidHash] = True
@@ -377,21 +432,24 @@ class SearchHandler:
 			self.addedScenes = addedScenesNew
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
 
+def printer(a, b, c, d):
+	print "lol"
+
 
 if __name__ == '__main__':
 	# Example code
 	#"""
 	client = MongoClient(port=8099)
 	db = client["findvid"]
-	videos = db["benchmark_tiny"]#oldvids"]#"small"]
+	videos = db["benchmark"]#_tiny"]#oldvids"]#"small"]
 
 	vid = videos.find_one({'filename':{'$regex':'.*target.*'}})
 
-	searchHandler = SearchHandler(videos, "testvidhandler", forceRebuild=True)
+	searchHandler = SearchHandler(videos, "testvidhandler", processhandler=processhandler.ProcessHandler(), forceRebuild=True)
 
 	searchHandler.addVideo(vid['_id'])
 
-	results = searchHandler.search(vid['_id'], 0, 100, 1000, vid['_id'])
+	results = searchHandler.search(vid['_id'], 0, 100, 1000, True)
 
 	for i in range(10):
 		(d, vid) = results.get()

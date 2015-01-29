@@ -144,8 +144,11 @@ class ProcessHandler:
 	@param onComplete	Callable that can work with this result
 	"""
 	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
+		res = None
 		process.start()
-		res = queue.get()
+		process.join()
+		if process.exitcode == 0:
+			res = queue.get()
 		#process.join()
 		#self.lock.acquire()
 		#try:
@@ -156,7 +159,7 @@ class ProcessHandler:
 		#			break
 		#finally:
 		#	self.lock.release()
-		process.join()
+		#process.join()
 		self.update()
 		if onComplete != None:
 			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
@@ -209,7 +212,7 @@ class ProcessHandler:
 	def stopProcess(self, process):
 		try:
 			os.kill(process.pid, signal.SIGKILL)
-			# TODO make sure the process is gone
+			process.join()
 			self.update()
 		except OSError, e:
 			print "Tried to shoot process but it's already gone?", process.pid
