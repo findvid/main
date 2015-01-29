@@ -265,6 +265,9 @@ class SearchHandler:
 		# Build the tree
 		else:
 			print "Reading data from database"
+
+			data = processhandler.runTaskWait(priority=1, target=self.readFromDB, kwargs={"db":videos.database.name, "collection":videos.name})
+			"""
 			# Get all searchable videos. This also gets rid of the config entry
 			vids = videos.find({'searchable' : True})
 
@@ -278,18 +281,39 @@ class SearchHandler:
 					# Flatten the features
 					feature = self.flattenFeatures(scene)
 					data.append((feature,(vidHash,sceneId)))
-
+			"""
 			print "Building Tree"
 			self.tree = KMeansTree(False, [], [])
 			treeBuilder(result=[(self.tree, data)], processhandler=processhandler, parent=None, k=k, maxiterations=imax)
 
-			time.sleep(200)
+			processhandler.waitForPriority(priority=1, waitTime=10)
+			#time.sleep(200)
 			# TODO Wait for the Tree build to finish!
 
 			print "Saving Tree"
 			pickle.dump(self.tree, open(self.name + FILE_TREE, "wb"))
 			pickle.dump(self.deletedVideos, open(self.name + FILE_DEL, "wb"))
 			pickle.dump(self.addedScenes, open(self.name + FILE_ADD, "wb"))
+
+	def readFromDB(self, db, collection):
+		client = MongoClient(port=8099)
+		db = client[db]
+		videos = db[collection]
+
+		vids = videos.find({'searchable' : True})
+
+		data = []
+		# Get all scenes for all searchable videos
+		for vid in vids:
+			scenes = vid['scenes']
+			vidHash = vid['_id']
+			for scene in scenes:
+				sceneId = scene['_id']
+				# Flatten the features
+				feature = self.flattenFeatures(scene)
+				data.append((feature,(vidHash,sceneId)))
+		return data
+
 
 	def flattenFeatures(self, scene):
 		edgeweight = self.featureWeight
@@ -334,7 +358,7 @@ class SearchHandler:
 
 	@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
 	"""
-	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, ignoreSource):
+	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, ignoreSource=False):
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
@@ -342,12 +366,12 @@ class SearchHandler:
 		# Copy the list of videos which won't be found and add the source Video
 		toIgnore = self.deletedVideos.copy()
 		if ignoreSource:
-			toIgnore[sourceVideo] = True
+			toIgnore[vidHash] = True
 		# Search in the tree
 		results = self.tree.search(query, toIgnore, wantedNNs, maxTouches)
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
-			if video != sourceVideo:
+			if not ignoreSource or video != vidHash:
 				results.put((dist(query,feature),(video, scene)))
 		return results
 
