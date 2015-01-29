@@ -165,7 +165,7 @@ class ProcessHandler:
 			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
 
 	"""
-	Run a task in it's own process and executes another callable on the result
+	Run a task in its own process and executes another callable on the result
 	in an own thread
 
 	@param priority		Priority of the task

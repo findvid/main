@@ -8,7 +8,7 @@ import hashlib
 import os
 import subprocess, shlex
 
-def hashFile(filename, blocksize):
+def hashFile(filename, blocksize=65536):
 	hash = hashlib.sha1()
 	# File not found error is thrown up(wards)
 	with open(filename, 'rb') as f:
@@ -29,26 +29,28 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 
 	return (videos, videopath)
 
-def transcode_video(srcVideo, dstVideo, quiet=False):
+def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	quietText = ""
 	if quiet:
 		quietText = " -loglevel quiet"
 
-	cmd = "ffmpeg -y -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
+	opt = ""
+	if forceTranscode:
+		opt = "-y"
+	else:
+		opt = "-n"
+
+	cmd = "ffmpeg " + opt + " -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
 	if not quiet:
 		print (cmd)
 	subprocess.call(cmd,shell=True)
 
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
-def index_video(database, collection, videofile, searchable=True, uploaded=False, thumbpath = None):
+def index_video(database, collection, fileHash, videofile, searchable=True, uploaded=False, thumbpath = None):
 
 	videos, videopath = config(db=database, collection=collection)
 
 	vidpath = os.path.join(videopath, videofile);
-
-	#Get Hash
-	fileHash = hashFile(vidpath, 65536)
-	#if (fileHash is None): return False
 
 	#Check if this exact video exists already
 	video = videos.find_one({'_id': fileHash})
@@ -88,7 +90,7 @@ def index_video(database, collection, videofile, searchable=True, uploaded=False
 	fps = fv.getFramerate(vidpath)
 	video["fps"] = fps
 	
-	
+	video["removed"] = False
 	video["cuts"] = cuts
 	video["scenes"] = scenes
 
