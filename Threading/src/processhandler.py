@@ -138,10 +138,14 @@ class ProcessHandler:
 			self.lock.release()
 
 	"""
-	Waits for the queue and then let's a callable deal with the result
+	Runs a process and waits for the process (queue)
+	and then let's a callable deal with the result
 
 	@param queue		Queue wich will get one result put on
+	@param process		The process to run
 	@param onComplete	Callable that can work with this result
+	@param onCompleteArgs	args for onComplete
+	@param onCompleteKwargs	more args for onComplete
 	"""
 	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
 		res = False
@@ -249,6 +253,8 @@ class ProcessHandler:
 			finally:
 				self.lock.release()
 			time.sleep(waitTime)
+
+# Random test code
 
 def fib(n):
 	if n <= 2:
