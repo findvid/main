@@ -7,6 +7,7 @@ import os.path
 import math
 import threading
 import processhandler
+import time
 from pymongo import MongoClient
 
 FILE_TREE = "_tree.db"
@@ -68,12 +69,12 @@ def buildTree(data, k, maxiterations, recdepth = 0):
 		# Might be problematic if there are many of them as that could slow down searches.
 		# So they should be splitted in this case.
 		if len(centersNew) == 1:
-			tmp = range(k)
+			tmp = [[] for i in range(k)]
 			for i,v in enumerate(clusters[0]):
-				res[i%k].append(v)
+				tmp[i%k].append(v)
 
 			res = []
-			for cluster in res:
+			for cluster in tmp:
 				if len(cluster) < k:
 					child = KMeansTree(True, center, cluster)
 					res.append((child, None))
@@ -105,13 +106,18 @@ def buildTree(data, k, maxiterations, recdepth = 0):
 lock = threading.Lock()
 
 def treeBuilder(result, parent, processhandler, k, maxiterations, recdepth = 0):
+	for (tree,data) in result:
+		if not tree.isLeave:
+			if len(data) < 42:
+				res = buildTree(data=data, k=k, maxiterations=maxiterations, recdepth=recdepth)
+				treeBuilder(result=res, parent=tree, processhandler=processhandler, k=k, maxiterations=maxiterations, recdepth=recdepth)
+			else:
+				processhandler.runTask(priority=1, onComplete=treeBuilder, onCompleteArgs=(), onCompleteKwargs={"parent":tree, "processhandler":processhandler, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, target=buildTree, args=(), kwargs={"data":data, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, name=None)
 	lock.acquire()
 	try:
-		for (tree,data) in result:
+		for (tree,_) in result:
 			if parent != None:
 				parent.children.append(tree)
-			if not tree.isLeave:
-				processhandler.runTask(priority=1, onComplete=treeBuilder, onCompleteArgs=(), onCompleteKwargs={"parent":tree, "pha":pha, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, target=buildTree, args=(), kwargs={"data":data, "k":k, "maxiterations":maxiterations, "recdepth":recdepth}, name=None)
 	finally:
 		lock.release()
 
@@ -275,8 +281,9 @@ class SearchHandler:
 
 			print "Building Tree"
 			self.tree = KMeansTree(False, [], [])
-			treeBuilder(result=[tree, data], processhandler=processhandler, parent=None, k=k, maxiterations=imax)
+			treeBuilder(result=[(self.tree, data)], processhandler=processhandler, parent=None, k=k, maxiterations=imax)
 
+			time.sleep(200)
 			# TODO Wait for the Tree build to finish!
 
 			print "Saving Tree"
@@ -327,14 +334,14 @@ class SearchHandler:
 
 	@return			PrioriyQueue containing the results (>= wantedNNs if the tree is big enough)
 	"""
-	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, sourceVideo = None):
+	def search(self, vidHash, sceneId, wantedNNs=100, maxTouches=100, ignoreSource):
 		# Get feature of query scene
 		vid = self.videos.find_one({'_id':vidHash})
 		scene = vid['scenes'][sceneId]
 		query = self.flattenFeatures(scene)
 		# Copy the list of videos which won't be found and add the source Video
 		toIgnore = self.deletedVideos.copy()
-		if sourceVideo != None:
+		if ignoreSource:
 			toIgnore[sourceVideo] = True
 		# Search in the tree
 		results = self.tree.search(query, toIgnore, wantedNNs, maxTouches)
@@ -398,7 +405,7 @@ if __name__ == '__main__':
 	#"""
 	client = MongoClient(port=8099)
 	db = client["findvid"]
-	videos = db["benchmark_tiny"]#oldvids"]#"small"]
+	videos = db["benchmark"]#_tiny"]#oldvids"]#"small"]
 
 	vid = videos.find_one({'filename':{'$regex':'.*target.*'}})
 
@@ -406,7 +413,7 @@ if __name__ == '__main__':
 
 	searchHandler.addVideo(vid['_id'])
 
-	results = searchHandler.search(vid['_id'], 0, 100, 1000, vid['_id'])
+	results = searchHandler.search(vid['_id'], 0, 100, 1000, True)
 
 	for i in range(10):
 		(d, vid) = results.get()
