@@ -116,10 +116,10 @@ class ProcessHandler:
 				while len(waiting) > 0:
 					if not self.freeProcess(priority):
 						break
-					onComplete, target, args, kwargs, name = waiting.pop(0)
+					onComplete, ocArgs, ocKwargs, target, args, kwargs, name = waiting.pop(0)
 					results = multiprocessing.Queue()
 					process = multiprocessing.Process(target=resultPacker, args=(results, target, args, kwargs), name=name)
-					thread = threading.Thread(target=self.runProcess, args=(results, onComplete, process))
+					thread = threading.Thread(target=self.runProcess, args=(results, process, onComplete, ocArgs, ocKwargs))
 					thread.start()
 					active.append(process)
 					if self.debug:
@@ -143,7 +143,7 @@ class ProcessHandler:
 	@param queue		Queue wich will get one result put on
 	@param onComplete	Callable that can work with this result
 	"""
-	def runProcess(self, queue, onComplete, process):
+	def runProcess(self, queue, process, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}):
 		process.start()
 		res = queue.get()
 		#process.join()
@@ -158,31 +158,48 @@ class ProcessHandler:
 		#	self.lock.release()
 		process.join()
 		self.update()
-		onComplete(res)
+		if onComplete != None:
+			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
 
 	"""
 	Run a task in it's own process and executes another callable on the result
 	in an own thread
 
 	@param priority		Priority of the task
-	@param onComplete		Callable that will deal with the result of target
+	@param onComplete	Callable that will deal with the result of target
+	@param onCompleteArgs	Arguments for target
+	@param onCompleteKwargs	Keyword arguments for target
+	@param target		Callable that represents the task
+	@param args		Arguments for target
+	@param kwargs		Keyword arguments for target
+	@param name		Name of the process
+	"""
+	def runTask(self, target, args=(), kwargs={}, priority=0, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}, name=None):
+		if priority >= self.maxPrioritys or priority < 0:
+			raise "Fuckedup Priority"
+		self.lock.acquire()
+		try:
+			self.waitingProcesses[priority].append((onComplete, onCompleteArgs, onCompleteKwargs, target, args, kwargs, name))
+		finally:
+			self.lock.release()
+
+		self.update()
+
+	"""
+	Run a task in it's own process and returns the result once it's done
+
+	@param priority		Priority of the task
 	@param target		Callable that represents the task
 	@param args		Arguments for target
 	@param kwargs		Keyword arguments for target
 	@param name		Name of the process
 
-	@return			A pair of the thread and the process
+	@return			
 	"""
-	def runTask(self, priority, onComplete, target, args=(), kwargs={}, name=None):
-		if priority >= self.maxPrioritys or priority < 0:
-			raise "Fuckedup Priority"
-		self.lock.acquire()
-		try:
-			self.waitingProcesses[priority].append((onComplete, target, args, kwargs, name))
-		finally:
-			self.lock.release()
-
-		self.update()
+	def runTaskWait(self, target, args=(), kwargs={}, priority=0, name=None):
+		res = Queue.Queue()
+		self.runTask(target=target, args=args, kwargs=kwargs, priority=priority, onComplete=res.put, onCompleteArgs=(), name=name)
+		return res.get()
 
 	"""
 	Shoots a process
@@ -192,9 +209,27 @@ class ProcessHandler:
 	def stopProcess(self, process):
 		try:
 			os.kill(process.pid, signal.SIGKILL)
+			# TODO make sure the process is gone
+			self.update()
 		except OSError, e:
 			print "Tried to shoot process but it's already gone?", process.pid
-		
+
+	"""
+	Waits till all processes of a priority are finished and then returns
+
+	@param priority		The priority to wait for
+	@param waitTime		Amount of seconds between checking
+	"""
+	def waitForPriority(self, priority, waitTime=1):
+		while True:
+			count = 0
+			self.lock.acquire()
+			try:
+				if (len(self.pausedProcesses[priority]) + len(self.waitingProcesses[priority]) + len(self.activeProcesses[priority])) == 0:
+					return
+			finally:
+				self.lock.release()
+			time.sleep(waitTime)
 
 def fib(n):
 	if n <= 2:
@@ -211,15 +246,19 @@ if __name__ == '__main__':
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(0))
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(1))
 
-	for prio in range(4):
-		for i in range(1000):
-			ph.runTask(prio, printer, fib, args=tuple([34]), name=str(prio)+"-"+str(i))
+	print ph.runTaskWait(priority=0, target=fib, args=tuple([38]))
 
+	for prio in range(4):
+		for i in range(10):
+			ph.runTask(priority=prio, onComplete=printer, target=fib, args=tuple([34]), name=str(prio)+"-"+str(i))
+
+	ph.waitForPriority(2, 1)
+	print "Done!"
 	#time.sleep(100)
-	print "I'm out"
-	while True:
-		time.sleep(1)
-		ph.update()
+	#print "I'm out"
+	#while True:
+	#	time.sleep(1)
+	#	ph.update()
 
 
 	"""
