@@ -4,6 +4,7 @@ import shutil
 import os
 import argparse
 import re
+import socket
 
 from sys import stdout, stderr
 
@@ -432,6 +433,8 @@ class Root(object):
 	# This function is intended to be called by javascript only.
 	@cherrypy.expose
 	def upload(self, searchable):
+		cherrypy.response.timeout = 1000000
+
 		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
 
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
@@ -447,7 +450,7 @@ class Root(object):
 		i = 2
 		while os.path.exists(destination):
 			destination = os.path.join(UPLOADDIR, basename + "_" + "%1.2d" % i + extension)
-			logInfo('File allready exists, renaming to %s!' % destination)
+			logInfo('File already exists, renaming to %s!' % destination)
 			i+=1
 
 		basename = os.path.splitext(os.path.basename(destination))[0]
@@ -455,21 +458,27 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
-		logInfo("Transcoding Video to mp4!")
-		newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
-		filename = os.path.basename(newdestination)
+		if extension != '.mp4':
+			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
+			filename = os.path.basename(newdestination)
+			HANDLER.runTask(priority=1, onComplete=None, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename))
+		else:
+			HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename))
+
+	def transcodeAndIndexUpload(self, destination, newdestination, searchable, filename):
+		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 		idx.transcode_video(destination, newdestination, quiet=True)
-		logInfo("Transcoding finished.")
-		
+		logInfo("Transcoding finished - '%s'" % filename)
+
 		if destination != newdestination:
 			os.remove(destination)
 
-		HANDLER.runTask(priority=0, onComplete=indexComplete, target=indexUpload, args=(searchable))
+		HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename))
 
-	def indexUpload(self, searchable):
-		logInfo("Indexing Video.")
-		vidid = idx.index_video(VIDEOS, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
-		logInfo("Indexing finished.")
+	def indexUpload(self, searchable, filename):
+		logInfo("Indexing Video - '%s'" % filename)
+		vidid = idx.index_video(DBNAME, COLNAME, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
+		logInfo("Indexing finished - '%s'" % filename)
 
 	def indexComplete(self, vidid):
 		if vidid == None:
@@ -529,6 +538,7 @@ if __name__ == '__main__':
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big
 	cherrypy.server.max_request_body_size = 0
+	cherrypy.server.socket_timeout = 3600
 
 	if hasattr(cherrypy.engine, 'block'):
 		# 3.1 syntax
