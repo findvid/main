@@ -29,12 +29,18 @@ def config(db="findvid", collection="videos", config={"_id": "config"}):
 CONFIG = config() # abs, thumbnail, video
 VIDEOPATH = CONFIG["abspath"] + CONFIG["videopath"]
 
-def transcode_video(srcVideo, dstVideo, quiet=False):
+def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	quietText = ""
 	if quiet:
 		quietText = " -loglevel quiet"
 
-	cmd = "ffmpeg -y -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
+	opt = ""
+	if forceTranscode:
+		opt = "-y"
+	else:
+		opt = "-n"
+
+	cmd = "ffmpeg " + opt + " -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
 	if not quiet:
 		print (cmd)
 	subprocess.call(cmd,shell=True)

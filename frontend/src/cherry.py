@@ -440,13 +440,14 @@ class Root(object):
 		destination = os.path.join(UPLOADDIR, filename)
 
 		i = 2
-		while os.path.exists(destination):
+		while os.path.exists(destination) or os.path.exists(os.path.splitext(destination)[0] + '.mp4'):
 			destination = os.path.join(UPLOADDIR, basename + "_" + "%1.2d" % i + extension)
 			logInfo('File allready exists, renaming to %s!' % destination)
+
 			i+=1
 
 		basename = os.path.splitext(os.path.basename(destination))[0]
-
+		
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 
