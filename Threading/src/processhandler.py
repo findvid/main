@@ -166,13 +166,13 @@ class ProcessHandler:
 	in an own thread
 
 	@param priority		Priority of the task
-	@param onComplete		Callable that will deal with the result of target
+	@param onComplete	Callable that will deal with the result of target
+	@param onCompleteArgs	Arguments for target
+	@param onCompleteKwargs	Keyword arguments for target
 	@param target		Callable that represents the task
 	@param args		Arguments for target
 	@param kwargs		Keyword arguments for target
 	@param name		Name of the process
-
-	@return			A pair of the thread and the process
 	"""
 	def runTask(self, target, args=(), kwargs={}, priority=0, onComplete=None, onCompleteArgs=(), onCompleteKwargs={}, name=None):
 		if priority >= self.maxPrioritys or priority < 0:
@@ -186,6 +186,22 @@ class ProcessHandler:
 		self.update()
 
 	"""
+	Run a task in it's own process and returns the result once it's done
+
+	@param priority		Priority of the task
+	@param target		Callable that represents the task
+	@param args		Arguments for target
+	@param kwargs		Keyword arguments for target
+	@param name		Name of the process
+
+	@return			
+	"""
+	def runTaskWait(self, target, args=(), kwargs={}, priority=0, name=None):
+		res = Queue.Queue()
+		self.runTask(target=target, args=args, kwargs=kwargs, priority=priority, onComplete=res.put, onCompleteArgs=(), name=name)
+		return res.get()
+
+	"""
 	Shoots a process
 
 	@param process		The process that should get stopped
@@ -193,6 +209,8 @@ class ProcessHandler:
 	def stopProcess(self, process):
 		try:
 			os.kill(process.pid, signal.SIGKILL)
+			# TODO make sure the process is gone
+			self.update()
 		except OSError, e:
 			print "Tried to shoot process but it's already gone?", process.pid
 
@@ -227,6 +245,8 @@ if __name__ == '__main__':
 	ph = ProcessHandler(8)
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(0))
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(1))
+
+	print ph.runTaskWait(priority=0, target=fib, args=tuple([38]))
 
 	for prio in range(4):
 		for i in range(10):
