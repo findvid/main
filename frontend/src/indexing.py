@@ -44,7 +44,8 @@ def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	cmd = "ffmpeg " + opt + " -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
 	if not quiet:
 		print (cmd)
-	subprocess.call(cmd,shell=True)
+	cmd = shlex.split(cmd)
+	return subprocess.call(cmd,shell=False)
 
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
 def index_video(database, collection, fileHash, videofile, searchable=True, uploaded=False, thumbpath = None):
@@ -64,6 +65,7 @@ def index_video(database, collection, fileHash, videofile, searchable=True, uplo
 		else:
 			return None
 
+	print "Get cuts of " , vidpath
 	#Use C-Lib to get cuts in the video
 	cuts = fv.getCuts(vidpath)
 	#Heuristic approach: Suitable keyframe between 2 cuts

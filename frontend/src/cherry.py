@@ -85,6 +85,21 @@ class Root(object):
 	# Searchtree Object
 	TREE = None
 
+	def __init__(self):
+		# Build tree; CURRENTLY DONE IN MAIN
+		#self.TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+		#self.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
+		
+		# Restart index processes in journal
+		cursor = INDEXES.find()
+		for proc in cursor:
+			if proc["type"] == "Transkodieren":
+				HANDLER.runTask(priority=1, onComplete=self.indexAndTranscodeComplete, target=self.transcodeAndIndexUpload, args=(proc["src"], proc["dst"], proc["searchable"], proc["filename"], proc["_id"]), kwargs={'restarted' : True},name=proc["_id"], onCompleteArgs=(proc["src"], proc["dst"], proc["_id"]))
+			else: # "Indizieren"
+				HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(proc["searchable"], proc["filename"], proc["_id"]), kwargs={'restarted' : True},name=proc["_id"], onCompleteArgs=tuple([proc["_id"]]))
+			logInfo("Restarting process " + proc["_id"] + " from journal")
+		
+
 	# Returns the startpage, where the history is shown
 	@cherrypy.expose
 	def index(self):
@@ -320,7 +335,6 @@ class Root(object):
 
 		for indexProcess in cursorIndexingProcesses:
 			content += self.renderTemplate('indexes.html', self.configIndexProc(indexProcess))
-			print "Found indproc for file " , indexProcess["filename"]
 
 		config = {
 		'title': 'Currently Indexing',
@@ -582,7 +596,7 @@ class Root(object):
 		else:
 			HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash),name=vidHash, onCompleteArgs=tuple([vidHash]))
 
-	def transcodeAndIndexUpload(self, destination, newdestination, searchable, filename, vidHash):
+	def transcodeAndIndexUpload(self, source, destination, searchable, filename, vidHash, restarted = False):
 		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 	
 		if bool(searchable):
@@ -592,43 +606,54 @@ class Root(object):
 
 		#Create an entry in "indexes" collection
 		t = time()
-		index = {}
-		index["_id"] = vidHash
-		index["timestamp"] = t
-		index["filename"] = filename
-		index["type"] = "Transkodieren"
-		INDEXES.insert(index)
+		if not restarted:
+			#Create an entry in "indexes" collection
+			index = {}
+			index["_id"] = vidHash
+			index["timestamp"] = t
+			index["filename"] = filename
+			index["src"] = source
+			index["dst"] = destination
+			index["searchable"] = searchable
+			index["type"] = "Transkodieren"
+			INDEXES.insert(index)
 
-		idx.transcode_video(destination, newdestination, quiet=True)
-		
+		r = idx.transcode_video(source, destination, quiet=True)
+
+		if r != 0:
+			logError("Transcoding of video '%s' has failed" % filename)
+
+
+
 		#Remove the entry to mark this indexing process as done
 		INDEXES.remove({"_id" : vidHash, "timestamp" : t, "filename" : filename, "type" : "Transkodieren"})
 
 		logInfo("Transcoding finished - '%s'" % filename)
 
-		if destination != newdestination:
-			os.remove(destination)
+		#if source != destination:
+		#	os.remove(destination)
 
-		HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), onCompleteArgs=tuple([vidHash]), name=vidHash)
+		HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, onCompleteArgs=tuple([vidHash]), name=vidHash)
 
-	def indexUpload(self, searchable, filename, vidHash):
+	def indexUpload(self, searchable, filename, vidHash, restarted = False):
 		logInfo("Indexing Video - '%s'" % filename)
 		
-		#Create an entry in "indexes" collection
 		t = time()
-		index = {}
-		index["_id"] = vidHash
-		index["timestamp"] = t
-		index["filename"] = filename
-		index["type"] = "Indizieren"
-		INDEXES.insert(index)
+		if not restarted:
+			#Create an entry in "indexes" collection
+			index = {}
+			index["_id"] = vidHash
+			index["timestamp"] = t
+			index["filename"] = filename
+			index["type"] = "Indizieren"
+			INDEXES.insert(index)
 
 		vidid = idx.index_video(DBNAME, COLNAME, vidHash, os.path.join('uploads/', filename), searchable=bool(int(searchable)), uploaded=True, thumbpath=THUMBNAILDIR)
 
 		#Remove the entry to mark this indexing process as done
-		INDEXES.remove({"_id" : vidHash, "timestamp" : t, "filename" : filename, "type" : "Indizieren"})
+		INDEXES.remove({"_id" : vidHash})
 
-		logInfo("Indexing finished - '%s'" % filename)
+		logInfo("Indexing finished - '%s', removed process '%s' from journal" % (filename, vidHash))
 		return vidid
 
 	def indexAndTranscodeComplete(self, res, sourcefile, targetfile, vidHash):
@@ -640,13 +665,16 @@ class Root(object):
 		# For processes that directly indexed, indexComplete is registered as callback
 
 		# delete source video
-		os.remove(sourcefile)
+		if os.path.exists(sourcefile): #Merely a defensive mechanism, should be always true
+			os.remove(sourcefile)
 
 		# process was killed by user, remove the targetfile aswell
-		if res == False and os.path.exists(targetfile):
+		if res == False and os.path.exists(targetfile) and targetfile != sourcefile:
 			os.remove(targetfile)
 
-		return indexComplete(res, vidHash)
+		# Hack to remove transcodings from the journal for sure
+		INDEXES.remove({"_id" : vidHash})
+		return self.indexComplete(res, vidHash)
 
 	def indexComplete(self, res, vidHash):
 		# process died, delete thumbnails folder if it exists and 
