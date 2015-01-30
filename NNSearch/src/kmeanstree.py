@@ -425,7 +425,7 @@ class SearchHandler:
 
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
-			if not filterChecked or video != vidHash:
+			if filterChecked or video != vidHash:
 				resqueue.put((dist(query,feature),(video, scene)))
 
 		results = []

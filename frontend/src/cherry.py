@@ -66,8 +66,6 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
-# Searchtree Object
-TREE = None
 
 # Filename of saved tree
 STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
@@ -86,6 +84,8 @@ def logError(message):
 # Root of the whole CherryPy Server
 class Root(object):
 	filterChecked = True
+	# Searchtree Object
+	TREE = None
 
 	# Returns the startpage, where the history is shown
 	@cherrypy.expose
@@ -139,7 +139,7 @@ class Root(object):
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
-				simPercent = int(TREE.distQuality(distance) * 100)
+				simPercent = int(self.TREE.distQuality(distance) * 100)
 
 				sceneConfig = self.configScene(similarVideo, similarSceneid)
 				sceneConfig.update ({
@@ -392,7 +392,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
+		similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
 
 		HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
 
@@ -411,7 +411,7 @@ class Root(object):
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
-				simPercent = int(TREE.distQuality(distance) * 100)
+				simPercent = int(self.TREE.distQuality(distance) * 100)
 
 				sceneConfig = self.configScene(similarVideo, similarSceneid)
 				sceneConfig.update ({
@@ -450,7 +450,7 @@ class Root(object):
 				sceneid = i-1
 				break
 
-		similarScenes = TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(limit), maxTouches=int(nnlimit), filterChecked=True)
+		similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=int(limit), maxTouches=int(nnlimit), filterChecked=True)
 
 		result = ""
 
@@ -514,7 +514,7 @@ class Root(object):
 		if not vidid:
 			raise cherrypy.HTTPRedirect('/')
 		
-		TREE.deleteVideo(vidid)
+		self.TREE.deleteVideo(vidid)
 		VIDEOS.update({'_id': vidid}, {'$set': {'removed': True}})
 		
 		raise cherrypy.HTTPRedirect('/')
@@ -553,17 +553,23 @@ class Root(object):
 
 		SHADOWLOCK.acquire()
 		try:
-			if TREE.shadowCopy == None:
-				TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + time(), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+			if self.TREE.shadowCopy == None:
+				self.TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + str(time()), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
 			else:
 				return
 		finally:
 			SHADOWLOCK.release()
 		
-		#TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
+		self.TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
 
-		#TREE = TREE.shadowCopy
+		self.TREE = self.TREE.shadowCopy
+		#TREE = TREE2
+		#self.setTree(TREE.shadowCopy)
 		logInfo("Tree was built and swapped!")
+
+	# Cannot assign TREE = TREE2
+	def setTree(self, TREE2):
+		self.TREE = TREE2
 
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.
@@ -608,7 +614,7 @@ class Root(object):
 		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 	
 		#Create an entry in "indexes" collection
-		t = time.time()
+		t = time()
 		index = {}
 		index["_id"] = vidHash
 		index["timestamp"] = t
@@ -632,7 +638,7 @@ class Root(object):
 		logInfo("Indexing Video - '%s'" % filename)
 		
 		#Create an entry in "indexes" collection
-		t = time.time()
+		t = time()
 		index = {}
 		index["_id"] = vidHash
 		index["timestamp"] = t
@@ -677,7 +683,7 @@ class Root(object):
 			logError("File already exists.")
 			return False
 		else:
-			TREE.addVideo(vidHash=vidHash)
+			self.TREE.addVideo(vidHash=vidHash)
 			logInfo("Video successfully completed. VideoID: %s" % vidHash)
 			return True
 
@@ -721,13 +727,16 @@ if __name__ == '__main__':
 		}
 	}
 
+	root = Root()
+	cherrypy.tree.mount(root, '/', conf)
+
+
 	# Build Searchtree
 
 	# TODO: Exception Handling
-	TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
-	TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
+	root.TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+	root.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
 
-	cherrypy.tree.mount(Root(), '/', conf)
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big
 	cherrypy.server.max_request_body_size = 0
