@@ -66,9 +66,19 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
+files = os.listdir(CONFIG['abspath'])
 
-# Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
+files = sorted(files)
+
+treefiles = []
+for name in files:
+	if name.startswith(FILENAME):
+		treefiles.append(name)
+
+if len(treefiles) == 0:
+	STORETREE = os.path.join(CONFIG['abspath'], FILENAME + "_" + str(int(time())))
+else:
+	STORETREE = os.path.join(CONFIG['abspath'], FILENAME + "_" + treefiles[-1].split('_')[-2])
 
 # Multithreading
 HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
@@ -523,7 +533,7 @@ class Root(object):
 		lock.acquire()
 		try:
 			if not treeInstance.shadowCopy:
-				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + time(), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
+				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + "_" + str(int(time())), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
 			else:
 				return
 		finally:
@@ -555,7 +565,7 @@ class Root(object):
 		SHADOWLOCK.acquire()
 		try:
 			if self.TREE.shadowCopy == None:
-				self.TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + str(time()), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+				self.TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + "_" + str(int(time())), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
 			else:
 				return
 		finally:
@@ -705,6 +715,9 @@ class Root(object):
 		
 		raise cherrypy.HTTPRedirect('/')
 
+def killProcesses():
+	HANDLER.nukeEverything()
+
 if __name__ == '__main__':
 
 	cherrypy.config.update({
@@ -756,6 +769,10 @@ if __name__ == '__main__':
 
 	if hasattr(cherrypy.engine, 'block'):
 		# 3.1 syntax
+		if hasattr(cherrypy.engine, 'signal_handler'):
+			cherrypy.engine.signal_handler.set_handler('SIGTERM', killProcesses)
+			cherrypy.engine.signal_handler.subscribe()
+
 		cherrypy.engine.start()
 		cherrypy.engine.block()
 	else:
