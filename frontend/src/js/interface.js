@@ -1,4 +1,6 @@
-function upload(file, searchable) {
+var UPLOADNUM = 0;
+
+function upload(file, searchable, uploadnum) {
 	var xhr = new XMLHttpRequest();
 
 	$('.uploadprogress').show();
@@ -8,8 +10,12 @@ function upload(file, searchable) {
 
 		if (event.loaded == event.total) {
 			//$('.uploadprogress').hide();
-			$('.uploadprogress .label.progressmessage').html('Upload successfully completed.').css('width', '225px');
-			$('.uploadprogress .button.abort').html('CLOSE');
+			
+			UPLOADNUM++;
+			if (UPLOADNUM == uploadnum) {
+				$('.uploadprogress .label.progressmessage').html('Upload successfully completed.').css('width', '225px');
+				$('.uploadprogress .button.abort').html('CLOSE');	
+			}
 		}
 
 	});
@@ -240,13 +246,13 @@ $(function() {
 
 	$('#uploadfile').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
-			upload(event.target.files[i], 1);
+			upload(event.target.files[i], 1, event.target.files.length);
 		}
 	});
 
 	$('#uploadassrc').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
-			upload(event.target.files[i], 0);
+			upload(event.target.files[i], 0, event.target.files.length);
 		}
 	});
 
