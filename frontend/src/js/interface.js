@@ -231,11 +231,11 @@ $(function() {
 	});
 
 	$('.button.index').on('click', function() {
-		alert('Building tree was started.')
 		$.ajax({
 			url: '/shadowTree',
 			type: 'GET',
 		});
+		alert('Building tree was started.')
 	});
 
 	$('#uploadfile').change(function(event) {
