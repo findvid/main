@@ -59,6 +59,10 @@ HISTORY = DB["history"][COLNAME]
 # Get config from MongoDb
 CONFIG = VIDEOS.find_one({'_id': 'config'})
 
+if CONFIG == None:
+	VIDEOS.insert({"_id" : "config", "abspath" : "/video2/videosearch/findvid/", "videopath" : "videos", "thumbnailpath" : "thumbnails"})
+	CONFIG = VIDEOS.find_one({'_id': 'config'})
+
 # Directories for Videos and Thumbnails (configured in CONFIG)
 VIDEODIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['videopath']))
 THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnailpath']))
@@ -633,7 +637,7 @@ class Root(object):
 		#if source != destination:
 		#	os.remove(destination)
 
-		HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, onCompleteArgs=tuple([vidHash]), name=vidHash)
+		HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, onCompleteArgs=tuple([vidHash]), name=vidHash)
 
 	def indexUpload(self, searchable, filename, vidHash, restarted = False):
 		logInfo("Indexing Video - '%s'" % filename)
