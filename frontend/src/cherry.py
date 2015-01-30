@@ -587,7 +587,7 @@ class Root(object):
 		with open(destination, 'wb') as f:
 			shutil.copyfileobj(cherrypy.request.body, f)
 		
-		vidHash = idx.hashFile(os.path.join(CONFIG["abspath"], CONFIG["videopath"], UPLOADDIR, filename), 65536)
+		vidHash = idx.hashFile(destination, 65536)
 
 		if extension != '.mp4':
 			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")

@@ -418,6 +418,7 @@ class SearchHandler:
 		toIgnore = self.deletedVideos.copy()
 		if not filterChecked:
 			toIgnore[vidHash] = True
+
 		# Search in the tree
 		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
 		resqueue = Queue.PriorityQueue()
@@ -432,6 +433,8 @@ class SearchHandler:
 
 		results = []
 		for i in range(wantedNNs):
+			if resqueue.empty():
+				break
 			results.append(resqueue.get())
 
 		return results
