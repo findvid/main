@@ -532,37 +532,10 @@ class Root(object):
 		
 		raise cherrypy.HTTPRedirect('/')
 
-	def buildNewTree(self, lock, treeInstance, treeargs):
-		lock.acquire()
-		try:
-			if not treeInstance.shadowCopy:
-				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + "_" + str(int(time())), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
-			else:
-				return
-		finally:
-			lock.release()
-		
-		treeInstance.shadowCopy.loadOrBuildTree(k=treeargs['ksplit'], imax=treeargs['kmax'], forceRebuild=True)
-
-		treeInstance = treeInstance.shadowCopy
-		logInfo("Tree was build and swapped!")
-		
-
 	@cherrypy.expose
 	def shadowTree(self):
 		print "Try to Shadow Tree"
 		
-		#treeargs = {
-		#	'videos': VIDEOS,
-		#	'storetree': STORETREE,
-		#	'featureWeight': FEATUREWEIGHT,
-		#	'ksplit': KSPLIT,
-		#	'kmax': KMAX,
-		#	'handler': HANDLER
-		#}
-
-		#thread = threading.Thread(target=self.buildNewTree, args=(SHADOWLOCK, TREE, treeargs))
-		#thread.start()
 		SHADOWLOCK.acquire()
 		try:
 			if self.TREE.shadowCopy == None:
@@ -575,14 +548,7 @@ class Root(object):
 		self.TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
 
 		self.TREE = self.TREE.shadowCopy
-		print self.TREE.name
-		#TREE = TREE2
-		#self.setTree(TREE.shadowCopy)
 		logInfo("Tree was built and swapped!")
-
-	# Cannot assign TREE = TREE2
-	def setTree(self, TREE2):
-		self.TREE = TREE2
 
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.
