@@ -69,6 +69,8 @@ UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 # Multithreading
 HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
 
+STORETREE = os.path.join(CONFIG["abspath"], FILENAME)
+
 SHADOWLOCK = threading.Lock()
 
 def logInfo(message):
