@@ -582,6 +582,11 @@ class Root(object):
 
 		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
 
+		if bool(searchable):
+			priority = 0
+		else:
+			priority = 2
+
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
 		basename = os.path.splitext(filename)[0]
 		extension = os.path.splitext(filename)[1]
@@ -595,7 +600,7 @@ class Root(object):
 		i = 2
 		while os.path.exists(destination) or os.path.exists(os.path.splitext(destination)[0] + '.mp4'):
 			destination = os.path.join(UPLOADDIR, basename + "_" + "%1.2d" % i + extension)
-			logInfo('File allready exists, renaming to %s!' % destination)
+			logInfo('File already exists, renaming to %s!' % destination)
 
 			i+=1
 
@@ -609,13 +614,18 @@ class Root(object):
 		if extension != '.mp4':
 			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
 			filename = os.path.basename(newdestination)
-			HANDLER.runTask(priority=1, onComplete=self.indexAndTranscodeComplete, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename, vidHash),name=vidHash, onCompleteArgs=(destination, newdestination, vidHash))
+			HANDLER.runTask(priority=priority, onComplete=self.indexAndTranscodeComplete, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename, vidHash),name=vidHash, onCompleteArgs=(destination, newdestination, vidHash))
 		else:
-			HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash),name=vidHash, onCompleteArgs=tuple([vidHash]))
+			HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash),name=vidHash, onCompleteArgs=tuple([vidHash]))
 
 	def transcodeAndIndexUpload(self, destination, newdestination, searchable, filename, vidHash):
 		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 	
+		if bool(searchable):
+			priority = 0
+		else:
+			priority = 2
+
 		#Create an entry in "indexes" collection
 		t = time()
 		index = {}
@@ -635,7 +645,7 @@ class Root(object):
 		if destination != newdestination:
 			os.remove(destination)
 
-		HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), onCompleteArgs=tuple([vidHash]), name=vidHash)
+		HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), onCompleteArgs=tuple([vidHash]), name=vidHash)
 
 	def indexUpload(self, searchable, filename, vidHash):
 		logInfo("Indexing Video - '%s'" % filename)

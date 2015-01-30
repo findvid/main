@@ -6,15 +6,10 @@ function upload(file, searchable) {
 	xhr.upload.addEventListener('progress', function(event) {
 		console.log('progress', file.name, event.loaded, event.total);
 
-		var perc = Math.round((event.loaded / event.total) * 100);
-
-		if (perc == 100) {
+		if (event.loaded == event.total) {
 			//$('.uploadprogress').hide();
-			$('.uploadprogress .label.progress').html('');
-			$('.uploadprogress .label.progressmessage').html('Upload successful, processing...').css('width', '230px');
-			$('.uploadprogress .button.abort').css('top', '60px');
-		} else {
-			$('.uploadprogress .label.progress').html(perc + '%');
+			$('.uploadprogress .label.progressmessage').html('Upload successfully completed.').css('width', '225px');
+			$('.uploadprogress .button.abort').html('CLOSE');
 		}
 
 	});
@@ -25,10 +20,6 @@ function upload(file, searchable) {
 			xhr.readyState, 
 			xhr.readyState == 4 && xhr.status
 	 	);
-	 	if (xhr.readyState == 4) {
-			$('.uploadprogress .label.progressmessage').html('Upload completed.').css('width', '140px');;
-			$('.uploadprogress .button.abort').html('CLOSE');
-		}
 	});
 
 	xhr.open('POST', '/upload?searchable=' + searchable, true);
