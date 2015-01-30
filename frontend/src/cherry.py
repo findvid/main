@@ -565,6 +565,7 @@ class Root(object):
 		self.TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
 
 		self.TREE = self.TREE.shadowCopy
+		print self.TREE.name
 		#TREE = TREE2
 		#self.setTree(TREE.shadowCopy)
 		logInfo("Tree was built and swapped!")
