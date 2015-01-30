@@ -156,6 +156,9 @@ class Root(object):
 
 				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
+				if similarVideo == None:
+					continue
+
 				simPercent = int(self.TREE.distQuality(distance) * 100)
 
 				sceneConfig = self.configScene(similarVideo, similarSceneid)
@@ -430,6 +433,9 @@ class Root(object):
 
 					similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
 
+					if similarVideo == None:
+						continue
+
 					simPercent = int(self.TREE.distQuality(distance) * 100)
 
 					sceneConfig = self.configScene(similarVideo, similarSceneid)
@@ -636,8 +642,11 @@ class Root(object):
 
 		#if source != destination:
 		#	os.remove(destination)
-		result = HANDLER.runTaskWait(priority=priority, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, name=vidHash)
-		self.indexComplete(result, vidHash)
+
+		result2 = self.indexUpload(searchable, filename, vidHash, restarted=restarted)
+		return self.indexComplete(result2, vidHash)
+		#result = HANDLER.runTaskWait(priority=priority, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, name=vidHash)
+	#	self.indexComplete(result, vidHash)
 
 	def indexUpload(self, searchable, filename, vidHash, restarted = False):
 		logInfo("Indexing Video - '%s'" % filename)
