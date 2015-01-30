@@ -460,7 +460,7 @@ class Root(object):
 		# If video is unspecified, redirect to startpage
 		if not vidid:
 			raise cherrypy.HTTPRedirect('/')
-
+		
 		TREE.deleteVideo(vidid)
 		VIDEOS.update({'_id': vidid}, {'$set': {'removed': True}})
 		
@@ -485,6 +485,7 @@ class Root(object):
 	@cherrypy.expose
 	def shadowTree(self):
 		print "Try to Shadow Tree"
+		
 		#treeargs = {
 		#	'videos': VIDEOS,
 		#	'storetree': STORETREE,
@@ -499,17 +500,17 @@ class Root(object):
 
 		SHADOWLOCK.acquire()
 		try:
-			if not TREE.shadowCopy:
+			if TREE.shadowCopy == None:
 				TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + time(), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
 			else:
 				return
 		finally:
 			SHADOWLOCK.release()
 		
-		TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
+		#TREE.shadowCopy.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=True)
 
-		TREE = TREE.shadowCopy
-		logInfo("Tree was build and swapped!")
+		#TREE = TREE.shadowCopy
+		logInfo("Tree was built and swapped!")
 
 	# Uploads a video to the server, writes it to database and start processing
 	# This function is intended to be called by javascript only.

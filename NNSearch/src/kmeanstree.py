@@ -281,6 +281,9 @@ class SearchHandler:
 		self.videos = videos
 		self.featureWeight = featureWeight
 		self.processHandler = processHandler
+		self.shadowCopy = None
+		self.addedScenes = []
+		self.deletedVideos = dict()
 
 	"""
 	Loads the tree or builds it if needed/requested
@@ -415,10 +418,20 @@ class SearchHandler:
 			toIgnore[vidHash] = True
 		# Search in the tree
 		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
+		resqueue = Queue.PriorityQueue()
+
+		for result in results:
+			resqueue.put(result)
+
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
 			if not filterChecked or video != vidHash:
-				results.put((dist(query,feature),(video, scene)))
+				resqueue.put((dist(query,feature),(video, scene)))
+
+		results = []
+		for i in range(wantedNNs):
+			results.append(resqueue.get())
+
 		return results
 
 	"""
