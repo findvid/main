@@ -1,4 +1,6 @@
-function upload(file, searchable) {
+var UPLOADNUM = 0;
+
+function upload(file, searchable, uploadnum) {
 	var xhr = new XMLHttpRequest();
 
 	$('.uploadprogress').show();
@@ -6,15 +8,14 @@ function upload(file, searchable) {
 	xhr.upload.addEventListener('progress', function(event) {
 		console.log('progress', file.name, event.loaded, event.total);
 
-		var perc = Math.round((event.loaded / event.total) * 100);
-
-		if (perc == 100) {
+		if (event.loaded == event.total) {
 			//$('.uploadprogress').hide();
-			$('.uploadprogress .label.progress').html('');
-			$('.uploadprogress .label.progressmessage').html('Upload successful, processing...').css('width', '230px');
-			$('.uploadprogress .button.abort').css('top', '60px');
-		} else {
-			$('.uploadprogress .label.progress').html(perc + '%');
+			
+			UPLOADNUM++;
+			if (UPLOADNUM == uploadnum) {
+				$('.uploadprogress .label.progressmessage').html('Upload successfully completed.').css('width', '225px');
+				$('.uploadprogress .button.abort').html('CLOSE');	
+			}
 		}
 
 	});
@@ -25,10 +26,6 @@ function upload(file, searchable) {
 			xhr.readyState, 
 			xhr.readyState == 4 && xhr.status
 	 	);
-	 	if (xhr.readyState == 4) {
-			$('.uploadprogress .label.progressmessage').html('Upload completed.').css('width', '140px');;
-			$('.uploadprogress .button.abort').html('CLOSE');
-		}
 	});
 
 	xhr.open('POST', '/upload?searchable=' + searchable, true);
@@ -240,22 +237,22 @@ $(function() {
 	});
 
 	$('.button.index').on('click', function() {
-		alert('Building tree was started.')
 		$.ajax({
 			url: '/shadowTree',
 			type: 'GET',
 		});
+		alert('Building tree was started.')
 	});
 
 	$('#uploadfile').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
-			upload(event.target.files[i], 1);
+			upload(event.target.files[i], 1, event.target.files.length);
 		}
 	});
 
 	$('#uploadassrc').change(function(event) {
 		for(var i = 0; i < event.target.files.length; i += 1) {
-			upload(event.target.files[i], 0);
+			upload(event.target.files[i], 0, event.target.files.length);
 		}
 	});
 

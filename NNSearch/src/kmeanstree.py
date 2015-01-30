@@ -422,8 +422,9 @@ class SearchHandler:
 		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
 		resqueue = Queue.PriorityQueue()
 
-		for result in results:
-			resqueue.put(result)
+		if results:
+			for result in results:
+				resqueue.put(result)
 
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
@@ -432,6 +433,8 @@ class SearchHandler:
 
 		results = []
 		for i in range(wantedNNs):
+			if resqueue.empty():
+				break
 			results.append(resqueue.get())
 
 		return results
