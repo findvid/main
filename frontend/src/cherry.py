@@ -391,44 +391,47 @@ class Root(object):
 
 		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
 		video = VIDEOS.find_one({'_id': str(vidid), 'removed':{'$not':{'$eq': True}}}, {'scenes' : 0})
-		fps = int(video['fps'])
-		second = float(second)
-		frame = int(fps*second)
-
-		sceneid = 0
-		
-		for i,endframe in enumerate(video['cuts']):
-			if frame < endframe:
-				sceneid = i-1
-				break
-
-		similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
-
-		HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
-
-		content = ""
-		if not similarScenes:
-			content = 'No Scenes found for your search query.'
+		if video == None:
+			content = "The source video dosen't exist (anymore)."
 		else:
-			scenes = []
-			for similarScene in similarScenes:
-				if similarScene == None:
-					continue
+			fps = int(video['fps'])
+			second = float(second)
+			frame = int(fps*second)
 
-				distance = similarScene[0]
-				similarVidid = similarScene[1][0]
-				similarSceneid = similarScene[1][1]
+			sceneid = 0
+		
+			for i,endframe in enumerate(video['cuts']):
+				if frame < endframe:
+					sceneid = i-1
+					break
 
-				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+			similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
 
-				simPercent = int(self.TREE.distQuality(distance) * 100)
+			HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
 
-				sceneConfig = self.configScene(similarVideo, similarSceneid)
-				sceneConfig.update ({
-					'hue': str(self.calcHue(simPercent)),
-					'value': str(simPercent)
-				})
-				content += self.renderTemplate('similarscene.html', sceneConfig)
+			content = ""
+			if not similarScenes:
+				content = 'No Scenes found for your search query.'
+			else:
+				scenes = []
+				for similarScene in similarScenes:
+					if similarScene == None:
+						continue
+
+					distance = similarScene[0]
+					similarVidid = similarScene[1][0]
+					similarSceneid = similarScene[1][1]
+
+					similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+
+					simPercent = int(self.TREE.distQuality(distance) * 100)
+
+					sceneConfig = self.configScene(similarVideo, similarSceneid)
+					sceneConfig.update ({
+						'hue': str(self.calcHue(simPercent)),
+						'value': str(simPercent)
+					})
+					content += self.renderTemplate('similarscene.html', sceneConfig)
 
 		config = {
 			'title': 'Found Scenes',
@@ -560,8 +563,6 @@ class Root(object):
 
 		#thread = threading.Thread(target=self.buildNewTree, args=(SHADOWLOCK, TREE, treeargs))
 		#thread.start()
-
-		print self.TREE.name
 		SHADOWLOCK.acquire()
 		try:
 			if self.TREE.shadowCopy == None:
