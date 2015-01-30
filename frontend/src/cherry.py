@@ -66,10 +66,6 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
-
-# Filename of saved tree
-STORETREE = os.path.join(CONFIG['abspath'], FILENAME)
-
 # Multithreading
 HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
 
@@ -88,10 +84,9 @@ class Root(object):
 	TREE = None
 
 	def __init__(self):
-		# Build tree
-		# TODO: Exception Handling
-		self.TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
-		self.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
+		# Build tree; CURRENTLY DONE IN MAIN
+		#self.TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+		#self.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
 		
 		# Restart index processes in journal
 		cursor = INDEXES.find()
@@ -396,44 +391,47 @@ class Root(object):
 
 		# Get the scene where the frame is from TODO: Think of a more efficient way to do this
 		video = VIDEOS.find_one({'_id': str(vidid), 'removed':{'$not':{'$eq': True}}}, {'scenes' : 0})
-		fps = int(video['fps'])
-		second = float(second)
-		frame = int(fps*second)
-
-		sceneid = 0
-		
-		for i,endframe in enumerate(video['cuts']):
-			if frame < endframe:
-				sceneid = i-1
-				break
-
-		similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
-
-		HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
-
-		content = ""
-		if not similarScenes:
-			content = 'No Scenes found for your search query.'
+		if video == None:
+			content = "The source video dosen't exist (anymore)."
 		else:
-			scenes = []
-			for similarScene in similarScenes:
-				if similarScene == None:
-					continue
+			fps = int(video['fps'])
+			second = float(second)
+			frame = int(fps*second)
 
-				distance = similarScene[0]
-				similarVidid = similarScene[1][0]
-				similarSceneid = similarScene[1][1]
+			sceneid = 0
+		
+			for i,endframe in enumerate(video['cuts']):
+				if frame < endframe:
+					sceneid = i-1
+					break
 
-				similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+			similarScenes = self.TREE.search(vidHash=vidid, sceneId=sceneid, wantedNNs=100, maxTouches=10000, filterChecked=self.filterChecked)
 
-				simPercent = int(self.TREE.distQuality(distance) * 100)
+			HISTORY.insert({'timestamp': time(), 'vidid': vidid, 'sceneid': sceneid, 'similarScenes': similarScenes})
 
-				sceneConfig = self.configScene(similarVideo, similarSceneid)
-				sceneConfig.update ({
-					'hue': str(self.calcHue(simPercent)),
-					'value': str(simPercent)
-				})
-				content += self.renderTemplate('similarscene.html', sceneConfig)
+			content = ""
+			if not similarScenes:
+				content = 'No Scenes found for your search query.'
+			else:
+				scenes = []
+				for similarScene in similarScenes:
+					if similarScene == None:
+						continue
+
+					distance = similarScene[0]
+					similarVidid = similarScene[1][0]
+					similarSceneid = similarScene[1][1]
+
+					similarVideo = VIDEOS.find_one({'_id': similarVidid}, {"scenes" : 0})
+
+					simPercent = int(self.TREE.distQuality(distance) * 100)
+
+					sceneConfig = self.configScene(similarVideo, similarSceneid)
+					sceneConfig.update ({
+						'hue': str(self.calcHue(simPercent)),
+						'value': str(simPercent)
+					})
+					content += self.renderTemplate('similarscene.html', sceneConfig)
 
 		config = {
 			'title': 'Found Scenes',
@@ -538,7 +536,7 @@ class Root(object):
 		lock.acquire()
 		try:
 			if not treeInstance.shadowCopy:
-				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + time(), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
+				treeInstance.shadowCopy = tree.SearchHandler(videos=treeargs['videos'], name=treeargs['storetree'] + "_" + str(int(time())), featureWeight=treeargs['featureWeight'], processHandler=treeargs['handler'])
 			else:
 				return
 		finally:
@@ -565,12 +563,10 @@ class Root(object):
 
 		#thread = threading.Thread(target=self.buildNewTree, args=(SHADOWLOCK, TREE, treeargs))
 		#thread.start()
-
-		print self.TREE.name
 		SHADOWLOCK.acquire()
 		try:
 			if self.TREE.shadowCopy == None:
-				self.TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + str(time()), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+				self.TREE.shadowCopy = tree.SearchHandler(videos=VIDEOS, name=STORETREE + "_" + str(int(time())), featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
 			else:
 				return
 		finally:
@@ -596,6 +592,11 @@ class Root(object):
 
 		allowedExtensions = [".avi", ".mp4", ".mpg", ".mkv", ".flv", ".webm", ".mov"]
 
+		if bool(searchable):
+			priority = 0
+		else:
+			priority = 2
+
 		filename = os.path.basename(cherrypy.request.headers['x-filename'])
 		basename = os.path.splitext(filename)[0]
 		extension = os.path.splitext(filename)[1]
@@ -609,7 +610,7 @@ class Root(object):
 		i = 2
 		while os.path.exists(destination) or os.path.exists(os.path.splitext(destination)[0] + '.mp4'):
 			destination = os.path.join(UPLOADDIR, basename + "_" + "%1.2d" % i + extension)
-			logInfo('File allready exists, renaming to %s!' % destination)
+			logInfo('File already exists, renaming to %s!' % destination)
 
 			i+=1
 
@@ -623,13 +624,19 @@ class Root(object):
 		if extension != '.mp4':
 			newdestination = os.path.join(UPLOADDIR, basename + ".mp4")
 			filename = os.path.basename(newdestination)
-			HANDLER.runTask(priority=1, onComplete=self.indexAndTranscodeComplete, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename, vidHash),name=vidHash, onCompleteArgs=(destination, newdestination, vidHash))
+			HANDLER.runTask(priority=priority, onComplete=self.indexAndTranscodeComplete, target=self.transcodeAndIndexUpload, args=(destination, newdestination, searchable, filename, vidHash),name=vidHash, onCompleteArgs=(destination, newdestination, vidHash))
 		else:
-			HANDLER.runTask(priority=0, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash),name=vidHash, onCompleteArgs=tuple([vidHash]))
+			HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash),name=vidHash, onCompleteArgs=tuple([vidHash]))
 
 	def transcodeAndIndexUpload(self, source, destination, searchable, filename, vidHash, restarted = False):
 		logInfo("Transcoding Video to mp4 - '%s'" % filename)
 	
+		if bool(searchable):
+			priority = 0
+		else:
+			priority = 2
+
+		#Create an entry in "indexes" collection
 		t = time()
 		if not restarted:
 			#Create an entry in "indexes" collection
@@ -723,6 +730,10 @@ class Root(object):
 		
 		raise cherrypy.HTTPRedirect('/')
 
+def killProcesses():
+	HANDLER.nukeEverything()
+	cherrypy.engine.exit()
+
 if __name__ == '__main__':
 
 	cherrypy.config.update({
@@ -760,9 +771,23 @@ if __name__ == '__main__':
 	root = Root()
 	cherrypy.tree.mount(root, '/', conf)
 
+	files = os.listdir(CONFIG['abspath'])
+
+	files = sorted(files)
+
+	treefiles = []
+	for name in files:
+		if name.startswith(FILENAME):
+			treefiles.append(name)
+
+	if len(treefiles) == 0:
+		treename = os.path.join(CONFIG['abspath'], FILENAME + "_" + str(int(time())))
+	else:
+		treename = os.path.join(CONFIG['abspath'], FILENAME + "_" + treefiles[-1].split('_')[-2])
 
 	# Build Searchtree
-
+	root.TREE = tree.SearchHandler(videos=VIDEOS, name=treename, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+	root.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
 
 
 	# Set body size to 0 (unlimited), cause the uploaded files could be really big
@@ -771,6 +796,12 @@ if __name__ == '__main__':
 
 	if hasattr(cherrypy.engine, 'block'):
 		# 3.1 syntax
+		if hasattr(cherrypy.engine, 'signal_handler'):
+			cherrypy.engine.signal_handler.unsubscribe()
+			cherrypy.engine.signal_handler.set_handler('SIGTERM', killProcesses)
+			cherrypy.engine.signal_handler.set_handler('SIGINT', killProcesses)
+			cherrypy.engine.signal_handler.subscribe()
+
 		cherrypy.engine.start()
 		cherrypy.engine.block()
 	else:
