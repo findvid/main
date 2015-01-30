@@ -20,7 +20,8 @@ class ProcessHandler:
 	maxProcesses = 7
 	maxPrioritys = 4
 	debug = False
-	lock = threading.Lock()
+	lock = None
+	isStopped = False
 	waitingProcesses = None
 	pausedProcesses = None
 	activeProcesses = None
@@ -29,6 +30,9 @@ class ProcessHandler:
 		self.maxProcesses = maxProcesses
 		self.maxPrioritys = maxPrioritys
 		self.debug = debug
+
+		self.isStopped = False
+		self.lock = threading.Lock()
 		
 		self.waitingProcesses = [[] for i in range(self.maxPrioritys)]
 		self.pausedProcesses = [[] for i in range(self.maxPrioritys)]
@@ -156,12 +160,20 @@ class ProcessHandler:
 				res = queue.get(timeout = 1)
 			except Queue.Empty, e:
 				pass
-			if res != False:
-				process.join(timeout = 0)
+			process.join(timeout = 0)
+			# Check if the process ended in a not nice way
 			if process.exitcode != None:
 				poll = False
 				if process.exitcode != 0:
 					res = False
+			# Shoot the process and exit if the server is stopped
+			elif self.isStopped:
+				self.stopProcess(process = process)
+				return
+
+		# Make sure the process gets joined
+		process.join()
+
 		self.update()
 		if onComplete != None:
 			onComplete(res, *onCompleteArgs, **onCompleteKwargs)
@@ -254,6 +266,20 @@ class ProcessHandler:
 				self.lock.release()
 			time.sleep(waitTime)
 
+	"""
+	After calling all processes will get ended (KILLED)
+	"""
+	def nukeEverything(self):
+		self.lock.acquire()
+		try:
+			self.isStopped = True
+			for i in range(self.maxPrioritys):
+				self.waitingProcesses[i] = []
+				self.pausedProcesses[i] = []
+				self.activeProcesses[i] = []
+		finally:
+			self.lock.release()
+
 # Random test code
 
 def fib(n):
@@ -271,11 +297,15 @@ if __name__ == '__main__':
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(0))
 	#ph.runTask(0, printer, fib, args=tuple([38]), name=str(0)+"-FromLoop-"+str(1))
 
-	print ph.runTaskWait(priority=0, target=fib, args=tuple([38]))
+	#print ph.runTaskWait(priority=0, target=fib, args=tuple([38]))
 
 	for prio in range(4):
-		for i in range(10):
+		for i in range(1000):
 			ph.runTask(priority=prio, onComplete=printer, target=fib, args=tuple([34]), name=str(prio)+"-"+str(i))
+
+	time.sleep(5)
+	print "pulling the Nuke"
+	ph.nukeEverything()
 
 	ph.waitForPriority(2, 1)
 	print "Done!"
