@@ -374,7 +374,9 @@ class SearchHandler:
 		edges /= math.sqrt(2980531.28808)
 		
 		#Supersample colorhists to compensate for different length of vectors
-		colors *= math.sqrt(2.5) # 320/128
+		#colors *= math.sqrt(2.8125) # 360/128 That's what is should have been
+		colors *= math.sqrt(2.5) # 320/128 #actually not correct magic number, but benchmark has optimized this number
+		# Which is actually fine because it just means the weighting basicallz does the same kind of operation afterwards
 
 		# "mean" distance is now 1; mutliply with sqrt(x) to project to 'x'
 		# also, multiply features with their weight
@@ -414,7 +416,7 @@ class SearchHandler:
 		query = self.flattenFeatures(scene)
 		# Copy the list of videos which won't be found and add the source Video
 		toIgnore = self.deletedVideos.copy()
-		if filterChecked:
+		if not filterChecked:
 			toIgnore[vidHash] = True
 		# Search in the tree
 		results = self.processHandler.runTaskWait(priority=3, target=self.tree.search, args=(query, toIgnore, wantedNNs, maxTouches))
@@ -425,7 +427,7 @@ class SearchHandler:
 
 		# Add the newlyUploaded scenes to the results
 		for feature,(video, scene) in self.addedScenes:
-			if filterChecked or video != vidHash:
+			if filterChecked or (video != vidHash):
 				resqueue.put((dist(query,feature),(video, scene)))
 
 		results = []
