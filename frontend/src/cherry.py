@@ -645,6 +645,7 @@ class Root(object):
 			index["_id"] = vidHash
 			index["timestamp"] = t
 			index["filename"] = filename
+			index["searchable"] = searchable
 			index["type"] = "Indizieren"
 			INDEXES.insert(index)
 
