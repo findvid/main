@@ -718,6 +718,7 @@ class Root(object):
 
 def killProcesses():
 	HANDLER.nukeEverything()
+	cherrypy.engine.exit()
 
 if __name__ == '__main__':
 
@@ -771,7 +772,9 @@ if __name__ == '__main__':
 	if hasattr(cherrypy.engine, 'block'):
 		# 3.1 syntax
 		if hasattr(cherrypy.engine, 'signal_handler'):
+			cherrypy.engine.signal_handler.unsubscribe()
 			cherrypy.engine.signal_handler.set_handler('SIGTERM', killProcesses)
+			cherrypy.engine.signal_handler.set_handler('SIGINT', killProcesses)
 			cherrypy.engine.signal_handler.subscribe()
 
 		cherrypy.engine.start()
