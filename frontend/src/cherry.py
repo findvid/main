@@ -66,20 +66,6 @@ THUMBNAILDIR = os.path.abspath(os.path.join(CONFIG['abspath'], CONFIG['thumbnail
 # Directory for uploads
 UPLOADDIR = os.path.abspath(os.path.join(VIDEODIR, 'uploads'))
 
-files = os.listdir(CONFIG['abspath'])
-
-files = sorted(files)
-
-treefiles = []
-for name in files:
-	if name.startswith(FILENAME):
-		treefiles.append(name)
-
-if len(treefiles) == 0:
-	STORETREE = os.path.join(CONFIG['abspath'], FILENAME + "_" + str(int(time())))
-else:
-	STORETREE = os.path.join(CONFIG['abspath'], FILENAME + "_" + treefiles[-1].split('_')[-2])
-
 # Multithreading
 HANDLER = ph.ProcessHandler(maxProcesses=7, maxPrioritys=4)
 
@@ -723,11 +709,22 @@ if __name__ == '__main__':
 	root = Root()
 	cherrypy.tree.mount(root, '/', conf)
 
+	files = os.listdir(CONFIG['abspath'])
+
+	files = sorted(files)
+
+	treefiles = []
+	for name in files:
+		if name.startswith(FILENAME):
+			treefiles.append(name)
+
+	if len(treefiles) == 0:
+		treename = os.path.join(CONFIG['abspath'], FILENAME + "_" + str(int(time())))
+	else:
+		treename = os.path.join(CONFIG['abspath'], FILENAME + "_" + treefiles[-1].split('_')[-2])
 
 	# Build Searchtree
-
-	# TODO: Exception Handling
-	root.TREE = tree.SearchHandler(videos=VIDEOS, name=STORETREE, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
+	root.TREE = tree.SearchHandler(videos=VIDEOS, name=treename, featureWeight=FEATUREWEIGHT, processHandler=HANDLER)
 	root.TREE.loadOrBuildTree(k=KSPLIT, imax=KMAX, forceRebuild=(ARGS.forcerebuild)) 
 
 
