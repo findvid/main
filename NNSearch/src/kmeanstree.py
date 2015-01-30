@@ -201,6 +201,9 @@ class KMeansTree:
 				else:
 					# add the child to the later to check nodes
 					nextNodes.put((distance,child))
+			
+			if closestChild == None:
+				return
 			# go on searching in the closest child
 			closestChild.traverse(nextNodes, results, query, deletedVideos)
 

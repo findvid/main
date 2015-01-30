@@ -44,8 +44,10 @@ def transcode_video(srcVideo, dstVideo, quiet=False, forceTranscode=True):
 	cmd = "ffmpeg " + opt + " -i " + srcVideo + " -c:v libx264" + quietText + " -preset veryslow -threads 1 " + dstVideo
 	if not quiet:
 		print (cmd)
-	cmd = shlex.split(cmd)
-	return subprocess.call(cmd,shell=False)
+	#primt cmd
+	#cmd = shlex.split(cmd)
+	print cmd
+	return subprocess.call(cmd,shell=True)
 
 #Index the given videofile (rel. path), create thumbnails in designated folder or given alternative
 def index_video(database, collection, fileHash, videofile, searchable=True, uploaded=False, thumbpath = None):

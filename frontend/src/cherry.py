@@ -636,8 +636,8 @@ class Root(object):
 
 		#if source != destination:
 		#	os.remove(destination)
-
-		HANDLER.runTask(priority=priority, onComplete=self.indexComplete, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, onCompleteArgs=tuple([vidHash]), name=vidHash)
+		result = HANDLER.runTaskWait(priority=priority, target=self.indexUpload, args=(searchable, filename, vidHash), kwargs={'restarted' : restarted}, name=vidHash)
+		self.indexComplete(result, vidHash)
 
 	def indexUpload(self, searchable, filename, vidHash, restarted = False):
 		logInfo("Indexing Video - '%s'" % filename)
