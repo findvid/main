@@ -36,9 +36,9 @@ histograms: src/histograms.c
 readframe: src/readframe.c
 	gcc $(CFLAGS) src/readframe.c -o readframe $(LIBSFFMPEG)
 
-histograms_test: unittests/histograms_test.cc obj/histograms.o
+histograms_test: unittests/histograms_test.cc obj/histograms.o obj/largelist.o
 	g++ -c $(CFLAGS) unittests/histograms_test.cc -o obj/histograms_test.o
-	g++ $(CFLAGS) obj/histograms_test.o obj/histograms.o -o histograms_test -lgtest -lpthread $(LIBSFFMPEG)
+	g++ $(CFLAGS) obj/histograms_test.o obj/histograms.o obj/largelist.o -o histograms_test -lgtest -lpthread $(LIBSFFMPEG)
 
 shotbounds_test: unittests/shotbounds_test.cc obj/shotbounds.o obj/histograms.o obj/edgedetect.o obj/largelist.o
 	g++ -c $(CFLAGS) unittests/shotbounds_test.cc -o obj/shotbounds_test.o
